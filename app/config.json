@@ -1,0 +1,8 @@
+{
+	"scraper": {
+		"optivum_base_url": "https://zsem.edu.pl/plany/plany/",
+		"division_endpoint": "o%d.html",
+		"teacher_endpoint": "n%d.html",
+		"room_endpoint": "s%d.html"
+	}
+}
