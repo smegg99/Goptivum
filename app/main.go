@@ -17,5 +17,10 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println(scraper.ScrapeDivision(1))
+	division, err := scraper.ScrapeDivision(1)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(division.Schedule.String())
 }

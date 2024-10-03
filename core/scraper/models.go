@@ -76,9 +76,15 @@ func (l Lesson) String() string {
 	return fmt.Sprintf("[%s %s %s %s %s]", l.FullName, l.Teacher, l.Room, l.Division, l.TimeRange)
 }
 
-// Schedule is a 3D array of lessons, first dimension is day,
-// second is the lesson number, third are the lessons
-type Schedule [][][]Lesson
+type Schedule [][]Lesson
+
+func (s Schedule) String() string {
+	str := ""
+	for _, lessons := range s {
+		str += fmt.Sprintf("\n%v\n", lessons)
+	}
+	return str
+}
 
 type Division struct {
 	Index      uint     `json:"index"`

@@ -45,6 +45,11 @@ func parseTimeRange(s string) (TimeRange, error) {
 
 func parseLesson(rowElement *goquery.Selection, timeRange TimeRange) (Lesson, error) {
 	lessonName := rowElement.Find("span.p").First().Text()
+	// Some lessons contain only the table data with embedded text only
+	if lessonName == "" {
+		lessonName = rowElement.Text()
+	}
+
 	teacher := rowElement.Find("a.n").First().Text()
 	room := rowElement.Find("a.s").First().Text()
 	lesson := Lesson{
@@ -104,6 +109,7 @@ func scrapeSchedule(doc *goquery.Document) (Schedule, error) {
 	}
 
 	columnNumber := 0
+	dayOfWeek := 0
 	columnsCount := firstRow.Children().Length()
 
 	rowsLength := doc.Find("table.tabela > tbody > tr > td.nr").Length() + 1
@@ -111,6 +117,12 @@ func scrapeSchedule(doc *goquery.Document) (Schedule, error) {
 	
 	// First row is the table headers row so it doesn't count
 	scheduleStartColumn := columnsCount - (lessonsLength / (rowsLength - 1))
+	workDays := columnsCount - scheduleStartColumn
+
+	schedule = make(Schedule, workDays)
+	for i := range schedule {
+		schedule[i] = []Lesson{}
+	}
 
 	doc.Find("table.tabela > tbody > tr > td").Each(func(i int, rowElement *goquery.Selection) {
 		if columnNumber >= columnsCount {
@@ -119,8 +131,7 @@ func scrapeSchedule(doc *goquery.Document) (Schedule, error) {
 		} else {
 			columnNumber++
 		}
-		fmt.Println("column:", columnNumber, "text:", rowElement.Text())
-		
+
 		// first column is row count
 		// second column is time range
 		if columnNumber == 2 {
@@ -132,6 +143,12 @@ func scrapeSchedule(doc *goquery.Document) (Schedule, error) {
 			timeRange = _timerange
 		// other columns are lessons
 		} else if columnNumber > scheduleStartColumn {
+			if dayOfWeek < workDays {
+				dayOfWeek++
+			} else {
+				dayOfWeek = 1
+			}
+
 			if utils.IsEmptyOrInvisible(rowElement.Text()) {
 				return
 			}
@@ -140,9 +157,9 @@ func scrapeSchedule(doc *goquery.Document) (Schedule, error) {
 				fmt.Println("error parsing lessons", err)
 				return
 			}
-			//dayOfWeek := columnNumber - scheduleStartColumn + 1
-			fmt.Println("lessons:", lessons)
-			//schedule[dayOfWeek] = append(schedule[dayOfWeek], lessons)
+			fmt.Println("dayOfWeek:", dayOfWeek, "lessons:", lessons, workDays)
+
+			schedule[dayOfWeek-1] = append(schedule[dayOfWeek-1], lessons...)
 		}
 	})
 
@@ -181,7 +198,6 @@ func ScrapeDivision(index uint) (*Division, error) {
 	}
 	division.Designator = designator
 	division.FullName = fullName
-	fmt.Printf("designator: %s\nfull name: %s\n", division.Designator, division.FullName)
 
 	schedule, err := scrapeSchedule(doc)
 	if err != nil {
