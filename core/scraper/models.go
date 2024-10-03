@@ -59,9 +59,7 @@ type Teacher struct {
 
 type Room struct {
 	Designator   string   `json:"designator"`
-	FullName     string   `json:"full_name"`
 	Schedule     Schedule `json:"schedule"`
-	BuildingName string   `json:"building_name"`
 }
 
 type Lesson struct {

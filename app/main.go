@@ -23,4 +23,18 @@ func main() {
 	}
 
 	fmt.Println(division.Schedule.String())
+	
+	teacher, err := scraper.ScrapeTeacher(1)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(teacher)
+
+	room, err := scraper.ScrapeRoom(1)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(room)
 }
