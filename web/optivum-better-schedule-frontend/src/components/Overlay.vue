@@ -1,5 +1,5 @@
 <template>
-  <v-layout class="overlay fill-height">
+  <v-layout class="fill-height">
     <v-navigation-drawer v-model="drawer">
       <v-slide-x-transition appear>
         <v-list nav>
@@ -18,7 +18,7 @@
     <v-app-bar border="b" class="ps-4" flat>
       <v-app-bar-nav-icon v-if="$vuetify.display.mdAndDown" @click="drawer = !drawer" />
       <v-slide-y-transition appear>
-        <v-app-bar-title>Application</v-app-bar-title>
+        <v-app-bar-title>Optivum Schedule Better Frontend</v-app-bar-title>
       </v-slide-y-transition>
     </v-app-bar>
 

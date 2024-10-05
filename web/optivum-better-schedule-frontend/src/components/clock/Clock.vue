@@ -12,14 +12,43 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import DigitalClockDigit from './Digit.vue';
 
 const time = ref(new Date());
+let updateInterval: ReturnType<typeof setInterval> | null = null;
 
-setInterval(() => {
-	time.value = new Date();
-}, 1000);
+const startClock = () => {
+	updateInterval = setInterval(() => {
+		time.value = new Date();
+	}, 1000);
+};
+
+const stopClock = () => {
+	if (updateInterval) {
+		clearInterval(updateInterval);
+		updateInterval = null;
+	}
+};
+
+const handleVisibilityChange = () => {
+	if (document.hidden) {
+		stopClock();
+	} else {
+		time.value = new Date();  // Immediate update
+		startClock();
+	}
+};
+
+onMounted(() => {
+	startClock();  // Start clock when component is mounted
+	document.addEventListener('visibilitychange', handleVisibilityChange);
+});
+
+onUnmounted(() => {
+	stopClock();  // Clean up interval
+	document.removeEventListener('visibilitychange', handleVisibilityChange);
+});
 
 const getSeconds = computed(() => time.value.getSeconds().toString().padStart(2, '0'));
 const getMinutes = computed(() => time.value.getMinutes().toString().padStart(2, '0'));

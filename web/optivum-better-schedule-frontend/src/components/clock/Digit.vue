@@ -35,14 +35,14 @@ const { value } = defineProps({
 	position: relative;
 	width: 100%;
 	height: 100%;
-	overflow: visible;
+	overflow: hidden;
 }
 
 .digit-flip {
 	font-size: 12vw;
 	font-weight: bold;
 	color: #f7fafc;
-	transition: transform 0.5s ease, opacity 0.5s ease;
+	transition: transform 1s ease, opacity 1s ease;
 	transform-origin: center;
 	position: absolute;
 	width: 100%;
@@ -50,27 +50,24 @@ const { value } = defineProps({
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	overflow: visible;
+	overflow: hidden;
 }
 
 .flip-enter-active,
 .flip-leave-active {
-	transition: transform 0.5s ease, opacity 0.5s ease;
+	transition: transform 1s ease, opacity 1s ease;
 }
 
 .flip-enter-from {
-	transform: translateY(50%);
-	opacity: 0;
+	transform: translateY(100%);
 }
 
 .flip-enter-to {
 	transform: translateY(0);
-	opacity: 1;
 }
 
 .flip-leave-to {
-	transform: translateY(-50%);
-	opacity: 0;
+	transform: translateY(-100%);
 }
 
 </style>
