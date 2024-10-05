@@ -1,12 +1,10 @@
 <template>
-	<div class="digit-container">
-		<div class="digit">
-			<transition-group name="flip" tag="div" mode="out-in">
-				<div v-for="(char, index) in value" :key="`${char}-${index}`" class="digit-flip">
-					{{ char }}
-				</div>
-			</transition-group>
-		</div>
+	<div class="digit">
+		<transition-group name="flip" tag="div" mode="out-in" class="digit-group">
+			<div v-for="(char, index) in value" :key="`${char}-${index}`" class="digit-flip">
+				{{ char }}
+			</div>
+		</transition-group>
 	</div>
 </template>
 
@@ -15,38 +13,44 @@ const { value } = defineProps({
 	value: {
 		type: String,
 		required: true,
-	},
+	}
 });
 </script>
 
 <style scoped>
-.digit-container {
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	overflow: visible;
-	user-select: none;
-}
-
 .digit {
 	display: flex;
-	position: relative;
-	height: 5rem;
-	width: 2.5rem;
+	align-items: center;
+	justify-content: center;
+	width: 8vw;
+	height: 12vw;
 	overflow: visible;
 	user-select: none;
+	overflow: visible;
+	transform-origin: center;
+	display: flex;
+}
+
+.digit-group {
+	position: relative;
+	width: 100%;
+	height: 100%;
+	overflow: visible;
 }
 
 .digit-flip {
-	font-size: 4rem;
+	font-size: 12vw;
 	font-weight: bold;
 	color: #f7fafc;
-	line-height: 5rem;
 	transition: transform 0.5s ease, opacity 0.5s ease;
 	transform-origin: center;
-	width: 100%;
 	position: absolute;
-	user-select: none;
+	width: 100%;
+	height: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	overflow: visible;
 }
 
 .flip-enter-active,
@@ -55,17 +59,18 @@ const { value } = defineProps({
 }
 
 .flip-enter-from {
-	transform: translateY(-120%) scale(0.9);
+	transform: translateY(50%);
 	opacity: 0;
 }
 
 .flip-enter-to {
-	transform: translateY(10%);
+	transform: translateY(0);
 	opacity: 1;
 }
 
 .flip-leave-to {
-	transform: translateY(100%) scale(0.9);
+	transform: translateY(-50%);
 	opacity: 0;
 }
+
 </style>

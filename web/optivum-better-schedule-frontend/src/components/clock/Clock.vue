@@ -1,12 +1,10 @@
 <template>
-	<v-container class="d-flex justify-center align-center">
-		<v-row justify="center" align="center" class="bg-gray-900 rounded-lg">
-			<v-col v-for="(unit, index) in timeUnits" :key="index" class="d-flex flex-column align-center">
-				<div class="d-flex">
+	<v-container class="d-flex justify-center align-center" fluid>
+		<v-row class="d-flex justify-center align-center flex-nowrap" no-gutters>
+			<v-col v-for="(unit, index) in timeUnits" :key="index" class="d-flex align-center" cols="auto">
+				<div class="digit-group">
 					<DigitalClockDigit v-for="(digit, digitIndex) in unit.digits" :key="digitIndex" :value="digit" />
-				</div>
-				<div class="text-gray-400 uppercase text-xs font-weight-bold">
-					{{ unit.label }}
+					<span v-if="index < timeUnits.length - 1" class="colon">:</span>
 				</div>
 			</v-col>
 		</v-row>
@@ -37,19 +35,17 @@ const timeUnits = computed(() => [
 </script>
 
 <style scoped>
-.bg-gray-900 {
-	background-color: #1a202c;
+.digit-group {
+	display: flex;
+	align-items: center;
+	overflow: visible;
 }
 
-.text-gray-400 {
-	color: #cbd5e0;
-}
-
-.uppercase {
-	text-transform: uppercase;
-}
-
-.font-weight-bold {
+.colon {
+	font-size: 12vw;
 	font-weight: bold;
+	color: #f7fafc;
+	user-select: none;
+	line-height: 1;
 }
 </style>

@@ -1,7 +1,7 @@
 <template>
   <v-app>
     <v-main>
-      <Overlay></Overlay>
+      <Overlay />
     </v-main>
   </v-app>
 </template>
@@ -9,3 +9,10 @@
 <script setup lang="ts">
 
 </script>
+
+<style scoped>
+html,
+body {
+  overflow: auto;
+}
+</style>

@@ -1,5 +1,5 @@
 <template>
-  <v-layout class="fill-height">
+  <v-layout class="overlay fill-height">
     <v-navigation-drawer v-model="drawer">
       <v-slide-x-transition appear>
         <v-list nav>
