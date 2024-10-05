@@ -30,8 +30,8 @@ func (t TimeString) ToTimestamp() (Timestamp, error) {
 }
 
 type Timestamp struct {
-	Hour   int `json:"h"`
-	Minute int `json:"m"`
+	Hour   int `json:"hour"`
+	Minute int `json:"minute"`
 }
 
 func (t Timestamp) String() string {
