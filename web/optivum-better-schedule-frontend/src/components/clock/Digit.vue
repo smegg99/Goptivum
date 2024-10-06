@@ -1,3 +1,4 @@
+<!-- Digit.vue -->
 <template>
 	<div class="digit">
 		<transition-group name="flip" tag="div" mode="out-in" class="digit-group">
@@ -24,24 +25,24 @@ const { value } = defineProps({
 	justify-content: center;
 	width: 8vw;
 	height: 12vw;
-	overflow: visible;
 	user-select: none;
-	overflow: visible;
-	transform-origin: center;
 	display: flex;
 }
 
 .digit-group {
 	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 	width: 100%;
 	height: 100%;
-	overflow: hidden;
+	margin-top: 2vw;
+	overflow: visible;
 }
 
 .digit-flip {
 	font-size: 12vw;
 	font-weight: bold;
-	color: #f7fafc;
 	transition: transform 1s ease, opacity 1s ease;
 	transform-origin: center;
 	position: absolute;
@@ -53,21 +54,23 @@ const { value } = defineProps({
 	overflow: hidden;
 }
 
-.flip-enter-active,
+.flip-enter-active {
+	transition: transform 0.45s ease, opacity 0.45s ease;
+}
+
 .flip-leave-active {
-	transition: transform 1s ease, opacity 1s ease;
+	transition: transform 0.75s ease, opacity 0.75s ease;
 }
 
 .flip-enter-from {
-	transform: translateY(100%);
+	transform: translateY(-120%);
 }
 
 .flip-enter-to {
-	transform: translateY(0);
+	transform: translateY(10%);
 }
 
 .flip-leave-to {
-	transform: translateY(-100%);
+	transform: translateY(120%);
 }
-
 </style>

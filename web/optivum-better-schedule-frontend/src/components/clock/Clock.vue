@@ -1,14 +1,15 @@
+<!-- Clock.vue -->
 <template>
-	<v-container class="d-flex justify-center align-center" fluid>
-		<v-row class="d-flex justify-center align-center flex-nowrap" no-gutters>
+	<v-row class="d-flex justify-center align-center flex-nowrap" no-gutters>
+		<v-card class="clock-card d-flex flex-nowrap elevation-8 rounded-pill">
 			<v-col v-for="(unit, index) in timeUnits" :key="index" class="d-flex align-center" cols="auto">
 				<div class="digit-group">
 					<DigitalClockDigit v-for="(digit, digitIndex) in unit.digits" :key="digitIndex" :value="digit" />
 					<span v-if="index < timeUnits.length - 1" class="colon">:</span>
 				</div>
 			</v-col>
-		</v-row>
-	</v-container>
+		</v-card>
+	</v-row>
 </template>
 
 <script lang="ts" setup>
@@ -35,18 +36,18 @@ const handleVisibilityChange = () => {
 	if (document.hidden) {
 		stopClock();
 	} else {
-		time.value = new Date();  // Immediate update
+		time.value = new Date();
 		startClock();
 	}
 };
 
 onMounted(() => {
-	startClock();  // Start clock when component is mounted
+	startClock();
 	document.addEventListener('visibilitychange', handleVisibilityChange);
 });
 
 onUnmounted(() => {
-	stopClock();  // Clean up interval
+	stopClock();
 	document.removeEventListener('visibilitychange', handleVisibilityChange);
 });
 
@@ -64,16 +65,29 @@ const timeUnits = computed(() => [
 </script>
 
 <style scoped>
+.clock-card {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	padding: 2rem;
+}
+
 .digit-group {
 	display: flex;
 	align-items: center;
+	justify-content: center;
+	/* Center the digits */
 	overflow: visible;
+}
+
+.v-row {
+	flex-grow: 1;
+	/* Allow row to expand */
 }
 
 .colon {
 	font-size: 12vw;
 	font-weight: bold;
-	color: #f7fafc;
 	user-select: none;
 	line-height: 1;
 }

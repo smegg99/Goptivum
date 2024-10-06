@@ -1,3 +1,4 @@
+<!-- Settings.vue -->
 <template>
 	<v-sheet>
 		<h1>Settings</h1>
