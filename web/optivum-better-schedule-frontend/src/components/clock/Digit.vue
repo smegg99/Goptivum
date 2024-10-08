@@ -63,7 +63,7 @@ const { value } = defineProps({
 }
 
 .flip-enter-from {
-	transform: translateY(-120%);
+	transform: translateY(-140%);
 }
 
 .flip-enter-to {
@@ -71,6 +71,6 @@ const { value } = defineProps({
 }
 
 .flip-leave-to {
-	transform: translateY(120%);
+	transform: translateY(140%);
 }
 </style>

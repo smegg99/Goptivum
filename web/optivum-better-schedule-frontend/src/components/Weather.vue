@@ -1,105 +1,84 @@
+<!-- Weather.vue -->
 <template>
-	<div class="weather-terminal">
-		<h2>Weather Report: {{ city }}</h2>
-		<pre v-if="weatherData">{{ formattedWeather }}</pre>
-		<p v-else>Loading weather data...</p>
-		<p v-if="error" class="error">{{ error }}</p>
-	</div>
+	<v-row class="d-flex justify-center align-center flex-nowrap" no-gutters>
+		<v-card class="weather-card" flat>
+			<v-card-title>
+				<span class="location-info">Nowy Sącz</span>
+			</v-card-title>
+			<v-card-subtitle class="d-flex flex-column align-start">
+				<div class="weather-info d-flex align-center mb-4">
+					<v-icon class="condition-icon">mdi-weather-lightning-rainy</v-icon>
+					<span class="temperature">35°</span>
+				</div>
+				<div class="d-flex flex-column">
+					<span>Thundershower</span>
+					<span class="text-muted">Lightly Polluted</span>
+				</div>
+			</v-card-subtitle>
+			<v-divider></v-divider>
+			<v-card-text>
+				<v-row justify="space-around" class="forecast mt-4">
+					<v-col v-for="day in forecast" :key="day.name" class="text-center muted-text">
+						<div class="forecast-day">{{ day.name }}</div>
+						<v-icon class="forecast-icon">{{ day.icon }}</v-icon>
+						<div class="forecast-temp">{{ day.temp }}</div>
+					</v-col>
+				</v-row>
+			</v-card-text>
+		</v-card>
+	</v-row>
 </template>
 
-<script lang="ts" setup>
-import { ref, onMounted, computed } from 'vue';
-import axios from 'axios';
+<script setup lang="ts">
+import { ref } from 'vue';
 
-// Define the structure of the weather data received from the API
-interface WeatherResponse {
-	current: string;
-	forecast: ForecastResponse;
-}
-
-interface ForecastResponse {
-	weather: WeatherDetails[];
-}
-
-interface WeatherDetails {
-	hourly: HourlyForecast[];
-}
-
-interface HourlyForecast {
-	time: string;
-	weatherDesc: { value: string }[];
-	temp_C: string;
-	windSpeedKmph: string;
-	precipMM: string;
-}
-
-// Props declaration
-const props = defineProps<{
-	city: string;
-}>();
-
-// Reactive state
-const weatherData = ref<WeatherResponse | null>(null);
-const error = ref<string | null>(null);
-
-// Fetch detailed weather data from the API
-const fetchWeather = async () => {
-	try {
-		// Fetch the current weather data
-		const response = await axios.get(`https://wttr.in/${props.city}?format=%C+%t%n%w%u+%p+%P`);
-
-		// Fetch the 3-day weather forecast data
-		const forecastResponse = await axios.get(`https://wttr.in/${props.city}?format=j1`);
-
-		weatherData.value = {
-			current: response.data,
-			forecast: forecastResponse.data,
-		};
-	} catch (err) {
-		error.value = 'Error fetching weather data';
-	}
-};
-
-// Function to format the weather data for terminal-like output
-const formattedWeather = computed(() => {
-	if (!weatherData.value) return '';
-
-	const { current, forecast } = weatherData.value;
-	const currentWeather = `Weather: ${current}`;
-
-	// Format forecast data
-	const forecastData = forecast.weather[0].hourly.map((hour: HourlyForecast) => {
-		const time = new Date(hour.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-		return `│ ${time} | ${hour.weatherDesc[0].value} ${hour.temp_C} °C | Wind: ${hour.windSpeedKmph} km/h | Rain: ${hour.precipMM} mm`;
-	}).join('\n');
-
-	return `
-${currentWeather}
-┌──────────────────────────────┐
-│ Hourly Forecast              │
-└──────────────────────────────┘
-${forecastData}
-Follow @igor_chubin wttr.in pyphoon wego
-  `;
-});
-
-// Lifecycle hook to fetch weather data on mount
-onMounted(() => {
-	fetchWeather();
-});
+const forecast = ref([
+	{ name: 'Tues', icon: 'mdi-weather-rainy', temp: '-2°/-10°' },
+	{ name: 'Wed', icon: 'mdi-weather-cloudy', temp: '-2°/-10°' },
+	{ name: 'Thur', icon: 'mdi-weather-cloudy', temp: '-2°/-10°' },
+]);
 </script>
 
 <style scoped>
-.weather-terminal {
-	background-color: black;
-	color: white;
-	padding: 1rem;
-	border-radius: 5px;
-	font-family: monospace;
-	white-space: pre;
+.location-info {
+	font-size: 3vw;
 }
 
-.error {
-	color: red;
+.weather-card {
+	width: 100%;
+	height: 100%;
+	padding: 2vw;
+	background-color: transparent;
+}
+
+.weather-info {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+.condition-icon {
+	font-size: 2vw;
+	margin-right: 0.5vw;
+}
+
+.temperature {
+	font-size: 2vw;
+	font-weight: bold;
+}
+
+.forecast-day,
+.forecast-temp {
+	font-size: 1.2vw;
+	color: rgba(100, 100, 100, 0.8);
+}
+
+.forecast-icon {
+	font-size: 2vw;
+	color: rgba(100, 100, 100, 0.8);
+}
+
+.muted-text {
+	color: rgba(100, 100, 100, 0.8);
 }
 </style>

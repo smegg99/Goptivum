@@ -17,24 +17,24 @@ func main() {
 		panic(err)
 	}
 
-	division, err := scraper.ScrapeDivision(1)
+	division, err := scraper.ScrapeDivision(4)
 	if err != nil {
 		panic(err)
 	}
 
 	fmt.Println(division.Schedule.String())
 	
-	teacher, err := scraper.ScrapeTeacher(1)
-	if err != nil {
-		panic(err)
-	}
+	// teacher, err := scraper.ScrapeTeacher(1)
+	// if err != nil {
+	// 	panic(err)
+	// }
 
-	fmt.Println(teacher)
+	// fmt.Println(teacher)
 
-	room, err := scraper.ScrapeRoom(1)
-	if err != nil {
-		panic(err)
-	}
+	// room, err := scraper.ScrapeRoom(1)
+	// if err != nil {
+	// 	panic(err)
+	// }
 
-	fmt.Println(room)
+	// fmt.Println(room)
 }

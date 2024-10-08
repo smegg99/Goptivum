@@ -1,9 +1,7 @@
 <!-- App.vue -->
 <template>
   <v-app>
-    <v-main>
-      <Overlay />
-    </v-main>
+    <Overlay />
   </v-app>
 </template>
 
