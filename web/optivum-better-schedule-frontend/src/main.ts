@@ -6,7 +6,9 @@
 
 // Plugins
 import { registerPlugins } from '@/plugins'
-import vuetify from './plugins/vuetify'; // Make sure this path is correct
+import 'vuetify/styles';
+import vuetify from './plugins/vuetify';
+import '@mdi/font/css/materialdesignicons.css';
 
 // Components
 import App from './App.vue'

@@ -5,7 +5,13 @@
       <v-slide-x-transition appear>
         <v-list nav density="default">
           <v-list-item v-for="item in items" :key="item.title" :to="item.route" nav link
-            :prepend-icon="item.prependIcon" :title="item.title" class="ma-1">
+            class="ma-2 nav-item overflow-visible" rounded="pill">
+            <template #prepend>
+              <v-icon>{{ item.prependIcon }}</v-icon>
+            </template>
+            <template #title>
+              <span>{{ item.title }}</span>
+            </template>
           </v-list-item>
         </v-list>
       </v-slide-x-transition>
@@ -14,15 +20,25 @@
     <template #append>
       <v-slide-y-reverse-transition appear>
         <v-list nav density="default">
-          <v-list-item class="ma-1" nav link prepend-icon="mdi-cog-outline" title="Settings" :to="'/settings'" />
+          <v-list-item class="ma-3 nav-item overflow-visible" nav link :to="'/settings'" rounded="pill">
+            <template #prepend>
+              <v-icon>mdi-cog-outline</v-icon>
+            </template>
+            <template #title>
+              <span>Settings</span>
+            </template>
+          </v-list-item>
         </v-list>
       </v-slide-y-reverse-transition>
     </template>
   </v-navigation-drawer>
 
-  <v-card class="menu-card rounded-pill" elevation="8">
-    <v-btn icon="mdi-menu" @click=" drawer=!drawer" />
-  </v-card>
+  <v-slide-x-transition appear>
+    <v-card class="menu-card rounded-pill pa-8" elevation="8" @click="drawer = !drawer">
+      <v-btn icon="mdi-menu" :ripple="false" v-ripple />
+    </v-card>
+  </v-slide-x-transition>
+
 
   <v-main>
     <div class="fill-height">
@@ -34,9 +50,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref } from 'vue';
 
-const drawer = ref(true)
+const drawer = ref(true);
 
 const items = ref([
   {
@@ -44,12 +60,47 @@ const items = ref([
     prependIcon: 'mdi-view-dashboard-outline',
     route: '/',
   },
-])
+  {
+    title: 'Divisions',
+    prependIcon: 'mdi-school-outline',
+    route: '/divisions',
+  },
+  {
+    title: 'Teachers',
+    prependIcon: 'mdi-human-male-board',
+    route: '/teachers',
+  },
+  {
+    title: 'Classrooms',
+    prependIcon: 'mdi-door',
+    route: '/classrooms',
+  },
+]);
 </script>
 
 <style scoped>
+:deep(.v-list-item-title) {
+  overflow: visible !important;
+  white-space: normal;
+  word-wrap: break-word;
+}
+
+:deep(.v-list-item__content) {
+  overflow: visible !important;
+  white-space: normal;
+  word-wrap: break-word;
+}
+
+.nav-item :deep(.v-list-item-title) {
+  font-size: 1.25rem;
+}
+
+.nav-item :deep(.v-icon) {
+  font-size: 1.5rem;
+}
+
 .no-scroll {
-  overflow: hidden;
+  overflow: hidden !important;
 }
 
 .grid-container {
@@ -69,6 +120,8 @@ const items = ref([
   align-items: center;
   justify-content: center;
   position: fixed;
+  top: 16px;
+  left: 16px;
 }
 
 .v-btn {
