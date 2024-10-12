@@ -2,10 +2,14 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 
 	"smuggr.xyz/optivum-bsf/common/config"
 	"smuggr.xyz/optivum-bsf/core/scraper"
+
+	"smuggr.xyz/optivum-bsf/api/v1"
 )
 
 func main() {
@@ -17,24 +21,26 @@ func main() {
 		panic(err)
 	}
 
+	errCh := v1.Initialize()
+	defer v1.Cleanup()
+
+	<- errCh
+
 	division, err := scraper.ScrapeDivision(4)
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println(division.Schedule.String())
-	
-	// teacher, err := scraper.ScrapeTeacher(1)
-	// if err != nil {
-	// 	panic(err)
-	// }
+	file, err := os.Create("division.json")
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
 
-	// fmt.Println(teacher)
+	encoder := json.NewEncoder(file)
+	if err := encoder.Encode(division); err != nil {
+		panic(err)
+	}
 
-	// room, err := scraper.ScrapeRoom(1)
-	// if err != nil {
-	// 	panic(err)
-	// }
-
-	// fmt.Println(room)
+	fmt.Println("Division data has been written to division.json")
 }

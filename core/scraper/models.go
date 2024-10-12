@@ -74,7 +74,7 @@ func (l Lesson) String() string {
 	return fmt.Sprintf("[%s %s %s %s %s]", l.FullName, l.Teacher, l.Room, l.Division, l.TimeRange)
 }
 
-type Schedule [][]Lesson
+type Schedule [][][]Lesson
 
 func (s Schedule) String() string {
 	str := ""

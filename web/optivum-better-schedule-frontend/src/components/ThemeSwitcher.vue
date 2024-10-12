@@ -1,18 +1,18 @@
 <template>
 	<v-container class="fill-height d-flex justify-center align-center">
 		<div class="text-center">
-			<span class="theme-title">Theme</span>
+			<span class="theme-title">{{ t('theme.name') }}</span>
 			<v-btn-toggle v-model="currentTheme" mandatory class="ma-4 elevation-8" color="tertiary" variant="outlined">
 				<v-btn value="dark">
-					<span>Dark</span>
+					<span>{{ t('theme.options.dark') }}</span>
 					<v-icon end>mdi-weather-night</v-icon>
 				</v-btn>
 				<v-btn value="auto">
-					<span>Auto</span>
+					<span>{{ t('theme.options.auto') }}</span>
 					<v-icon end>mdi-auto-mode</v-icon>
 				</v-btn>
 				<v-btn value="light">
-					<span>Light</span>
+					<span>{{ t('theme.options.light') }}</span>
 					<v-icon end>mdi-weather-sunny</v-icon>
 				</v-btn>
 			</v-btn-toggle>
@@ -21,8 +21,11 @@
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n';
 import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { useTheme } from 'vuetify';
+
+const { t } = useI18n();
 
 const currentTheme = ref('auto');
 const theme = useTheme();

@@ -12,7 +12,6 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-var GeneralConfig config.GeneralConfig
 var Config config.ScraperConfig
 
 func splitDivisionTitle(s string) (string, string) {
@@ -55,7 +54,8 @@ func parseTimeRange(s string) (TimeRange, error) {
 	return TimeRange{Start: start, End: end}, nil
 }
 
-func parseLesson(rowElement *goquery.Selection, timeRange TimeRange) (Lesson, error) {
+// TODO: Refactor the divisionDesignator scraping to a separate function
+func parseLesson(rowElement *goquery.Selection, timeRange TimeRange, divisionDesignator string) (Lesson, error) {
 	lessonName := rowElement.Find("span.p").First().Text()
 	// Some lessons contain only the table data with embedded text only
 	if lessonName == "" {
@@ -68,18 +68,19 @@ func parseLesson(rowElement *goquery.Selection, timeRange TimeRange) (Lesson, er
 		TimeRange: timeRange,
 		FullName:  lessonName,
 		Teacher:   teacher,
+		Division:  divisionDesignator,
 		Room:      room,
 	}
 	return lesson, nil
 }
 
-func parseLessons(rowElement *goquery.Selection, timeRange TimeRange) ([]Lesson, error) {
+func parseLessons(rowElement *goquery.Selection, timeRange TimeRange, divisionDesignator string) ([]Lesson, error) {
 	lessons := []Lesson{}
 	innerSpanElements := rowElement.Find("span > span.p")
 	if innerSpanElements.Length() > 1 {
 		innerSpanElements.Each(func(i int, s *goquery.Selection) {
 			parentSelection := s.Parent()
-			lesson, err := parseLesson(parentSelection, timeRange)
+			lesson, err := parseLesson(parentSelection, timeRange, divisionDesignator)
 			if err != nil {
 				fmt.Println("error parsing lesson", err)
 				return
@@ -87,7 +88,7 @@ func parseLessons(rowElement *goquery.Selection, timeRange TimeRange) ([]Lesson,
 			lessons = append(lessons, lesson)
 		})
 	} else {
-		lesson, err := parseLesson(rowElement, timeRange)
+		lesson, err := parseLesson(rowElement, timeRange, divisionDesignator)
 		if err != nil {
 			fmt.Println("error parsing lesson", err)
 			return nil, err
@@ -132,7 +133,7 @@ func scrapeRoomTitle(doc *goquery.Document) (string, error) {
 	return title, nil
 }
 
-func scrapeSchedule(doc *goquery.Document) (Schedule, error) {
+func scrapeSchedule(doc *goquery.Document, divisionDesignator string) (Schedule, error) {
 	var schedule Schedule
 	var timeRange TimeRange
 
@@ -155,7 +156,7 @@ func scrapeSchedule(doc *goquery.Document) (Schedule, error) {
 
 	schedule = make(Schedule, workDays)
 	for i := range schedule {
-		schedule[i] = []Lesson{}
+		schedule[i] = [][]Lesson{}
 	}
 
 	doc.Find("table.tabela > tbody > tr > td").Each(func(i int, rowElement *goquery.Selection) {
@@ -186,14 +187,14 @@ func scrapeSchedule(doc *goquery.Document) (Schedule, error) {
 			if utils.IsEmptyOrInvisible(rowElement.Text()) {
 				return
 			}
-			lessons, err := parseLessons(rowElement, timeRange)
+			lessons, err := parseLessons(rowElement, timeRange, divisionDesignator)
 			if err != nil {
 				fmt.Println("error parsing lessons", err)
 				return
 			}
 			fmt.Println("dayOfWeek:", dayOfWeek, "lessons:", lessons, workDays)
 
-			schedule[dayOfWeek-1] = append(schedule[dayOfWeek-1], lessons...)
+			schedule[dayOfWeek-1] = append(schedule[dayOfWeek-1], lessons)
 		}
 	})
 
@@ -201,7 +202,7 @@ func scrapeSchedule(doc *goquery.Document) (Schedule, error) {
 }
 
 func ScrapeDivision(index uint) (*Division, error) {
-	endpoint := fmt.Sprintf(Config.DivisionEndpoint, index)
+	endpoint := fmt.Sprintf(Config.Endpoints.Division, index)
 	doc, err := OpenDoc(endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("error opening document: %w", err)
@@ -221,7 +222,7 @@ func ScrapeDivision(index uint) (*Division, error) {
 	division.Designator = designator
 	division.FullName = fullName
 
-	schedule, err := scrapeSchedule(doc)
+	schedule, err := scrapeSchedule(doc, designator)
 	if err != nil {
 		return nil, fmt.Errorf("error scraping division schedule: %w", err)
 	}
@@ -231,7 +232,7 @@ func ScrapeDivision(index uint) (*Division, error) {
 }
 
 func ScrapeTeacher(index uint) (*Teacher, error) {
-	endpoint := fmt.Sprintf(Config.TeacherEndpoint, index)
+	endpoint := fmt.Sprintf(Config.Endpoints.Teacher, index)
 	doc, err := OpenDoc(endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("error opening document: %w", err)
@@ -250,7 +251,7 @@ func ScrapeTeacher(index uint) (*Teacher, error) {
 	teacher.Designator = designator
 	teacher.FullName = fullName
 
-	schedule, err := scrapeSchedule(doc)
+	schedule, err := scrapeSchedule(doc, designator)
 	if err != nil {
 		return nil, fmt.Errorf("error scraping division schedule: %w", err)
 	}
@@ -260,7 +261,7 @@ func ScrapeTeacher(index uint) (*Teacher, error) {
 }
 
 func ScrapeRoom(index uint) (*Room, error) {
-	endpoint := fmt.Sprintf(Config.RoomEndpoint, index)
+	endpoint := fmt.Sprintf(Config.Endpoints.Room, index)
 	doc, err := OpenDoc(endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("error opening document: %w", err)
@@ -277,7 +278,7 @@ func ScrapeRoom(index uint) (*Room, error) {
 	}
 	room.Designator = designator
 
-	schedule, err := scrapeSchedule(doc)
+	schedule, err := scrapeSchedule(doc, designator)
 	if err != nil {
 		return nil, fmt.Errorf("error scraping division schedule: %w", err)
 	}
@@ -287,7 +288,7 @@ func ScrapeRoom(index uint) (*Room, error) {
 }
 
 func OpenDoc(endpoint string) (*goquery.Document, error) {
-	url := Config.OptivumBaseUrl + endpoint
+	url := fmt.Sprintf("%s%s", Config.BaseUrl, endpoint)
 	fmt.Printf("scraping teacher from URL: %s\n", url)
 
 	res, err := http.Get(url)
@@ -310,6 +311,5 @@ func OpenDoc(endpoint string) (*goquery.Document, error) {
 
 func Initialize() error {
 	Config = config.Global.Scraper
-	GeneralConfig = config.Global.General
 	return nil
 }

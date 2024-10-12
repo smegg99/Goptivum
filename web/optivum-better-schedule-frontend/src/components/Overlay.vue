@@ -4,7 +4,7 @@
     <template #prepend>
       <v-slide-x-transition appear>
         <v-list nav density="default">
-          <v-list-item v-for="item in items" :key="item.title" :to="item.route" nav link
+          <v-list-item v-for="item in items" :key="item.route" :to="item.route" nav link
             class="ma-2 nav-item overflow-visible" rounded="pill">
             <template #prepend>
               <v-icon>{{ item.prependIcon }}</v-icon>
@@ -25,7 +25,7 @@
               <v-icon>mdi-cog-outline</v-icon>
             </template>
             <template #title>
-              <span>Settings</span>
+              <span>{{ t('page.settings') }}</span>
             </template>
           </v-list-item>
         </v-list>
@@ -50,28 +50,31 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 const drawer = ref(true);
 
-const items = ref([
+const items = computed(() => [
   {
-    title: 'Home',
+    title: t('page.home'),
     prependIcon: 'mdi-view-dashboard-outline',
     route: '/',
   },
   {
-    title: 'Divisions',
+    title: t('page.divisions'),
     prependIcon: 'mdi-school-outline',
     route: '/divisions',
   },
   {
-    title: 'Teachers',
+    title: t('page.teachers'),
     prependIcon: 'mdi-human-male-board',
     route: '/teachers',
   },
   {
-    title: 'Classrooms',
+    title: t('page.classrooms'),
     prependIcon: 'mdi-door',
     route: '/classrooms',
   },

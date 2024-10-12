@@ -1,42 +1,49 @@
 <template>
-	<v-row class="d-flex justify-center align-center flex-nowrap" no-gutters>
-		<v-card class="weather-card" flat>
-			<v-row class="justify-center align-center weather-info">
-				<v-col class="text-center" cols="6">
-					<span class="location-info">Nowy Sącz</span>
-					<div class="temp-info">
-						<v-icon class="condition-icon">mdi-weather-lightning-rainy</v-icon>
-						<span class="temperature">35°</span>
-					</div>
-				</v-col>
-				<v-col class="text-right condition-col" cols="5">
-					<div class="d-flex flex-column align-end">
-						<span class="condition-text">Thundershower</span>
-						<span class="condition-text">Lightly Polluted</span>
-					</div>
-				</v-col>
-			</v-row>
-			<v-divider></v-divider>
-			<v-card-text class="forecast-section">
-				<v-row justify="space-around" class="forecast mt-4">
-					<v-col v-for="day in forecast" :key="day.name" class="text-center forecast-col">
-						<div class="forecast-day">{{ day.name }}</div>
-						<v-icon class="forecast-icon">{{ day.icon }}</v-icon>
-						<div class="forecast-temp">{{ day.temp }}</div>
-					</v-col>
-				</v-row>
-			</v-card-text>
-		</v-card>
-	</v-row>
+  <v-row class="d-flex justify-center align-center flex-nowrap" no-gutters>
+    <v-card class="weather-card" flat>
+      <v-row class="justify-center align-center weather-info">
+        <v-col class="text-center" cols="6">
+          <span class="location-info">Nowy Sącz</span>
+          <div class="temp-info">
+            <v-icon class="condition-icon">mdi-weather-lightning-rainy</v-icon>
+            <span class="temperature">35°</span>
+          </div>
+        </v-col>
+        <v-col class="text-right condition-col" cols="5">
+          <div class="d-flex flex-column align-end">
+            <span class="condition-text">Thundershower</span>
+            <span class="condition-text">Lightly Polluted</span>
+          </div>
+        </v-col>
+      </v-row>
+      <v-divider></v-divider>
+      <v-card-text class="forecast-section">
+        <v-row justify="space-around" class="forecast mt-4">
+          <v-col
+            v-for="day in forecast"
+            :key="day.code"
+            class="text-center forecast-col"
+          >
+            <div class="forecast-day">{{ day.name }}</div>
+            <v-icon class="forecast-icon">{{ day.icon }}</v-icon>
+            <div class="forecast-temp">{{ day.temp }}</div>
+          </v-col>
+        </v-row>
+      </v-card-text>
+    </v-card>
+  </v-row>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-const forecast = ref([
-	{ name: 'Tues', icon: 'mdi-weather-rainy', temp: '-2°/-10°' },
-	{ name: 'Wed', icon: 'mdi-weather-cloudy', temp: '-2°/-10°' },
-	{ name: 'Thur', icon: 'mdi-weather-cloudy', temp: '-2°/-10°' },
+const { t } = useI18n();
+
+const forecast = computed(() => [
+  { code: 'tuesday', name: t('day.tuesday'), icon: 'mdi-weather-rainy', temp: '-2°/-10°' },
+  { code: 'wednesday', name: t('day.wednesday'), icon: 'mdi-weather-cloudy', temp: '-2°/-10°' },
+  { code: 'thursday', name: t('day.thursday'), icon: 'mdi-weather-cloudy', temp: '-2°/-10°' },
 ]);
 </script>
 

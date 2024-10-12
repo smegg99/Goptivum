@@ -1,28 +1,36 @@
 // config/models.go
 package config
 
-type GeneralConfig struct {
-	Debug           bool `mapstructure:"debug"`
-	SyncSchedule    bool `mapstructure:"sync_schedule"`
-	RelayOnDuration int `mapstructure:"relay_on_duration"`
+type scraperEndpoints struct {
+	Division string `mapstructure:"division"`
+	Teacher  string `mapstructure:"teacher"`
+	Room     string `mapstructure:"room"`
 }
 
 type ScraperConfig struct {
-	OptivumBaseUrl     string `mapstructure:"optivum_base_url"`
-	DivisionEndpoint   string   `mapstructure:"division_endpoint"`
-	TeacherEndpoint    string   `mapstructure:"teacher_endpoint"`
-	RoomEndpoint       string   `mapstructure:"room_endpoint"`
+	BaseUrl   string           `mapstructure:"optivum_base_url"`
+	Endpoints scraperEndpoints `mapstructure:"endpoints"`
 }
 
-type DevicesConfig struct {
-	DisplayAddress uint16 `mapstructure:"display_address"`
-	RTCAddress     uint16 `mapstructure:"rtc_address"`
-	I2CBus         string `mapstructure:"i2c_bus"`
-	RelayPin       string `mapstructure:"relay_pin"`
+type openWeatherEndpoints struct {
+	CurrentWeather      string `mapstructure:"current_weather"`
+	ForecastWeather     string `mapstructure:"forecast_weather"`
+	CurrentAirPollution string `mapstructure:"current_air_pollution"`
+}
+
+type openWeatherConfig struct {
+	BaseUrl   string               `mapstructure:"base_url"`
+	Endpoints openWeatherEndpoints `mapstructure:"endpoints"`
+	Lat       float64              `mapstructure:"lat"`
+	Lon       float64              `mapstructure:"lon"`
+}
+
+type APIConfig struct {
+	Port        uint16            `mapstructure:"port"`
+	OpenWeather openWeatherConfig `mapstructure:"open_weather"`
 }
 
 type GlobalConfig struct {
-	General GeneralConfig `mapstructure:"general"`
 	Scraper ScraperConfig `mapstructure:"scraper"`
-	Devices DevicesConfig `mapstructure:"devices"`
+	API     APIConfig     `mapstructure:"api"`
 }

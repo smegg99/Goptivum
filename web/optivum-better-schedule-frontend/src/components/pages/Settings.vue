@@ -6,6 +6,7 @@
 				<v-col cols="12" class="d-flex justify-center grid-item">
 					<ThemeSwitcher />
 				</v-col>
+				<LanguageSwitcher />
 			</v-row>
 		</v-container>
 	</v-slide-y-reverse-transition>
@@ -13,4 +14,5 @@
 
 <script setup lang="ts">
 import ThemeSwitcher from '../ThemeSwitcher.vue';
+import LanguageSwitcher from '../LanguageSwitcher.vue';
 </script>

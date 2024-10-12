@@ -18,6 +18,7 @@ declare module 'vue' {
     Home: typeof import('./src/components/pages/Home.vue')['default']
     HomePage: typeof import('./src/components/pages/HomePage.vue')['default']
     HomeTab: typeof import('./src/components/HomeTab.vue')['default']
+    LanguageSwitcher: typeof import('./src/components/LanguageSwitcher.vue')['default']
     Overlay: typeof import('./src/components/Overlay.vue')['default']
     Rays: typeof import('./src/components/Rays.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
