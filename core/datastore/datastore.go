@@ -1,48 +1,34 @@
 package datastore
 
 import (
+	"fmt"
 	"os"
 
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
+	"github.com/dgraph-io/badger/v3"
+	"github.com/dgraph-io/badger/v3/options"
 )
 
-var DB *gorm.DB
-
-func GetDSN() string {
-	return "host=" + os.Getenv("DB_HOST") +
-		" port=" + os.Getenv("DB_PORT") +
-		" user=" + os.Getenv("DB_USER") +
-		" password=" + os.Getenv("DB_PASSWORD") +
-		" dbname=" + os.Getenv("DB_NAME") +
-		" sslmode=disable TimeZone=UTC"
-}
+var DB *badger.DB
 
 func Initialize() error {
-	db, err := gorm.Open(postgres.Open(GetDSN()))
-	if err != nil {
-		return err
-	}
+	fmt.Println("initializing datastore")
 
+	opts := badger.DefaultOptions(os.Getenv("DB_FILE_PATH"))
+    opts = opts.WithCompression(options.ZSTD)
+	opts = opts.WithZSTDCompressionLevel(1)
+    db, err := badger.Open(opts)
+    if err != nil {
+        return err
+    }
 	DB = db
-
-	if err := DB.AutoMigrate(&Graph{}); err != nil {
-		return err
-	}
 
 	return nil
 }
 
 func Cleanup() error {
-	sqlDB, err := DB.DB()
-	if err != nil {
+	fmt.Println("cleaning datastore")
+	if err := DB.Close(); err != nil {
 		return err
-	}
-
-	if sqlDB != nil {
-		if err := sqlDB.Close(); err != nil {
-			return err
-		}
 	}
 
 	return nil

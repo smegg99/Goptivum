@@ -1,10 +1,18 @@
 {
 	"scraper": {
-		"base_url": "https://zsem.edu.pl/plany/plany/",
+		"base_url": "https://zsem.edu.pl/plany/",
 		"endpoints" : {
-			"division": "o%dhtml",
-			"teacher": "n%d.html",
-			"room": "s%d.html"
+			"division": "plany/o%d.html",
+			"teacher": "plany/n%d.html",
+			"room": "plany/s%d.html",
+			"divisions_list": "lll.php",
+			"teachers_list": "nnn.php",
+			"rooms_list": "sss.php"
+		},
+		"quantities": {
+			"divisions": 32,
+			"teachers": 81,
+			"rooms": 42
 		}
 	},
 	"api": {

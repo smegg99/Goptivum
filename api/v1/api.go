@@ -15,7 +15,7 @@ var DefaultRouter *gin.Engine
 var Config *config.APIConfig
 
 func Initialize() (chan error) {
-	fmt.Println("initializing api/v1...")
+	fmt.Println("initializing api/v1")
 
 	Config = &config.Global.API
 	gin.SetMode(os.Getenv("GIN_MODE"))
@@ -32,8 +32,4 @@ func Initialize() (chan error) {
 	}()
 
 	return errCh
-}
-
-func Cleanup() {
-
 }

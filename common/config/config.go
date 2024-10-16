@@ -34,7 +34,7 @@ func loadConfig(config *GlobalConfig) error {
 }
 
 func Initialize() error {
-	fmt.Println("initializing config...")
+	fmt.Println("initializing config")
 
 	if err := loadEnv(); err != nil {
 		return err
@@ -46,6 +46,8 @@ func Initialize() error {
 	if err := loadConfig(&Global); err != nil {
 		return err
 	}
+
+	fmt.Println("env and config loaded")
 
 	return nil
 }

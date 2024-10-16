@@ -2,14 +2,24 @@
 package config
 
 type scraperEndpoints struct {
-	Division string `mapstructure:"division"`
-	Teacher  string `mapstructure:"teacher"`
-	Room     string `mapstructure:"room"`
+	Division      string `mapstructure:"division"`
+	Teacher       string `mapstructure:"teacher"`
+	Room          string `mapstructure:"room"`
+	DivisionsList string `mapstructure:"divisions_list"`
+	TeachersList  string `mapstructure:"teachers_list"`
+	RoomsList     string `mapstructure:"rooms_list"`
+}
+
+type scraperQuantities struct {
+	Divisions uint32 `mapstructure:"divisions"`
+	Teachers  uint32 `mapstructure:"teachers"`
+	Rooms     uint32 `mapstructure:"rooms"`
 }
 
 type ScraperConfig struct {
-	BaseUrl   string           `mapstructure:"optivum_base_url"`
-	Endpoints scraperEndpoints `mapstructure:"endpoints"`
+	BaseUrl    string            `mapstructure:"base_url"`
+	Endpoints  scraperEndpoints  `mapstructure:"endpoints"`
+	Quantities scraperQuantities `mapstructure:"quantities"`
 }
 
 type openWeatherEndpoints struct {

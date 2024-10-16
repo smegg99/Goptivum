@@ -8,16 +8,28 @@ import (
 func SetupScheduleRoutes(router *gin.Engine, rootGroup *gin.RouterGroup) {
 	divisionGroup := rootGroup.Group("/division")
 	{
-		divisionGroup.GET("/:id")
+		divisionGroup.GET("/:designator")
+	}
+	divisionsGroup := rootGroup.Group("/divisions")
+	{
+		divisionsGroup.GET("/")
 	}
 
 	teacherGroup := rootGroup.Group("/teacher")
 	{
-		teacherGroup.GET("/:id")
+		teacherGroup.GET("/:designator")
+	}
+	teachersGroup := rootGroup.Group("/teachers")
+	{
+		teachersGroup.GET("/")
 	}
 
 	roomGroup := rootGroup.Group("/room")
 	{
-		roomGroup.GET("/:id")
+		roomGroup.GET("/:designator")
+	}
+	roomsGroup := rootGroup.Group("/rooms")
+	{
+		roomsGroup.GET("/")	
 	}
 }
