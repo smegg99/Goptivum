@@ -11,9 +11,9 @@ type scraperEndpoints struct {
 }
 
 type scraperQuantities struct {
-	Divisions uint32 `mapstructure:"divisions"`
-	Teachers  uint32 `mapstructure:"teachers"`
-	Rooms     uint32 `mapstructure:"rooms"`
+	Divisions uint64 `mapstructure:"divisions"`
+	Teachers  uint64 `mapstructure:"teachers"`
+	Rooms     uint64 `mapstructure:"rooms"`
 }
 
 type ScraperConfig struct {

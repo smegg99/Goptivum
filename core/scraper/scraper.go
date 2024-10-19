@@ -526,9 +526,9 @@ func Initialize() error {
 	fmt.Println("teachers indexes:", TeachersIndexes)
 	fmt.Println("rooms indexes:", RoomsIndexes)
 
-	divisionsIndexesLength := uint32(len(DivisionsIndexes))
-	teachersIndexesLength := uint32(len(TeachersIndexes))
-	roomsIndexesLength := uint32(len(RoomsIndexes))
+	divisionsIndexesLength := uint64(len(DivisionsIndexes))
+	teachersIndexesLength := uint64(len(TeachersIndexes))
+	roomsIndexesLength := uint64(len(RoomsIndexes))
 
 	if divisionsIndexesLength == 0 {
 		return fmt.Errorf("no divisions found")

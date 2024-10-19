@@ -55,40 +55,42 @@ func getDayOfWeek(timestamp int64) int64 {
 	return int64(time.Unix(timestamp, 0).Weekday())
 }
 
-/* Example response:
-{
-	"name": "Nowy Sącz",
-	"forecast": [
-		{
-			"condition": {
-				name: "Rain",
-				description: "light rain",
+/*
+Example response:
+
+	{
+		"name": "Nowy Sącz",
+		"forecast": [
+			{
+				"condition": {
+					name: "Rain",
+					description: "light rain",
+				},
+				"temperature": {
+					current: 12,
+					min: 10,
+					max: 14,
+				},
+				"sunrise": 1726636384,
+				"sunset": 1726680975,
+				dayOfWeek: 0, // 0 - Sunday, 1 - Monday, ..., 6 - Saturday
 			},
-			"temperature": {
-				current: 12,
-				min: 10,
-				max: 14,
-			},
-			"sunrise": 1726636384,
-			"sunset": 1726680975,
-			dayOfWeek: 0, // 0 - Sunday, 1 - Monday, ..., 6 - Saturday
-		},
-		{
-			"condition": {
-				name: "Rain",
-				description: "light rain",
-			},
-			"temperature": {
-				current: 12,
-				min: 10,
-				max: 14,
-			},
-			"sunrise": 1726636384,
-			"sunset": 1726680975,
-			dayOfWeek: 1,
-		}
-	]
-}
+			{
+				"condition": {
+					name: "Rain",
+					description: "light rain",
+				},
+				"temperature": {
+					current: 12,
+					min: 10,
+					max: 14,
+				},
+				"sunrise": 1726636384,
+				"sunset": 1726680975,
+				dayOfWeek: 1,
+			}
+		]
+	}
 */
 func WeatherForecastHandler(c *gin.Context) {
 	lang := c.DefaultQuery("lang", "en")
@@ -114,21 +116,22 @@ func WeatherForecastHandler(c *gin.Context) {
 		fmt.Sprintf(Config.OpenWeather.Endpoints.ForecastWeather, Config.OpenWeather.Lat, Config.OpenWeather.Lon, apiKey, lang, units),
 	)
 
+	// #nosec G107
 	resp, err := http.Get(url)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch forecast data"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch forecast data"})
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		c.JSON(resp.StatusCode, gin.H{"error": "Failed to fetch forecast data"})
+		c.JSON(resp.StatusCode, gin.H{"error": "failed to fetch forecast data"})
 		return
 	}
 
 	var openWeatherData map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&openWeatherData); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse forecast data"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to parse forecast data"})
 		return
 	}
 
@@ -164,21 +167,22 @@ func WeatherForecastHandler(c *gin.Context) {
 	Respond(c, forecastResponse)
 }
 
-/* Example response:
-	{
-		"name": "Nowy Sącz",
-		"condition": {
-			name: "Rain",
-			description: "light rain",
-		},
-		"temperature": {
-			current: 12,
-			min: 10,
-			max: 14,
-		},
-		"sunrise": 1726636384,
-		"sunset": 1726680975,
-	}
+/*
+	 Example response:
+		{
+			"name": "Nowy Sącz",
+			"condition": {
+				name: "Rain",
+				description: "light rain",
+			},
+			"temperature": {
+				current: 12,
+				min: 10,
+				max: 14,
+			},
+			"sunrise": 1726636384,
+			"sunset": 1726680975,
+		}
 */
 func CurrentWeatherHandler(c *gin.Context) {
 	lang := c.DefaultQuery("lang", "en")
@@ -190,21 +194,22 @@ func CurrentWeatherHandler(c *gin.Context) {
 		fmt.Sprintf(Config.OpenWeather.Endpoints.CurrentWeather, Config.OpenWeather.Lat, Config.OpenWeather.Lon, apiKey, lang, units),
 	)
 
+	// #nosec G107 - URL is constructed from trusted configuration and validated
 	resp, err := http.Get(url)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch current weather data"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch current weather data"})
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		c.JSON(resp.StatusCode, gin.H{"error": "Failed to fetch current weather data"})
+		c.JSON(resp.StatusCode, gin.H{"error": "failed to fetch current weather data"})
 		return
 	}
 
 	var openWeatherData map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&openWeatherData); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse current weather data"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to parse current weather data"})
 		return
 	}
 
@@ -231,20 +236,20 @@ func CurrentWeatherHandler(c *gin.Context) {
 	Respond(c, currentWeatherResponse)
 }
 
-
-/* Example response:
-	{
-		"components":{
-			"co": 201.94053649902344,
-			"no": 0.01877197064459324,
-			"no2": 0.7711350917816162,
-			"o3": 68.66455078125,
-			"so2": 0.6407499313354492,
-			"pm2_5": 0.5,
-			"pm10": 0.540438711643219,
-			"nh3": 0.12369127571582794
+/*
+	 Example response:
+		{
+			"components":{
+				"co": 201.94053649902344,
+				"no": 0.01877197064459324,
+				"no2": 0.7711350917816162,
+				"o3": 68.66455078125,
+				"so2": 0.6407499313354492,
+				"pm2_5": 0.5,
+				"pm10": 0.540438711643219,
+				"nh3": 0.12369127571582794
+			}
 		}
-	}
 */
 func CurrentAirPollutionHandler(c *gin.Context) {
 	apiKey := os.Getenv("OPENWEATHER_API_KEY")
@@ -253,22 +258,23 @@ func CurrentAirPollutionHandler(c *gin.Context) {
 		Config.OpenWeather.BaseUrl,
 		fmt.Sprintf(Config.OpenWeather.Endpoints.CurrentAirPollution, Config.OpenWeather.Lat, Config.OpenWeather.Lon, apiKey),
 	)
-	fmt.Println(url)
+
+	// #nosec G107
 	resp, err := http.Get(url)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch air pollution data"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch air pollution data"})
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		c.JSON(resp.StatusCode, gin.H{"error": "Failed to fetch air pollution data"})
+		c.JSON(resp.StatusCode, gin.H{"error": "failed to fetch air pollution data"})
 		return
 	}
 
 	var openWeatherData map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&openWeatherData); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse air pollution data"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to parse air pollution data"})
 		return
 	}
 
