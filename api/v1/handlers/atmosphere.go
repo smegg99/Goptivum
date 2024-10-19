@@ -51,8 +51,8 @@ import (
 // }
 
 // Helper function to get the day of the week from a timestamp
-func getDayOfWeek(timestamp int64) int32 {
-	return int32(time.Unix(timestamp, 0).Weekday())
+func getDayOfWeek(timestamp int64) int64 {
+	return int64(time.Unix(timestamp, 0).Weekday())
 }
 
 /* Example response:
@@ -151,13 +151,13 @@ func WeatherForecastHandler(c *gin.Context) {
 				Description: condition["description"].(string),
 			},
 			Temperature: &models.Temperature{
-				Current: float32(temperature["temp"].(float64)),
-				Min:     float32(temperature["temp_min"].(float64)),
-				Max:     float32(temperature["temp_max"].(float64)),
+				Current: temperature["temp"].(float64),
+				Min:     temperature["temp_min"].(float64),
+				Max:     temperature["temp_max"].(float64),
 			},
 			Sunrise:   sunrise,
 			Sunset:    sunset,
-			DayOfWeek: getDayOfWeek(int64(forecastMap["dt"].(float64))),
+			DayOfWeek: getDayOfWeek(forecastMap["dt"].(int64)),
 		})
 	}
 
@@ -220,9 +220,9 @@ func CurrentWeatherHandler(c *gin.Context) {
 			Description: condition["description"].(string),
 		},
 		Temperature: &models.Temperature{
-			Current: float32(temperature["temp"].(float64)),
-			Min:     float32(temperature["temp_min"].(float64)),
-			Max:     float32(temperature["temp_max"].(float64)),
+			Current: temperature["temp"].(float64),
+			Min:     temperature["temp_min"].(float64),
+			Max:     temperature["temp_max"].(float64),
 		},
 		Sunrise: sunrise,
 		Sunset:  sunset,
@@ -275,15 +275,15 @@ func CurrentAirPollutionHandler(c *gin.Context) {
 	components := openWeatherData["list"].([]interface{})[0].(map[string]interface{})["components"].(map[string]interface{})
 
 	airPollutionResponse := &models.AirPollutionResponse{
-		Components: map[string]float32{
-			"co":    float32(components["co"].(float64)),
-			"no":    float32(components["no"].(float64)),
-			"no2":   float32(components["no2"].(float64)),
-			"o3":    float32(components["o3"].(float64)),
-			"so2":   float32(components["so2"].(float64)),
-			"pm2_5": float32(components["pm2_5"].(float64)),
-			"pm10":  float32(components["pm10"].(float64)),
-			"nh3":   float32(components["nh3"].(float64)),
+		Components: map[string]float64{
+			"co":    components["co"].(float64),
+			"no":    components["no"].(float64),
+			"no2":   components["no2"].(float64),
+			"o3":    components["o3"].(float64),
+			"so2":   components["so2"].(float64),
+			"pm2_5": components["pm2_5"].(float64),
+			"pm10":  components["pm10"].(float64),
+			"nh3":   components["nh3"].(float64),
 		},
 	}
 

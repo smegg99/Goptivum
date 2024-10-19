@@ -51,7 +51,7 @@ func SetDivision(division *models.Division) error {
     return setItem(key, division)
 }
 
-func GetDivision(index uint32) (*models.Division, error) {
+func GetDivision(index uint64) (*models.Division, error) {
     key := []byte(fmt.Sprintf("division:%d", index))
     division := &models.Division{}
     err := getItem(key, division)
@@ -61,7 +61,7 @@ func GetDivision(index uint32) (*models.Division, error) {
     return division, nil
 }
 
-func DeleteDivision(index uint32) error {
+func DeleteDivision(index uint64) error {
     key := []byte(fmt.Sprintf("division:%d", index))
     return deleteItem(key)
 }
@@ -71,7 +71,7 @@ func SetTeacher(teacher *models.Teacher) error {
     return setItem(key, teacher)
 }
 
-func GetTeacher(index uint32) (*models.Teacher, error) {
+func GetTeacher(index uint64) (*models.Teacher, error) {
     key := []byte(fmt.Sprintf("teacher:%d", index))
     teacher := &models.Teacher{}
     err := getItem(key, teacher)
@@ -81,7 +81,7 @@ func GetTeacher(index uint32) (*models.Teacher, error) {
     return teacher, nil
 }
 
-func DeleteTeacher(index uint32) error {
+func DeleteTeacher(index uint64) error {
     key := []byte(fmt.Sprintf("teacher:%d", index))
     return deleteItem(key)
 }
@@ -91,7 +91,7 @@ func SetRoom(room *models.Room) error {
     return setItem(key, room)
 }
 
-func GetRoom(index uint32) (*models.Room, error) {
+func GetRoom(index uint64) (*models.Room, error) {
     key := []byte(fmt.Sprintf("room:%d", index))
     room := &models.Room{}
     err := getItem(key, room)
@@ -101,7 +101,7 @@ func GetRoom(index uint32) (*models.Room, error) {
     return room, nil
 }
 
-func DeleteRoom(index uint32) error {
+func DeleteRoom(index uint64) error {
     key := []byte(fmt.Sprintf("room:%d", index))
     return deleteItem(key)
 }

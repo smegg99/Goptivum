@@ -6,15 +6,15 @@ package data;
 option go_package = "./common/models";
 
 message DivisionsDesignators {
-	map<string, uint32> divisions = 1;
+	map<string, uint64> divisions = 1;
 }
 
 message TeachersDesignators {
-	map<string, uint32> teachers = 1;
+	map<string, uint64> teachers = 1;
 }
 
 message RoomsDesignators {
-	map<string, uint32> rooms = 1;
+	map<string, uint64> rooms = 1;
 }
 
 message Condition {
@@ -23,9 +23,9 @@ message Condition {
 }
 
 message Temperature {
-	float current = 1;
-	float min = 2;
-	float max = 3;
+	double current = 1;
+	double min = 2;
+	double max = 3;
 }
 
 message Forecast {
@@ -33,7 +33,7 @@ message Forecast {
 	Temperature temperature = 2;
 	int64 sunrise = 3;
 	int64 sunset = 4;
-	int32 dayOfWeek = 5;
+	int64 dayOfWeek = 5;
 }
 
 message ForecastResponse {
@@ -50,12 +50,12 @@ message CurrentWeatherResponse {
 }
 
 message AirPollutionResponse {
-	map<string, float> components = 1;
+	map<string, double> components = 1;
 }
 
 message Timestamp {
-	int32 hour = 1;
-	int32 minute = 2;
+	int64 hour = 1;
+	int64 minute = 2;
 }
 
 message TimeRange {
@@ -84,20 +84,20 @@ message Schedule {
 }
 
 message Teacher {
-	uint32   index = 1;
+	uint64   index = 1;
 	string   designator = 2;
 	string   full_name = 3;
 	Schedule schedule = 4;
 }
 
 message Room {
-	uint32   index = 1;
+	uint64   index = 1;
 	string   designator = 2;
 	Schedule schedule = 3;
 }
 
 message Division {
-	uint32   index = 1;
+	uint64   index = 1;
 	string   designator = 2;
 	string   full_name = 3;
 	Schedule schedule = 4;

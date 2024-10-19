@@ -21,7 +21,7 @@ func GetDivisionHandler(c *gin.Context) {
 		return
 	}
 
-	division, err := datastore.GetDivision(uint32(index))
+	division, err := datastore.GetDivision(uint64(index))
 	if err != nil {
 		if division == nil {
 			c.JSON(http.StatusNotFound, gin.H{
@@ -53,7 +53,7 @@ func GetTeacherHandler(c *gin.Context) {
 		return
 	}
 
-	teacher, err := datastore.GetTeacher(uint32(index))
+	teacher, err := datastore.GetTeacher(uint64(index))
 	if err != nil {
 		if teacher == nil {
 			c.JSON(http.StatusNotFound, gin.H{
@@ -84,7 +84,7 @@ func GetRoomHandler(c *gin.Context) {
 		return
 	}
 
-	room, err := datastore.GetRoom(uint32(index))
+	room, err := datastore.GetRoom(uint64(index))
 	if err != nil {
 		if room == nil {
 			c.JSON(http.StatusNotFound, gin.H{

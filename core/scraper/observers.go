@@ -14,10 +14,10 @@ import (
 func ObserveDivisions() {
 	fmt.Println("observing divisions")
 
-	newDivisionObserver := func(index uint32) *observer.Observer {
-		url := fmt.Sprintf(Config.BaseUrl+Config.Endpoints.Division, index)
+	newDivisionObserver := func(index uint64) *observer.Observer {
+		url := fmt.Sprintf(Config.BaseUrl + Config.Endpoints.Division, index)
 		// So they don't all refresh at the same time
-		interval := time.Duration((index+1)/10+15) * time.Second
+		interval := time.Duration((index + 1) / 10 + 15) * time.Second
 		return observer.NewObserver(url, interval, func(doc *goquery.Document) string {
 			var content []string
 			doc.Find("table.tabela").Each(func(i int, table *goquery.Selection) {
@@ -36,7 +36,7 @@ func ObserveDivisions() {
 		})
 	}
 
-	startDivisionObserver := func(observer *observer.Observer, index uint32) {
+	startDivisionObserver := func(observer *observer.Observer, index uint64) {
 		observer.Start(func() {
 			division, err := ScrapeDivision(index)
 			if err != nil {
@@ -52,7 +52,7 @@ func ObserveDivisions() {
 	}
 
 	refreshDivisionsObservers := func() {
-		existingIndexes := make(map[uint32]bool)
+		existingIndexes := make(map[uint64]bool)
 		for _, index := range DivisionsIndexes {
 			existingIndexes[index] = true
 			if _, exists := DivisionsObservers[index]; !exists {
@@ -110,7 +110,7 @@ func ObserveDivisions() {
 func ObserveTeachers() {
 	fmt.Println("observing teachers")
 
-	newTeacherObserver := func(index uint32) *observer.Observer {
+	newTeacherObserver := func(index uint64) *observer.Observer {
 		url := fmt.Sprintf(Config.BaseUrl+Config.Endpoints.Teacher, index)
 		interval := time.Duration((index+1)/10+15) * time.Second
 		return observer.NewObserver(url, interval, func(doc *goquery.Document) string {
@@ -125,7 +125,7 @@ func ObserveTeachers() {
 		})
 	}
 
-	startTeacherObserver := func(observer *observer.Observer, index uint32) {
+	startTeacherObserver := func(observer *observer.Observer, index uint64) {
 		observer.Start(func() {
 			teacher, err := ScrapeTeacher(index)
 			if err != nil {
@@ -141,7 +141,7 @@ func ObserveTeachers() {
 	}
 
 	refreshTeachersObservers := func() {
-		existingIndexes := make(map[uint32]bool)
+		existingIndexes := make(map[uint64]bool)
 		for _, index := range TeachersIndexes {
 			existingIndexes[index] = true
 			if _, exists := TeachersObservers[index]; !exists {
@@ -197,7 +197,7 @@ func ObserveTeachers() {
 func ObserveRooms() {
 	fmt.Println("observing rooms")
 
-	newRoomObserver := func(index uint32) *observer.Observer {
+	newRoomObserver := func(index uint64) *observer.Observer {
 		url := fmt.Sprintf(Config.BaseUrl + Config.Endpoints.Room, index)
 		interval := time.Duration((index + 1) / 10 + 15) * time.Second
 		return observer.NewObserver(url, interval, func(doc *goquery.Document) string {
@@ -212,7 +212,7 @@ func ObserveRooms() {
 		})
 	}
 
-	startRoomObserver := func(observer *observer.Observer, index uint32) {
+	startRoomObserver := func(observer *observer.Observer, index uint64) {
 		observer.Start(func() {
 			room, err := ScrapeRoom(index)
 			if err != nil {
@@ -228,7 +228,7 @@ func ObserveRooms() {
 	}
 
 	refreshRoomsObservers := func() {
-		existingIndexes := make(map[uint32]bool)
+		existingIndexes := make(map[uint64]bool)
 		for _, index := range RoomsIndexes {
 			existingIndexes[index] = true
 			if _, exists := RoomsObservers[index]; !exists {
