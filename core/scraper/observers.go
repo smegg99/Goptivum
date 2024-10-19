@@ -14,7 +14,7 @@ import (
 func ObserveDivisions() {
 	fmt.Println("observing divisions")
 
-	newDivisionObserver := func(index uint64) *observer.Observer {
+	newDivisionObserver := func(index int64) *observer.Observer {
 		url := fmt.Sprintf(Config.BaseUrl + Config.Endpoints.Division, index)
 		// So they don't all refresh at the same time
 		interval := time.Duration((index + 1) / 10 + 15) * time.Second
@@ -36,7 +36,7 @@ func ObserveDivisions() {
 		})
 	}
 
-	startDivisionObserver := func(observer *observer.Observer, index uint64) {
+	startDivisionObserver := func(observer *observer.Observer, index int64) {
 		observer.Start(func() {
 			division, err := ScrapeDivision(index)
 			if err != nil {
@@ -52,7 +52,7 @@ func ObserveDivisions() {
 	}
 
 	refreshDivisionsObservers := func() {
-		existingIndexes := make(map[uint64]bool)
+		existingIndexes := make(map[int64]bool)
 		for _, index := range DivisionsIndexes {
 			existingIndexes[index] = true
 			if _, exists := DivisionsObservers[index]; !exists {
@@ -64,7 +64,9 @@ func ObserveDivisions() {
 		for index := range DivisionsObservers {
 			if !existingIndexes[index] {
 				DivisionsObservers[index].Stop()
-				datastore.DeleteDivision(index)
+				if err := datastore.DeleteDivision(index); err != nil {
+					fmt.Printf("error deleting division: %v\n", err)
+				}
 				delete(DivisionsObservers, index)
 
 				for key, _index := range DivisionsDesignators.Divisions {
@@ -110,7 +112,7 @@ func ObserveDivisions() {
 func ObserveTeachers() {
 	fmt.Println("observing teachers")
 
-	newTeacherObserver := func(index uint64) *observer.Observer {
+	newTeacherObserver := func(index int64) *observer.Observer {
 		url := fmt.Sprintf(Config.BaseUrl+Config.Endpoints.Teacher, index)
 		interval := time.Duration((index+1)/10+15) * time.Second
 		return observer.NewObserver(url, interval, func(doc *goquery.Document) string {
@@ -125,7 +127,7 @@ func ObserveTeachers() {
 		})
 	}
 
-	startTeacherObserver := func(observer *observer.Observer, index uint64) {
+	startTeacherObserver := func(observer *observer.Observer, index int64) {
 		observer.Start(func() {
 			teacher, err := ScrapeTeacher(index)
 			if err != nil {
@@ -141,7 +143,7 @@ func ObserveTeachers() {
 	}
 
 	refreshTeachersObservers := func() {
-		existingIndexes := make(map[uint64]bool)
+		existingIndexes := make(map[int64]bool)
 		for _, index := range TeachersIndexes {
 			existingIndexes[index] = true
 			if _, exists := TeachersObservers[index]; !exists {
@@ -153,7 +155,9 @@ func ObserveTeachers() {
 		for index := range TeachersObservers {
 			if !existingIndexes[index] {
 				TeachersObservers[index].Stop()
-				datastore.DeleteTeacher(index)
+				if err := datastore.DeleteTeacher(index); err != nil {
+					fmt.Printf("error deleting teacher: %v\n", err)
+				}
 				delete(TeachersObservers, index)
 
 				for key, _index := range TeachersDesignators.Teachers {
@@ -197,7 +201,7 @@ func ObserveTeachers() {
 func ObserveRooms() {
 	fmt.Println("observing rooms")
 
-	newRoomObserver := func(index uint64) *observer.Observer {
+	newRoomObserver := func(index int64) *observer.Observer {
 		url := fmt.Sprintf(Config.BaseUrl + Config.Endpoints.Room, index)
 		interval := time.Duration((index + 1) / 10 + 15) * time.Second
 		return observer.NewObserver(url, interval, func(doc *goquery.Document) string {
@@ -212,7 +216,7 @@ func ObserveRooms() {
 		})
 	}
 
-	startRoomObserver := func(observer *observer.Observer, index uint64) {
+	startRoomObserver := func(observer *observer.Observer, index int64) {
 		observer.Start(func() {
 			room, err := ScrapeRoom(index)
 			if err != nil {
@@ -228,7 +232,7 @@ func ObserveRooms() {
 	}
 
 	refreshRoomsObservers := func() {
-		existingIndexes := make(map[uint64]bool)
+		existingIndexes := make(map[int64]bool)
 		for _, index := range RoomsIndexes {
 			existingIndexes[index] = true
 			if _, exists := RoomsObservers[index]; !exists {
@@ -240,7 +244,9 @@ func ObserveRooms() {
 		for index := range RoomsObservers {
 			if !existingIndexes[index] {
 				RoomsObservers[index].Stop()
-				datastore.DeleteRoom(index)
+				if err := datastore.DeleteRoom(index); err != nil {
+					fmt.Printf("error deleting room: %v\n", err)
+				}
 				delete(RoomsObservers, index)
 
 				for key, _index := range RoomsDesignators.Rooms {

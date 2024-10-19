@@ -24,40 +24,40 @@ var (
 )
 
 var (
-	DivisionsIndexes []uint64
-	TeachersIndexes  []uint64
-	RoomsIndexes     []uint64
+	DivisionsIndexes []int64
+	TeachersIndexes  []int64
+	RoomsIndexes     []int64
 
 	DivisionsListObserver *observer.Observer
 	TeachersListObserver  *observer.Observer
 	RoomsListObserver     *observer.Observer
 )
 
-var DivisionsObservers = make(map[uint64]*observer.Observer)
-var TeachersObservers = make(map[uint64]*observer.Observer)
-var RoomsObservers = make(map[uint64]*observer.Observer)
+var DivisionsObservers = make(map[int64]*observer.Observer)
+var TeachersObservers = make(map[int64]*observer.Observer)
+var RoomsObservers = make(map[int64]*observer.Observer)
 
 var DivisionsDesignators = &models.DivisionsDesignators{
-	Divisions: make(map[string]uint64),
+	Divisions: make(map[string]int64),
 }
 
 var TeachersDesignators = &models.TeachersDesignators{
-	Teachers: make(map[string]uint64),
+	Teachers: make(map[string]int64),
 }
 
 var RoomsDesignators = &models.RoomsDesignators{
-	Rooms: make(map[string]uint64),
+	Rooms: make(map[string]int64),
 }
 
-func makeDivisionEndpoint(index uint64) string {
+func makeDivisionEndpoint(index int64) string {
 	return fmt.Sprintf(Config.Endpoints.Division, index)
 }
 
-func makeTeacherEndpoint(index uint64) string {
+func makeTeacherEndpoint(index int64) string {
 	return fmt.Sprintf(Config.Endpoints.Teacher, index)
 }
 
-func makeRoomEndpoint(index uint64) string {
+func makeRoomEndpoint(index int64) string {
 	return fmt.Sprintf(Config.Endpoints.Room, index)
 }
 
@@ -290,7 +290,7 @@ func scrapeSchedule(doc *goquery.Document) (*models.Schedule, error) {
 	return schedule, nil
 }
 
-func ScrapeDivision(index uint64) (*models.Division, error) {
+func ScrapeDivision(index int64) (*models.Division, error) {
 	endpoint := makeDivisionEndpoint(index)
 	doc, err := utils.OpenDoc(Config.BaseUrl, endpoint)
 	if err != nil {
@@ -328,7 +328,7 @@ func ScrapeDivision(index uint64) (*models.Division, error) {
 	return &division, nil
 }
 
-func ScrapeTeacher(index uint64) (*models.Teacher, error) {
+func ScrapeTeacher(index int64) (*models.Teacher, error) {
 	endpoint := makeTeacherEndpoint(index)
 	doc, err := utils.OpenDoc(Config.BaseUrl, endpoint)
 	if err != nil {
@@ -366,7 +366,7 @@ func ScrapeTeacher(index uint64) (*models.Teacher, error) {
 	return &teacher, nil
 }
 
-func ScrapeRoom(index uint64) (*models.Room, error) {
+func ScrapeRoom(index int64) (*models.Room, error) {
 	endpoint := makeRoomEndpoint(index)
 	doc, err := utils.OpenDoc(Config.BaseUrl, endpoint)
 	if err != nil {
@@ -402,20 +402,20 @@ func ScrapeRoom(index uint64) (*models.Room, error) {
 	return &room, nil
 }
 
-func ScrapeDivisionsIndexes() ([]uint64, error) {
+func ScrapeDivisionsIndexes() ([]int64, error) {
 	doc, err := utils.OpenDoc(Config.BaseUrl, Config.Endpoints.DivisionsList)
 	if err != nil {
 		return nil, fmt.Errorf("error opening document: %w", err)
 	}
 
-	indexes := []uint64{}
+	indexes := []int64{}
 	doc.Find("a").Each(func(index int, element *goquery.Selection) {
 		href, exists := element.Attr("href")
 		if exists {
 			match := DivisionIndexRegex.FindStringSubmatch(href)
 			if len(match) > 1 {
 				number := match[1]
-				num, err := strconv.ParseUint(number, 10, 32)
+				num, err := strconv.ParseInt(number, 10, 64)
 				if err != nil {
 					fmt.Printf("error converting number to uint: %v\n", err)
 					return
@@ -434,13 +434,13 @@ func ScrapeDivisionsIndexes() ([]uint64, error) {
 	return indexes, nil
 }
 
-func ScrapeTeachersIndexes() ([]uint64, error) {
+func ScrapeTeachersIndexes() ([]int64, error) {
 	doc, err := utils.OpenDoc(Config.BaseUrl, Config.Endpoints.TeachersList)
 	if err != nil {
 		return nil, fmt.Errorf("error opening document: %w", err)
 	}
 
-	indexes := []uint64{}
+	indexes := []int64{}
 
 	doc.Find("a").Each(func(index int, element *goquery.Selection) {
 		href, exists := element.Attr("href")
@@ -448,7 +448,7 @@ func ScrapeTeachersIndexes() ([]uint64, error) {
 			match := TeacherIndexRegex.FindStringSubmatch(href)
 			if len(match) > 1 {
 				number := match[1]
-				num, err := strconv.ParseUint(number, 10, 32)
+				num, err := strconv.ParseInt(number, 10, 64)
 				if err != nil {
 					fmt.Printf("error converting number to uint: %v\n", err)
 					return
@@ -467,13 +467,13 @@ func ScrapeTeachersIndexes() ([]uint64, error) {
 	return indexes, nil
 }
 
-func ScrapeRoomsIndexes() ([]uint64, error) {
+func ScrapeRoomsIndexes() ([]int64, error) {
 	doc, err := utils.OpenDoc(Config.BaseUrl, Config.Endpoints.RoomsList)
 	if err != nil {
 		return nil, fmt.Errorf("error opening document: %w", err)
 	}
 
-	indexes := []uint64{}
+	indexes := []int64{}
 
 	doc.Find("a").Each(func(index int, element *goquery.Selection) {
 		href, exists := element.Attr("href")
@@ -481,7 +481,7 @@ func ScrapeRoomsIndexes() ([]uint64, error) {
 			match := RoomIndexRegex.FindStringSubmatch(href)
 			if len(match) > 1 {
 				number := match[1]
-				num, err := strconv.ParseUint(number, 10, 32)
+				num, err := strconv.ParseInt(number, 10, 64)
 				if err != nil {
 					fmt.Printf("error converting number to uint: %v\n", err)
 					return

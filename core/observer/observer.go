@@ -2,7 +2,7 @@
 package observer
 
 import (
-	"crypto/md5"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"net/http"
@@ -19,9 +19,9 @@ type Observer struct {
 }
 
 func hashContent(content string) string {
-	hasher := md5.New()
-	hasher.Write([]byte(content))
-	return hex.EncodeToString(hasher.Sum(nil))
+    hasher := sha256.New()
+    hasher.Write([]byte(content))
+    return hex.EncodeToString(hasher.Sum(nil))
 }
 
 func NewObserver(url string, interval time.Duration, extractFunc func(*goquery.Document) string) *Observer {

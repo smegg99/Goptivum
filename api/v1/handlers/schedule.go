@@ -13,7 +13,7 @@ import (
 )
 
 func GetDivisionHandler(c *gin.Context) {
-	index, err := strconv.Atoi(c.Param("index"))
+	index, err := strconv.ParseInt(c.Param("index"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "invalid index",
@@ -21,7 +21,7 @@ func GetDivisionHandler(c *gin.Context) {
 		return
 	}
 
-	division, err := datastore.GetDivision(uint64(index))
+	division, err := datastore.GetDivision(index)
 	if err != nil {
 		if division == nil {
 			c.JSON(http.StatusNotFound, gin.H{
@@ -45,7 +45,7 @@ func GetDivisionsHandler(c *gin.Context) {
 }
 
 func GetTeacherHandler(c *gin.Context) {
-	index, err := strconv.Atoi(c.Param("index"))
+	index, err := strconv.ParseInt(c.Param("index"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "invalid index",
@@ -53,7 +53,7 @@ func GetTeacherHandler(c *gin.Context) {
 		return
 	}
 
-	teacher, err := datastore.GetTeacher(uint64(index))
+	teacher, err := datastore.GetTeacher(index)
 	if err != nil {
 		if teacher == nil {
 			c.JSON(http.StatusNotFound, gin.H{
@@ -76,7 +76,7 @@ func GetTeachersHandler(c *gin.Context) {
 }
 
 func GetRoomHandler(c *gin.Context) {
-	index, err := strconv.Atoi(c.Param("index"))
+	index, err := strconv.ParseInt(c.Param("index"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "invalid index",
@@ -84,7 +84,7 @@ func GetRoomHandler(c *gin.Context) {
 		return
 	}
 
-	room, err := datastore.GetRoom(uint64(index))
+	room, err := datastore.GetRoom(index)
 	if err != nil {
 		if room == nil {
 			c.JSON(http.StatusNotFound, gin.H{

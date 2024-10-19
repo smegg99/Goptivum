@@ -6,15 +6,15 @@ package data;
 option go_package = "./common/models";
 
 message DivisionsDesignators {
-	map<string, uint64> divisions = 1;
+	map<string, int64> divisions = 1;
 }
 
 message TeachersDesignators {
-	map<string, uint64> teachers = 1;
+	map<string, int64> teachers = 1;
 }
 
 message RoomsDesignators {
-	map<string, uint64> rooms = 1;
+	map<string, int64> rooms = 1;
 }
 
 message Condition {
@@ -84,20 +84,20 @@ message Schedule {
 }
 
 message Teacher {
-	uint64   index = 1;
+	int64   index = 1;
 	string   designator = 2;
 	string   full_name = 3;
 	Schedule schedule = 4;
 }
 
 message Room {
-	uint64   index = 1;
+	int64   index = 1;
 	string   designator = 2;
 	Schedule schedule = 3;
 }
 
 message Division {
-	uint64   index = 1;
+	int64   index = 1;
 	string   designator = 2;
 	string   full_name = 3;
 	Schedule schedule = 4;
