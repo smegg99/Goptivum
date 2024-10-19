@@ -12,9 +12,9 @@ func SetupScheduleRoutes(router *gin.Engine, rootGroup *gin.RouterGroup) {
 	{
 		divisionGroup.GET("/:index", handlers.GetDivisionHandler)
 	}
-	divisionsGroup := rootGroup.Group("/divisions")
+	divisionsGroup := rootGroup.Group("/divisions", handlers.GetDivisionsHandler)
 	{
-		divisionsGroup.GET("/")
+		divisionsGroup.GET("/", handlers.GetDivisionsHandler)
 	}
 
 	teacherGroup := rootGroup.Group("/teacher")
@@ -23,7 +23,7 @@ func SetupScheduleRoutes(router *gin.Engine, rootGroup *gin.RouterGroup) {
 	}
 	teachersGroup := rootGroup.Group("/teachers")
 	{
-		teachersGroup.GET("/")
+		teachersGroup.GET("/", handlers.GetTeachersHandler)
 	}
 
 	roomGroup := rootGroup.Group("/room")
@@ -32,6 +32,6 @@ func SetupScheduleRoutes(router *gin.Engine, rootGroup *gin.RouterGroup) {
 	}
 	roomsGroup := rootGroup.Group("/rooms")
 	{
-		roomsGroup.GET("/")	
+		roomsGroup.GET("/", handlers.GetRoomsHandler)	
 	}
 }

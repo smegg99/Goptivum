@@ -2,10 +2,12 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
 	"smuggr.xyz/optivum-bsf/core/datastore"
+	"smuggr.xyz/optivum-bsf/core/scraper"
 
 	"github.com/gin-gonic/gin"
 )
@@ -37,6 +39,11 @@ func GetDivisionHandler(c *gin.Context) {
 	Respond(c, division)
 }
 
+func GetDivisionsHandler(c *gin.Context) {
+	fmt.Println(scraper.DivisionsDesignators)
+	Respond(c, scraper.DivisionsDesignators)
+}
+
 func GetTeacherHandler(c *gin.Context) {
 	index, err := strconv.Atoi(c.Param("index"))
 	if err != nil {
@@ -64,6 +71,10 @@ func GetTeacherHandler(c *gin.Context) {
 	Respond(c, teacher)
 }
 
+func GetTeachersHandler(c *gin.Context) {
+	Respond(c, scraper.TeachersDesignators)
+}
+
 func GetRoomHandler(c *gin.Context) {
 	index, err := strconv.Atoi(c.Param("index"))
 	if err != nil {
@@ -89,4 +100,8 @@ func GetRoomHandler(c *gin.Context) {
 	}
 
 	Respond(c, room)
+}
+
+func GetRoomsHandler(c *gin.Context) {
+	Respond(c, scraper.RoomsDesignators)
 }

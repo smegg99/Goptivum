@@ -28,13 +28,26 @@ var (
 	TeachersIndexes  []uint32
 	RoomsIndexes     []uint32
 
-	DivisionsDelimiters map[uint32]string
-	TeachersDelimiters  map[uint32]string
-	RoomsDelimiters     map[uint32]string
-
 	DivisionsListObserver *observer.Observer
-	DivisionsObservers    map[uint32]*observer.Observer
+	TeachersListObserver  *observer.Observer
+	RoomsListObserver     *observer.Observer
 )
+
+var DivisionsObservers = make(map[uint32]*observer.Observer)
+var TeachersObservers = make(map[uint32]*observer.Observer)
+var RoomsObservers = make(map[uint32]*observer.Observer)
+
+var DivisionsDesignators = &models.DivisionsDesignators{
+	Divisions: make(map[string]uint32),
+}
+
+var TeachersDesignators = &models.TeachersDesignators{
+	Teachers: make(map[string]uint32),
+}
+
+var RoomsDesignators = &models.RoomsDesignators{
+	Rooms: make(map[string]uint32),
+}
 
 func makeDivisionEndpoint(index uint32) string {
 	return fmt.Sprintf(Config.Endpoints.Division, index)
@@ -75,45 +88,77 @@ func parseTimeRange(s string) (models.TimeRange, error) {
 		return models.TimeRange{}, fmt.Errorf("invalid time range: %s", s)
 	}
 
+	_start := strings.TrimSpace(parts[0])
+	_end := strings.TrimSpace(parts[1])
+
+	startParts := strings.Split(_start, ":")
+	if len(startParts) != 2 {
+		return models.TimeRange{}, fmt.Errorf("invalid start time: %s", _start)
+	}
+	startHour, err := strconv.ParseInt(startParts[0], 10, 32)
+	if err != nil {
+		return models.TimeRange{}, fmt.Errorf("invalid start hour: %s %v", startParts[0], err)
+	}
+	startMinute, err := strconv.ParseInt(startParts[1], 10, 32)
+	if err != nil {
+		return models.TimeRange{}, fmt.Errorf("invalid start minute: %s %v", startParts[1], err)
+	}
+
+	endParts := strings.Split(_end, ":")
+	if len(endParts) != 2 {
+		return models.TimeRange{}, fmt.Errorf("invalid end time: %s %v", _end, err)
+	}
+	endHour, err := strconv.ParseInt(endParts[0], 10, 32)
+	if err != nil {
+		return models.TimeRange{}, fmt.Errorf("invalid end hour: %s %v", endParts[0], err)
+	}
+
+	endMinute, err := strconv.ParseInt(endParts[1], 10, 32)
+	if err != nil {
+		return models.TimeRange{}, fmt.Errorf("invalid end minute: %s %v", endParts[1], err)
+	}
+
 	start := models.Timestamp{
-		Hour: 0,
-		Minute: 0,
+		Hour:   int32(startHour),
+		Minute: int32(startMinute),
 	}
 
 	end := models.Timestamp{
-		Hour: 0,
-		Minute: 0,
+		Hour:   int32(endHour),
+		Minute: int32(endMinute),
 	}
 
 	return models.TimeRange{Start: &start, End: &end}, nil
 }
 
-func parseLesson(rowElement *goquery.Selection, timeRange *models.TimeRange, divisionDesignator string) (*models.Lesson, error) {
+func parseLesson(rowElement *goquery.Selection, timeRange *models.TimeRange) (*models.Lesson, error) {
 	lessonName := rowElement.Find("span.p").First().Text()
 	// Some lessons contain only the table data with embedded text only
 	if lessonName == "" {
 		lessonName = rowElement.Text()
 	}
 
+	division := rowElement.Find("a.o").First().Text()
 	teacher := rowElement.Find("a.n").First().Text()
 	room := rowElement.Find("a.s").First().Text()
 	lesson := models.Lesson{
-		TimeRange:           timeRange,
-		FullName:            lessonName,
-		TeacherDesignator:   teacher,
-		DivisionDesignator:  divisionDesignator,
-		RoomDesignator:      room,
+		TimeRange:          timeRange,
+		FullName:           lessonName,
+		TeacherDesignator:  teacher,
+		DivisionDesignator: division,
+		RoomDesignator:     room,
 	}
+
 	return &lesson, nil
 }
 
-func parseLessons(rowElement *goquery.Selection, timeRange *models.TimeRange, divisionDesignator string) ([]*models.Lesson, error) {
+func parseLessons(rowElement *goquery.Selection, timeRange *models.TimeRange) ([]*models.Lesson, error) {
 	lessons := []*models.Lesson{}
 	innerSpanElements := rowElement.Find("span > span.p")
 	if innerSpanElements.Length() > 1 {
 		innerSpanElements.Each(func(i int, s *goquery.Selection) {
 			parentSelection := s.Parent()
-			lesson, err := parseLesson(parentSelection, timeRange, divisionDesignator)
+			lesson, err := parseLesson(parentSelection, timeRange)
 			if err != nil {
 				fmt.Println("error parsing lesson", err)
 				return
@@ -121,7 +166,7 @@ func parseLessons(rowElement *goquery.Selection, timeRange *models.TimeRange, di
 			lessons = append(lessons, lesson)
 		})
 	} else {
-		lesson, err := parseLesson(rowElement, timeRange, divisionDesignator)
+		lesson, err := parseLesson(rowElement, timeRange)
 		if err != nil {
 			fmt.Println("error parsing lesson", err)
 			return nil, err
@@ -145,13 +190,13 @@ func scrapeDivisionTitle(doc *goquery.Document) (string, string, error) {
 }
 
 func scrapeTeacherTitle(doc *goquery.Document) (string, string, error) {
-	titleSelection := doc.Find("body > table > tbody > tr > td").First()
+	titleSelection := doc.Find("span.tytulnapis").First()
 	if titleSelection.Length() == 0 {
-		return "", "", fmt.Errorf("no division title found")
+		return "", "", fmt.Errorf("no teacher title found")
 	}
 
 	title := titleSelection.Text()
-	designator, fullName := splitTeacherTitle(title)
+	fullName, designator := splitTeacherTitle(title)
 
 	return designator, fullName, nil
 }
@@ -166,7 +211,7 @@ func scrapeRoomTitle(doc *goquery.Document) (string, error) {
 	return title, nil
 }
 
-func scrapeSchedule(doc *goquery.Document, divisionDesignator string) (*models.Schedule, error) {
+func scrapeSchedule(doc *goquery.Document) (*models.Schedule, error) {
 	var schedule *models.Schedule
 	var timeRange *models.TimeRange
 
@@ -182,7 +227,7 @@ func scrapeSchedule(doc *goquery.Document, divisionDesignator string) (*models.S
 
 	rowsLength := doc.Find("table.tabela > tbody > tr > td.nr").Length() + 1
 	lessonsLength := doc.Find("table.tabela > tbody > tr > td.l").Length()
-	
+
 	// First row is the table headers row so it doesn't count
 	scheduleStartColumn := columnsCount - (lessonsLength / (rowsLength - 1))
 	workDays := columnsCount - scheduleStartColumn
@@ -192,10 +237,10 @@ func scrapeSchedule(doc *goquery.Document, divisionDesignator string) (*models.S
 	}
 
 	for i := 0; i < workDays; i++ {
-        schedule.ScheduleDays[i] = &models.ScheduleDay{
-            LessonGroups: []*models.LessonGroup{},
-        }
-    }
+		schedule.ScheduleDays[i] = &models.ScheduleDay{
+			LessonGroups: []*models.LessonGroup{},
+		}
+	}
 
 	doc.Find("table.tabela > tbody > tr > td").Each(func(i int, rowElement *goquery.Selection) {
 		if columnNumber >= columnsCount {
@@ -214,7 +259,7 @@ func scrapeSchedule(doc *goquery.Document, divisionDesignator string) (*models.S
 				return
 			}
 			timeRange = &_timerange
-		// other columns are lessons
+			// other columns are lessons
 		} else if columnNumber > scheduleStartColumn {
 			if dayOfWeek < workDays {
 				dayOfWeek++
@@ -225,7 +270,7 @@ func scrapeSchedule(doc *goquery.Document, divisionDesignator string) (*models.S
 			if utils.IsEmptyOrInvisible(rowElement.Text()) {
 				return
 			}
-			lessons, err := parseLessons(rowElement, timeRange, divisionDesignator)
+			lessons, err := parseLessons(rowElement, timeRange)
 			if err != nil {
 				fmt.Println("error parsing lessons", err)
 				return
@@ -254,7 +299,7 @@ func ScrapeDivision(index uint32) (*models.Division, error) {
 	}
 
 	division := models.Division{
-		Index:   	index,
+		Index:      index,
 		Designator: "",
 		FullName:   "",
 		Schedule:   &models.Schedule{},
@@ -267,7 +312,15 @@ func ScrapeDivision(index uint32) (*models.Division, error) {
 	division.Designator = designator
 	division.FullName = fullName
 
-	schedule, err := scrapeSchedule(doc, designator)
+	for _designator, _index := range DivisionsDesignators.Divisions {
+		if index == _index {
+			fmt.Println("division's name changed, deleting old designator")
+			delete(DivisionsDesignators.Divisions, _designator)
+		}
+	}
+	DivisionsDesignators.Divisions[designator] = index
+
+	schedule, err := scrapeSchedule(doc)
 	if err != nil {
 		return nil, fmt.Errorf("error scraping division schedule: %w", err)
 	}
@@ -284,7 +337,7 @@ func ScrapeTeacher(index uint32) (*models.Teacher, error) {
 	}
 
 	teacher := models.Teacher{
-		Index:  	index,
+		Index:      index,
 		Designator: "",
 		FullName:   "",
 		Schedule:   &models.Schedule{},
@@ -297,7 +350,15 @@ func ScrapeTeacher(index uint32) (*models.Teacher, error) {
 	teacher.Designator = designator
 	teacher.FullName = fullName
 
-	schedule, err := scrapeSchedule(doc, designator)
+	for _designator, _index := range TeachersDesignators.Teachers {
+		if index == _index {
+			fmt.Println("teacher's name changed, deleting old designator")
+			delete(TeachersDesignators.Teachers, _designator)
+		}
+	}
+	TeachersDesignators.Teachers[designator] = index
+
+	schedule, err := scrapeSchedule(doc)
 	if err != nil {
 		return nil, fmt.Errorf("error scraping division schedule: %w", err)
 	}
@@ -314,7 +375,7 @@ func ScrapeRoom(index uint32) (*models.Room, error) {
 	}
 
 	room := models.Room{
-		Index:   	index,
+		Index:      index,
 		Designator: "",
 		Schedule:   &models.Schedule{},
 	}
@@ -325,7 +386,15 @@ func ScrapeRoom(index uint32) (*models.Room, error) {
 	}
 	room.Designator = designator
 
-	schedule, err := scrapeSchedule(doc, designator)
+	for _designator, _index := range RoomsDesignators.Rooms {
+		if index == _index {
+			fmt.Println("rooms's name changed, deleting old designator")
+			delete(RoomsDesignators.Rooms, _designator)
+		}
+	}
+	RoomsDesignators.Rooms[designator] = index
+
+	schedule, err := scrapeSchedule(doc)
 	if err != nil {
 		return nil, fmt.Errorf("error scraping division schedule: %w", err)
 	}
@@ -483,6 +552,8 @@ func Initialize() error {
 	}
 
 	ObserveDivisions()
+	ObserveTeachers()
+	ObserveRooms()
 
 	return nil
 }

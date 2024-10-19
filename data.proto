@@ -5,6 +5,18 @@ package data;
 
 option go_package = "./common/models";
 
+message DivisionsDesignators {
+	map<string, uint32> divisions = 1;
+}
+
+message TeachersDesignators {
+	map<string, uint32> teachers = 1;
+}
+
+message RoomsDesignators {
+	map<string, uint32> rooms = 1;
+}
+
 message Condition {
 	string name = 1;
 	string description = 2;
