@@ -16,6 +16,7 @@ func Initialize() error {
 	opts := badger.DefaultOptions(os.Getenv("DB_FILE_PATH"))
     opts = opts.WithCompression(options.ZSTD)
 	opts = opts.WithZSTDCompressionLevel(1)
+	
     db, err := badger.Open(opts)
     if err != nil {
         return err

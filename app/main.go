@@ -10,7 +10,7 @@ import (
 	"smuggr.xyz/optivum-bsf/common/config"
 	"smuggr.xyz/optivum-bsf/core/datastore"
 	"smuggr.xyz/optivum-bsf/core/scraper"
-	//"smuggr.xyz/optivum-bsf/api/v1"
+	"smuggr.xyz/optivum-bsf/api/v1"
 )
 
 func WaitForTermination() {
@@ -36,7 +36,7 @@ func main() {
 	}
 	defer datastore.Cleanup()
 
-	//v1.Initialize()
+	v1.Initialize()
 
 	WaitForTermination()
 }

@@ -9,19 +9,19 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func setItem(db *badger.DB, key []byte, item proto.Message) error {
+func setItem(key []byte, item proto.Message) error {
     data, err := proto.Marshal(item)
     if err != nil {
         return err
     }
 
-    return db.Update(func(txn *badger.Txn) error {
+    return DB.Update(func(txn *badger.Txn) error {
         return txn.Set(key, data)
     })
 }
 
-func getItem(db *badger.DB, key []byte, item proto.Message) error {
-    return db.View(func(txn *badger.Txn) error {
+func getItem(key []byte, item proto.Message) error {
+    return DB.View(func(txn *badger.Txn) error {
         entry, err := txn.Get(key)
         if err != nil {
             return err
@@ -36,8 +36,8 @@ func getItem(db *badger.DB, key []byte, item proto.Message) error {
     })
 }
 
-func deleteItem(db *badger.DB, key []byte) error {
-    return db.Update(func(txn *badger.Txn) error {
+func deleteItem(key []byte) error {
+    return DB.Update(func(txn *badger.Txn) error {
         err := txn.Delete(key)
         if err != nil && err != badger.ErrKeyNotFound {
             return err
@@ -46,62 +46,62 @@ func deleteItem(db *badger.DB, key []byte) error {
     })
 }
 
-func SetDivision(db *badger.DB, division *models.Division) error {
+func SetDivision(division *models.Division) error {
     key := []byte(fmt.Sprintf("division:%d", division.Index))
-    return setItem(db, key, division)
+    return setItem(key, division)
 }
 
-func GetDivision(db *badger.DB, index uint32) (*models.Division, error) {
+func GetDivision(index uint32) (*models.Division, error) {
     key := []byte(fmt.Sprintf("division:%d", index))
     division := &models.Division{}
-    err := getItem(db, key, division)
+    err := getItem(key, division)
     if err != nil {
         return nil, err
     }
     return division, nil
 }
 
-func DeleteDivision(db *badger.DB, index uint32) error {
+func DeleteDivision(index uint32) error {
     key := []byte(fmt.Sprintf("division:%d", index))
-    return deleteItem(db, key)
+    return deleteItem(key)
 }
 
-func SetTeacher(db *badger.DB, teacher *models.Teacher) error {
+func SetTeacher(teacher *models.Teacher) error {
     key := []byte(fmt.Sprintf("teacher:%d", teacher.Index))
-    return setItem(db, key, teacher)
+    return setItem(key, teacher)
 }
 
-func GetTeacher(db *badger.DB, index uint32) (*models.Teacher, error) {
+func GetTeacher(index uint32) (*models.Teacher, error) {
     key := []byte(fmt.Sprintf("teacher:%d", index))
     teacher := &models.Teacher{}
-    err := getItem(db, key, teacher)
+    err := getItem(key, teacher)
     if err != nil {
         return nil, err
     }
     return teacher, nil
 }
 
-func DeleteTeacher(db *badger.DB, index uint32) error {
+func DeleteTeacher(index uint32) error {
     key := []byte(fmt.Sprintf("teacher:%d", index))
-    return deleteItem(db, key)
+    return deleteItem(key)
 }
 
-func SetRoom(db *badger.DB, room *models.Room) error {
+func SetRoom(room *models.Room) error {
     key := []byte(fmt.Sprintf("room:%d", room.Index))
-    return setItem(db, key, room)
+    return setItem(key, room)
 }
 
-func GetRoom(db *badger.DB, index uint32) (*models.Room, error) {
+func GetRoom(index uint32) (*models.Room, error) {
     key := []byte(fmt.Sprintf("room:%d", index))
     room := &models.Room{}
-    err := getItem(db, key, room)
+    err := getItem(key, room)
     if err != nil {
         return nil, err
     }
     return room, nil
 }
 
-func DeleteRoom(db *badger.DB, index uint32) error {
+func DeleteRoom(index uint32) error {
     key := []byte(fmt.Sprintf("room:%d", index))
-    return deleteItem(db, key)
+    return deleteItem(key)
 }

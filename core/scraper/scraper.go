@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"smuggr.xyz/optivum-bsf/common/config"
 	"smuggr.xyz/optivum-bsf/common/models"
@@ -18,10 +17,10 @@ import (
 
 var Config config.ScraperConfig
 
-const (
-	DivisionIndexRegex = `o(\d+)\.html`
-	TeacherIndexRegex  = `n(\d+)\.html`
-	RoomIndexRegex     = `s(\d+)\.html`
+var (
+	DivisionIndexRegex = regexp.MustCompile(`o(\d+)\.html`)
+	TeacherIndexRegex  = regexp.MustCompile(`n(\d+)\.html`)
+	RoomIndexRegex     = regexp.MustCompile(`s(\d+)\.html`)
 )
 
 var (
@@ -29,9 +28,25 @@ var (
 	TeachersIndexes  []uint32
 	RoomsIndexes     []uint32
 
+	DivisionsDelimiters map[uint32]string
+	TeachersDelimiters  map[uint32]string
+	RoomsDelimiters     map[uint32]string
+
 	DivisionsListObserver *observer.Observer
 	DivisionsObservers    map[uint32]*observer.Observer
 )
+
+func makeDivisionEndpoint(index uint32) string {
+	return fmt.Sprintf(Config.Endpoints.Division, index)
+}
+
+func makeTeacherEndpoint(index uint32) string {
+	return fmt.Sprintf(Config.Endpoints.Teacher, index)
+}
+
+func makeRoomEndpoint(index uint32) string {
+	return fmt.Sprintf(Config.Endpoints.Room, index)
+}
 
 func splitDivisionTitle(s string) (string, string) {
 	parts := strings.Split(s, " ")
@@ -73,7 +88,6 @@ func parseTimeRange(s string) (models.TimeRange, error) {
 	return models.TimeRange{Start: &start, End: &end}, nil
 }
 
-// TODO: Refactor the divisionDesignator scraping to a separate function
 func parseLesson(rowElement *goquery.Selection, timeRange *models.TimeRange, divisionDesignator string) (*models.Lesson, error) {
 	lessonName := rowElement.Find("span.p").First().Text()
 	// Some lessons contain only the table data with embedded text only
@@ -119,7 +133,7 @@ func parseLessons(rowElement *goquery.Selection, timeRange *models.TimeRange, di
 }
 
 func scrapeDivisionTitle(doc *goquery.Document) (string, string, error) {
-	titleSelection := doc.Find("body > table > tbody > tr > td").First()
+	titleSelection := doc.Find("span.tytulnapis").First()
 	if titleSelection.Length() == 0 {
 		return "", "", fmt.Errorf("no division title found")
 	}
@@ -233,7 +247,7 @@ func scrapeSchedule(doc *goquery.Document, divisionDesignator string) (*models.S
 }
 
 func ScrapeDivision(index uint32) (*models.Division, error) {
-	endpoint := fmt.Sprintf(Config.Endpoints.Division, index)
+	endpoint := makeDivisionEndpoint(index)
 	doc, err := utils.OpenDoc(Config.BaseUrl, endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("error opening document: %w", err)
@@ -263,7 +277,7 @@ func ScrapeDivision(index uint32) (*models.Division, error) {
 }
 
 func ScrapeTeacher(index uint32) (*models.Teacher, error) {
-	endpoint := fmt.Sprintf(Config.Endpoints.Teacher, index)
+	endpoint := makeTeacherEndpoint(index)
 	doc, err := utils.OpenDoc(Config.BaseUrl, endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("error opening document: %w", err)
@@ -293,7 +307,7 @@ func ScrapeTeacher(index uint32) (*models.Teacher, error) {
 }
 
 func ScrapeRoom(index uint32) (*models.Room, error) {
-	endpoint := fmt.Sprintf(Config.Endpoints.Room, index)
+	endpoint := makeRoomEndpoint(index)
 	doc, err := utils.OpenDoc(Config.BaseUrl, endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("error opening document: %w", err)
@@ -327,17 +341,21 @@ func ScrapeDivisionsIndexes() ([]uint32, error) {
 	}
 
 	indexes := []uint32{}
-	re := regexp.MustCompile(DivisionIndexRegex)
-
 	doc.Find("a").Each(func(index int, element *goquery.Selection) {
 		href, exists := element.Attr("href")
 		if exists {
-			match := re.FindStringSubmatch(href)
+			match := DivisionIndexRegex.FindStringSubmatch(href)
 			if len(match) > 1 {
 				number := match[1]
 				num, err := strconv.ParseUint(number, 10, 32)
 				if err != nil {
 					fmt.Printf("error converting number to uint: %v\n", err)
+					return
+				}
+				endpoint := makeDivisionEndpoint(uint32(num))
+				_, err = utils.OpenDoc(Config.BaseUrl, endpoint)
+				if err != nil {
+					fmt.Printf("error opening division document: %v\n", err)
 					return
 				}
 				indexes = append(indexes, uint32(num))
@@ -355,17 +373,22 @@ func ScrapeTeachersIndexes() ([]uint32, error) {
 	}
 
 	indexes := []uint32{}
-	re := regexp.MustCompile(TeacherIndexRegex)
 
 	doc.Find("a").Each(func(index int, element *goquery.Selection) {
 		href, exists := element.Attr("href")
 		if exists {
-			match := re.FindStringSubmatch(href)
+			match := TeacherIndexRegex.FindStringSubmatch(href)
 			if len(match) > 1 {
 				number := match[1]
 				num, err := strconv.ParseUint(number, 10, 32)
 				if err != nil {
 					fmt.Printf("error converting number to uint: %v\n", err)
+					return
+				}
+				endpoint := makeTeacherEndpoint(uint32(num))
+				_, err = utils.OpenDoc(Config.BaseUrl, endpoint)
+				if err != nil {
+					fmt.Printf("error opening teacher document: %v\n", err)
 					return
 				}
 				indexes = append(indexes, uint32(num))
@@ -383,17 +406,22 @@ func ScrapeRoomsIndexes() ([]uint32, error) {
 	}
 
 	indexes := []uint32{}
-	re := regexp.MustCompile(RoomIndexRegex)
 
 	doc.Find("a").Each(func(index int, element *goquery.Selection) {
 		href, exists := element.Attr("href")
 		if exists {
-			match := re.FindStringSubmatch(href)
+			match := RoomIndexRegex.FindStringSubmatch(href)
 			if len(match) > 1 {
 				number := match[1]
 				num, err := strconv.ParseUint(number, 10, 32)
 				if err != nil {
 					fmt.Printf("error converting number to uint: %v\n", err)
+					return
+				}
+				endpoint := makeRoomEndpoint(uint32(num))
+				_, err = utils.OpenDoc(Config.BaseUrl, endpoint)
+				if err != nil {
+					fmt.Printf("error opening room document: %v\n", err)
 					return
 				}
 				indexes = append(indexes, uint32(num))
@@ -402,80 +430,6 @@ func ScrapeRoomsIndexes() ([]uint32, error) {
 	})
 
 	return indexes, nil
-}
-
-func ObserveDivisions() {
-	fmt.Println("observing divisions")
-
-	DivisionsObservers = make(map[uint32]*observer.Observer)
-
-	newDivisionObserver := func(index uint32) *observer.Observer {
-		url := fmt.Sprintf(Config.BaseUrl+Config.Endpoints.Division, index)
-		interval := time.Duration((index+1)/10 + 1) * time.Second 
-		return observer.NewObserver(url, interval, func(doc *goquery.Document) string {
-			var content []string
-			doc.Find("table.tabela").Each(func(i int, table *goquery.Selection) {
-				table.Find("td, th").Each(func(i int, s *goquery.Selection) {
-					content = append(content, s.Text())
-				})
-				table.Find("a").Each(func(i int, s *goquery.Selection) {
-					href, exists := s.Attr("href")
-					if exists {
-						content = append(content, href)
-					}
-				})
-			})
-
-			return strings.Join(content, " ")
-		})
-	}
-
-	startDivisionObserver := func(observer *observer.Observer, index uint32) {
-		observer.Start(func() {
-			fmt.Printf("refreshing division %d\n", index)
-			_, err := ScrapeDivision(index)
-			if err != nil {
-				fmt.Printf("error scraping division: %v\n", err)
-				return
-			}
-			//fmt.Println(division)
-		})
-	}
-
-	refreshDivisionsObservers := func() {
-		for _, index := range DivisionsIndexes {
-			if _, exists := DivisionsObservers[index]; !exists {
-				DivisionsObservers[index] = newDivisionObserver(index)
-				startDivisionObserver(DivisionsObservers[index], index)
-			}
-		}
-
-		fmt.Printf("observing divisions with %d observers...\n", len(DivisionsObservers))
-	}
-
-	DivisionsListObserver = observer.NewObserver(Config.BaseUrl+Config.Endpoints.DivisionsList, time.Second * 5, func(doc *goquery.Document) string {
-		var hrefs []string
-		doc.Find("table a").Each(func(i int, s *goquery.Selection) {
-			href, exists := s.Attr("href")
-			if exists {
-				hrefs = append(hrefs, href)
-			}
-		})
-		return strings.Join(hrefs, " ")
-	})
-
-	DivisionsListObserver.Start(func() {
-		fmt.Println("divisions list changed!")
-		divisionsIndexes, err := ScrapeDivisionsIndexes()
-		if err != nil {
-			fmt.Printf("error scraping divisions indexes: %v\n", err)
-			return
-		}
-		DivisionsIndexes = divisionsIndexes
-		refreshDivisionsObservers()
-	})
-
-	refreshDivisionsObservers()
 }
 
 func Initialize() error {
@@ -528,7 +482,7 @@ func Initialize() error {
 		fmt.Printf("expected %d rooms, found %d\n", Config.Quantities.Rooms, roomsIndexesLength)
 	}
 
-	//ObserveDivisions()
+	ObserveDivisions()
 
 	return nil
 }

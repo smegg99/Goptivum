@@ -9,6 +9,7 @@ import (
 	"smuggr.xyz/optivum-bsf/common/config"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-contrib/gzip"
 )
 
 var DefaultRouter *gin.Engine
@@ -21,7 +22,7 @@ func Initialize() (chan error) {
 	gin.SetMode(os.Getenv("GIN_MODE"))
 
 	DefaultRouter = gin.Default()
-	//SetupCors()
+	DefaultRouter.Use(gzip.Gzip(gzip.DefaultCompression))
 
 	routes.Initialize(DefaultRouter)
 

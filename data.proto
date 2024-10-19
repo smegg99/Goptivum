@@ -1,8 +1,45 @@
+// protoc --go_out=. ./data.proto
 syntax = "proto3";
 
 package data;
 
 option go_package = "./common/models";
+
+message Condition {
+	string name = 1;
+	string description = 2;
+}
+
+message Temperature {
+	float current = 1;
+	float min = 2;
+	float max = 3;
+}
+
+message Forecast {
+	Condition condition = 1;
+	Temperature temperature = 2;
+	int64 sunrise = 3;
+	int64 sunset = 4;
+	int32 dayOfWeek = 5;
+}
+
+message ForecastResponse {
+	string name = 1;
+	repeated Forecast forecast = 2;
+}
+
+message CurrentWeatherResponse {
+	string name = 1;
+	Condition condition = 2;
+	Temperature temperature = 3;
+	int64 sunrise = 4;
+	int64 sunset = 5;
+}
+
+message AirPollutionResponse {
+	map<string, float> components = 1;
+}
 
 message Timestamp {
 	int32 hour = 1;

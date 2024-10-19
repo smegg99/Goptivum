@@ -9,48 +9,50 @@ import (
 	"strconv"
 	"time"
 
+	"smuggr.xyz/optivum-bsf/common/models"
+
 	"github.com/gin-gonic/gin"
 )
 
-type ForecastResponse struct {
-	Name     string     `json:"name"`
-	Forecast []Forecast `json:"forecast"`
-}
+// type ForecastResponse struct {
+// 	Name     string     `json:"name"`
+// 	Forecast []Forecast `json:"forecast"`
+// }
 
-type Forecast struct {
-	Condition   Condition   `json:"condition"`
-	Temperature Temperature `json:"temperature"`
-	Sunrise     int64       `json:"sunrise"`
-	Sunset      int64       `json:"sunset"`
-	DayOfWeek   int         `json:"dayOfWeek"`
-}
+// type Forecast struct {
+// 	Condition   Condition   `json:"condition"`
+// 	Temperature Temperature `json:"temperature"`
+// 	Sunrise     int64       `json:"sunrise"`
+// 	Sunset      int64       `json:"sunset"`
+// 	DayOfWeek   int         `json:"dayOfWeek"`
+// }
 
-type Condition struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-}
+// type Condition struct {
+// 	Name        string `json:"name"`
+// 	Description string `json:"description"`
+// }
 
-type Temperature struct {
-	Current float64 `json:"current"`
-	Min     float64 `json:"min"`
-	Max     float64 `json:"max"`
-}
+// type Temperature struct {
+// 	Current float64 `json:"current"`
+// 	Min     float64 `json:"min"`
+// 	Max     float64 `json:"max"`
+// }
 
-type CurrentWeatherResponse struct {
-	Name        string      `json:"name"`
-	Condition   Condition   `json:"condition"`
-	Temperature Temperature `json:"temperature"`
-	Sunrise     int64       `json:"sunrise"`
-	Sunset      int64       `json:"sunset"`
-}
+// type CurrentWeatherResponse struct {
+// 	Name        string      `json:"name"`
+// 	Condition   Condition   `json:"condition"`
+// 	Temperature Temperature `json:"temperature"`
+// 	Sunrise     int64       `json:"sunrise"`
+// 	Sunset      int64       `json:"sunset"`
+// }
 
-type AirPollutionResponse struct {
-	Components map[string]float64 `json:"components"`
-}
+// type AirPollutionResponse struct {
+// 	Components map[string]float64 `json:"components"`
+// }
 
 // Helper function to get the day of the week from a timestamp
-func getDayOfWeek(timestamp int64) int {
-	return int(time.Unix(timestamp, 0).Weekday())
+func getDayOfWeek(timestamp int64) int32 {
+	return int32(time.Unix(timestamp, 0).Weekday())
 }
 
 /* Example response:
@@ -131,7 +133,7 @@ func WeatherForecastHandler(c *gin.Context) {
 	}
 
 	forecastList := openWeatherData["list"].([]interface{})
-	forecastResponse := ForecastResponse{Name: openWeatherData["city"].(map[string]interface{})["name"].(string)}
+	forecastResponse := &models.ForecastResponse{Name: openWeatherData["city"].(map[string]interface{})["name"].(string)}
 
 	for i, forecast := range forecastList {
 		if i >= days {
@@ -143,15 +145,15 @@ func WeatherForecastHandler(c *gin.Context) {
 		sunrise := int64(openWeatherData["city"].(map[string]interface{})["sunrise"].(float64))
 		sunset := int64(openWeatherData["city"].(map[string]interface{})["sunset"].(float64))
 
-		forecastResponse.Forecast = append(forecastResponse.Forecast, Forecast{
-			Condition: Condition{
+		forecastResponse.Forecast = append(forecastResponse.Forecast, &models.Forecast{
+			Condition: &models.Condition{
 				Name:        condition["main"].(string),
 				Description: condition["description"].(string),
 			},
-			Temperature: Temperature{
-				Current: temperature["temp"].(float64),
-				Min:     temperature["temp_min"].(float64),
-				Max:     temperature["temp_max"].(float64),
+			Temperature: &models.Temperature{
+				Current: float32(temperature["temp"].(float64)),
+				Min:     float32(temperature["temp_min"].(float64)),
+				Max:     float32(temperature["temp_max"].(float64)),
 			},
 			Sunrise:   sunrise,
 			Sunset:    sunset,
@@ -159,7 +161,7 @@ func WeatherForecastHandler(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, forecastResponse)
+	Respond(c, forecastResponse)
 }
 
 /* Example response:
@@ -211,22 +213,22 @@ func CurrentWeatherHandler(c *gin.Context) {
 	sunrise := int64(openWeatherData["sys"].(map[string]interface{})["sunrise"].(float64))
 	sunset := int64(openWeatherData["sys"].(map[string]interface{})["sunset"].(float64))
 
-	currentWeatherResponse := CurrentWeatherResponse{
+	currentWeatherResponse := &models.CurrentWeatherResponse{
 		Name: openWeatherData["name"].(string),
-		Condition: Condition{
+		Condition: &models.Condition{
 			Name:        condition["main"].(string),
 			Description: condition["description"].(string),
 		},
-		Temperature: Temperature{
-			Current: temperature["temp"].(float64),
-			Min:     temperature["temp_min"].(float64),
-			Max:     temperature["temp_max"].(float64),
+		Temperature: &models.Temperature{
+			Current: float32(temperature["temp"].(float64)),
+			Min:     float32(temperature["temp_min"].(float64)),
+			Max:     float32(temperature["temp_max"].(float64)),
 		},
 		Sunrise: sunrise,
 		Sunset:  sunset,
 	}
 
-	c.JSON(http.StatusOK, currentWeatherResponse)
+	Respond(c, currentWeatherResponse)
 }
 
 
@@ -272,18 +274,18 @@ func CurrentAirPollutionHandler(c *gin.Context) {
 
 	components := openWeatherData["list"].([]interface{})[0].(map[string]interface{})["components"].(map[string]interface{})
 
-	airPollutionResponse := AirPollutionResponse{
-		Components: map[string]float64{
-			"co":    components["co"].(float64),
-			"no":    components["no"].(float64),
-			"no2":   components["no2"].(float64),
-			"o3":    components["o3"].(float64),
-			"so2":   components["so2"].(float64),
-			"pm2_5": components["pm2_5"].(float64),
-			"pm10":  components["pm10"].(float64),
-			"nh3":   components["nh3"].(float64),
+	airPollutionResponse := &models.AirPollutionResponse{
+		Components: map[string]float32{
+			"co":    float32(components["co"].(float64)),
+			"no":    float32(components["no"].(float64)),
+			"no2":   float32(components["no2"].(float64)),
+			"o3":    float32(components["o3"].(float64)),
+			"so2":   float32(components["so2"].(float64)),
+			"pm2_5": float32(components["pm2_5"].(float64)),
+			"pm10":  float32(components["pm10"].(float64)),
+			"nh3":   float32(components["nh3"].(float64)),
 		},
 	}
 
-	c.JSON(http.StatusOK, airPollutionResponse)
+	Respond(c, airPollutionResponse)
 }

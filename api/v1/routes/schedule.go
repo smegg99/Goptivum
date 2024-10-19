@@ -2,13 +2,15 @@
 package routes
 
 import (
+	"smuggr.xyz/optivum-bsf/api/v1/handlers"
+
 	"github.com/gin-gonic/gin"
 )
 
 func SetupScheduleRoutes(router *gin.Engine, rootGroup *gin.RouterGroup) {
 	divisionGroup := rootGroup.Group("/division")
 	{
-		divisionGroup.GET("/:designator")
+		divisionGroup.GET("/:index", handlers.GetDivisionHandler)
 	}
 	divisionsGroup := rootGroup.Group("/divisions")
 	{
@@ -17,7 +19,7 @@ func SetupScheduleRoutes(router *gin.Engine, rootGroup *gin.RouterGroup) {
 
 	teacherGroup := rootGroup.Group("/teacher")
 	{
-		teacherGroup.GET("/:designator")
+		teacherGroup.GET("/:index", handlers.GetTeacherHandler)
 	}
 	teachersGroup := rootGroup.Group("/teachers")
 	{
@@ -26,7 +28,7 @@ func SetupScheduleRoutes(router *gin.Engine, rootGroup *gin.RouterGroup) {
 
 	roomGroup := rootGroup.Group("/room")
 	{
-		roomGroup.GET("/:designator")
+		roomGroup.GET("/:index", handlers.GetRoomHandler)
 	}
 	roomsGroup := rootGroup.Group("/rooms")
 	{
