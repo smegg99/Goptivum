@@ -198,7 +198,7 @@ func ObserveRooms() {
 	fmt.Println("observing rooms")
 
 	newRoomObserver := func(index uint32) *observer.Observer {
-		url := fmt.Sprintf(Config.BaseUrl+Config.Endpoints.Room, index)
+		url := fmt.Sprintf(Config.BaseUrl + Config.Endpoints.Room, index)
 		interval := time.Duration((index + 1) / 10 + 15) * time.Second
 		return observer.NewObserver(url, interval, func(doc *goquery.Document) string {
 			var content []string

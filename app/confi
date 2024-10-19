@@ -1,10 +1,10 @@
 {
 	"scraper": {
-		"base_url": "https://zsem.edu.pl/plany/",
+		"base_url": "http://localhost:3000/",
 		"endpoints" : {
-			"division": "plany/o%d.html",
-			"teacher": "plany/n%d.html",
-			"room": "plany/s%d.html",
+			"division": "o%d.html",
+			"teacher": "n%d.html",
+			"room": "s%d.html",
 			"divisions_list": "lll.php",
 			"teachers_list": "nnn.php",
 			"rooms_list": "sss.php"
@@ -16,7 +16,7 @@
 		}
 	},
 	"api": {
-		"port": 3000,
+		"port": 3001,
 		"open_weather": {
 			"base_url": "https://api.openweathermap.org/data/2.5/",
 			"endpoints": {

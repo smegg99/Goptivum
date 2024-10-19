@@ -3,13 +3,13 @@ name: GoSec
 on:
   push:
     branches:
-      - tests
+      - main
   pull_request:
     branches:
-      - tests
+      - main
 
 jobs:
-  tests:
+  main:
     name: Run GoSec Security Scan
     runs-on: ubuntu-latest
     env:
