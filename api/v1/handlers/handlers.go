@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"smuggr.xyz/optivum-bsf/common/config"
+	"smuggr.xyz/optivum-bsf/common/models"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/protobuf/proto"
@@ -13,27 +14,28 @@ import (
 
 var Config *config.APIConfig
 
-func Respond(c *gin.Context, data interface{}) {
+func Respond(c *gin.Context, code int, data interface{}) {
     accept := c.GetHeader("Accept")
     switch {
     case strings.Contains(accept, "application/protobuf"):
         protoMsg, ok := data.(proto.Message)
         if !ok {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid protobuf message"})
+            c.ProtoBuf(http.StatusInternalServerError, models.APIResponse{
+                Message: "internal server error",
+                Success: false,
+            })
             return
         }
-        c.ProtoBuf(http.StatusOK, protoMsg)
+        c.ProtoBuf(code, protoMsg)
     case strings.Contains(accept, "application/json"):
         fallthrough
     default:
-        c.JSON(http.StatusOK, data)
+        c.JSON(code, data)
     }
 }
 
 func PingHandler(c *gin.Context) {
-	c.JSON(200, gin.H{
-		"message": "Pong",
-	})
+	Respond(c, http.StatusOK, gin.H{"message": "pong"})
 }
 
 func Initialize() {

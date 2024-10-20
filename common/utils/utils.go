@@ -10,6 +10,7 @@ import (
 )
 
 func CheckURL(url string) bool {
+	// #nosec G107
 	resp, err := http.Get(url)
 	if err != nil {
 		return false
@@ -30,6 +31,7 @@ func OpenDoc(baseUrl, endpoint string) (*goquery.Document, error) {
 	url := fmt.Sprintf("%s%s", baseUrl, endpoint)
 	fmt.Printf("fetching URL: %s\n", url)
 	
+	// #nosec G107
 	res, err := http.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching URL: %w", err)

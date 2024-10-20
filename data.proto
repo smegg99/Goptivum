@@ -5,6 +5,11 @@ package data;
 
 option go_package = "./common/models";
 
+message APIResponse {
+	bool success = 1;
+	string message = 2;
+}
+
 message DivisionsDesignators {
 	map<string, int64> divisions = 1;
 }

@@ -119,19 +119,28 @@ func WeatherForecastHandler(c *gin.Context) {
 	// #nosec G107
 	resp, err := http.Get(url)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch forecast data"})
+		Respond(c, http.StatusInternalServerError, models.APIResponse{
+			Message: "failed to fetch forecast data",
+			Success: false,
+		})
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		c.JSON(resp.StatusCode, gin.H{"error": "failed to fetch forecast data"})
+		Respond(c, http.StatusInternalServerError, models.APIResponse{
+			Message: "failed to fetch forecast data",
+			Success: false,
+		})
 		return
 	}
 
 	var openWeatherData map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&openWeatherData); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to parse forecast data"})
+		Respond(c, http.StatusInternalServerError, models.APIResponse{
+			Message: "failed to parse forecast data",
+			Success: false,
+		})
 		return
 	}
 
@@ -164,7 +173,7 @@ func WeatherForecastHandler(c *gin.Context) {
 		})
 	}
 
-	Respond(c, forecastResponse)
+	Respond(c, http.StatusOK, forecastResponse)
 }
 
 /*
@@ -197,19 +206,28 @@ func CurrentWeatherHandler(c *gin.Context) {
 	// #nosec G107 - URL is constructed from trusted configuration and validated
 	resp, err := http.Get(url)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch current weather data"})
+		Respond(c, http.StatusInternalServerError, models.APIResponse{
+			Message: "failed to fetch current weather data",
+			Success: false,
+		})
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		c.JSON(resp.StatusCode, gin.H{"error": "failed to fetch current weather data"})
+		Respond(c, http.StatusInternalServerError, models.APIResponse{
+			Message: "failed to fetch current weather data",
+			Success: false,
+		})
 		return
 	}
 
 	var openWeatherData map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&openWeatherData); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to parse current weather data"})
+		Respond(c, http.StatusInternalServerError, models.APIResponse{
+			Message: "failed to parse current weather data",
+			Success: false,
+		})
 		return
 	}
 
@@ -233,7 +251,7 @@ func CurrentWeatherHandler(c *gin.Context) {
 		Sunset:  sunset,
 	}
 
-	Respond(c, currentWeatherResponse)
+	Respond(c, http.StatusOK, currentWeatherResponse)
 }
 
 /*
@@ -262,19 +280,28 @@ func CurrentAirPollutionHandler(c *gin.Context) {
 	// #nosec G107
 	resp, err := http.Get(url)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch air pollution data"})
+		Respond(c, http.StatusInternalServerError, models.APIResponse{
+			Message: "failed to fetch air pollution data",
+			Success: false,
+		})
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		c.JSON(resp.StatusCode, gin.H{"error": "failed to fetch air pollution data"})
+		Respond(c, http.StatusInternalServerError, models.APIResponse{
+			Message: "failed to fetch air pollution data",
+			Success: false,
+		})
 		return
 	}
 
 	var openWeatherData map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&openWeatherData); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to parse air pollution data"})
+		Respond(c, http.StatusInternalServerError, models.APIResponse{
+			Message: "failed to parse air pollution data",
+			Success: false,
+		})
 		return
 	}
 
@@ -293,5 +320,5 @@ func CurrentAirPollutionHandler(c *gin.Context) {
 		},
 	}
 
-	Respond(c, airPollutionResponse)
+	Respond(c, http.StatusOK, airPollutionResponse)
 }
