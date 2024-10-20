@@ -14,84 +14,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// type ForecastResponse struct {
-// 	Name     string     `json:"name"`
-// 	Forecast []Forecast `json:"forecast"`
-// }
-
-// type Forecast struct {
-// 	Condition   Condition   `json:"condition"`
-// 	Temperature Temperature `json:"temperature"`
-// 	Sunrise     int64       `json:"sunrise"`
-// 	Sunset      int64       `json:"sunset"`
-// 	DayOfWeek   int         `json:"dayOfWeek"`
-// }
-
-// type Condition struct {
-// 	Name        string `json:"name"`
-// 	Description string `json:"description"`
-// }
-
-// type Temperature struct {
-// 	Current float64 `json:"current"`
-// 	Min     float64 `json:"min"`
-// 	Max     float64 `json:"max"`
-// }
-
-// type CurrentWeatherResponse struct {
-// 	Name        string      `json:"name"`
-// 	Condition   Condition   `json:"condition"`
-// 	Temperature Temperature `json:"temperature"`
-// 	Sunrise     int64       `json:"sunrise"`
-// 	Sunset      int64       `json:"sunset"`
-// }
-
-// type AirPollutionResponse struct {
-// 	Components map[string]float64 `json:"components"`
-// }
-
 // Helper function to get the day of the week from a timestamp
 func getDayOfWeek(timestamp int64) int64 {
 	return int64(time.Unix(timestamp, 0).Weekday())
 }
 
-/*
-Example response:
-
-	{
-		"name": "Nowy Sącz",
-		"forecast": [
-			{
-				"condition": {
-					name: "Rain",
-					description: "light rain",
-				},
-				"temperature": {
-					current: 12,
-					min: 10,
-					max: 14,
-				},
-				"sunrise": 1726636384,
-				"sunset": 1726680975,
-				dayOfWeek: 0, // 0 - Sunday, 1 - Monday, ..., 6 - Saturday
-			},
-			{
-				"condition": {
-					name: "Rain",
-					description: "light rain",
-				},
-				"temperature": {
-					current: 12,
-					min: 10,
-					max: 14,
-				},
-				"sunrise": 1726636384,
-				"sunset": 1726680975,
-				dayOfWeek: 1,
-			}
-		]
-	}
-*/
 func WeatherForecastHandler(c *gin.Context) {
 	lang := c.DefaultQuery("lang", "en")
 	units := c.DefaultQuery("units", "metric")
@@ -176,23 +103,6 @@ func WeatherForecastHandler(c *gin.Context) {
 	Respond(c, http.StatusOK, forecastResponse)
 }
 
-/*
-	 Example response:
-		{
-			"name": "Nowy Sącz",
-			"condition": {
-				name: "Rain",
-				description: "light rain",
-			},
-			"temperature": {
-				current: 12,
-				min: 10,
-				max: 14,
-			},
-			"sunrise": 1726636384,
-			"sunset": 1726680975,
-		}
-*/
 func CurrentWeatherHandler(c *gin.Context) {
 	lang := c.DefaultQuery("lang", "en")
 	units := c.DefaultQuery("units", "metric")
@@ -254,21 +164,6 @@ func CurrentWeatherHandler(c *gin.Context) {
 	Respond(c, http.StatusOK, currentWeatherResponse)
 }
 
-/*
-	 Example response:
-		{
-			"components":{
-				"co": 201.94053649902344,
-				"no": 0.01877197064459324,
-				"no2": 0.7711350917816162,
-				"o3": 68.66455078125,
-				"so2": 0.6407499313354492,
-				"pm2_5": 0.5,
-				"pm10": 0.540438711643219,
-				"nh3": 0.12369127571582794
-			}
-		}
-*/
 func CurrentAirPollutionHandler(c *gin.Context) {
 	apiKey := os.Getenv("OPENWEATHER_API_KEY")
 

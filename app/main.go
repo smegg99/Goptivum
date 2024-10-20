@@ -1,4 +1,4 @@
-// main.go
+// app/main.go
 package main
 
 import (
@@ -27,7 +27,8 @@ func main() {
 		panic(err)
 	}
 
-	if err := scraper.Initialize(); err != nil {
+	refreshChan, err := scraper.Initialize()
+	if err != nil {
 		panic(err)
 	}
 
@@ -36,7 +37,7 @@ func main() {
 	}
 	defer datastore.Cleanup()
 
-	v1.Initialize()
+	v1.Initialize(refreshChan)
 
 	WaitForTermination()
 }

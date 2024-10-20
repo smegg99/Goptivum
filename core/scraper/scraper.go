@@ -1,4 +1,4 @@
-// scraper.go
+// scraper/scraper.go
 package scraper
 
 import (
@@ -500,25 +500,25 @@ func ScrapeRoomsIndexes() ([]int64, error) {
 	return indexes, nil
 }
 
-func Initialize() error {
+func Initialize() (chan string, error) {
 	fmt.Println("initializing scraper")
 	Config = config.Global.Scraper
 
 	divisionsIndexes, err := ScrapeDivisionsIndexes()
 	if err != nil {
-		return fmt.Errorf("error scraping divisions indexes: %w", err)
+		return nil, fmt.Errorf("error scraping divisions indexes: %w", err)
 	}
 	DivisionsIndexes = divisionsIndexes
 
 	teachersIndexes, err := ScrapeTeachersIndexes()
 	if err != nil {
-		return fmt.Errorf("error scraping teachers indexes: %w", err)
+		return nil, fmt.Errorf("error scraping teachers indexes: %w", err)
 	}
 	TeachersIndexes = teachersIndexes
 
 	roomsIndexes, err := ScrapeRoomsIndexes()
 	if err != nil {
-		return fmt.Errorf("error scraping rooms indexes: %w", err)
+		return nil, fmt.Errorf("error scraping rooms indexes: %w", err)
 	}
 	RoomsIndexes = roomsIndexes
 
@@ -531,11 +531,11 @@ func Initialize() error {
 	roomsIndexesLength := uint64(len(RoomsIndexes))
 
 	if divisionsIndexesLength == 0 {
-		return fmt.Errorf("no divisions found")
+		return nil, fmt.Errorf("no divisions found")
 	} else if teachersIndexesLength == 0 {
-		return fmt.Errorf("no teachers found")
+		return nil, fmt.Errorf("no teachers found")
 	} else if roomsIndexesLength == 0 {
-		return fmt.Errorf("no rooms found")
+		return nil, fmt.Errorf("no rooms found")
 	}
 
 	if divisionsIndexesLength != Config.Quantities.Divisions {
@@ -550,9 +550,9 @@ func Initialize() error {
 		fmt.Printf("expected %d rooms, found %d\n", Config.Quantities.Rooms, roomsIndexesLength)
 	}
 
-	ObserveDivisions()
-	ObserveTeachers()
-	ObserveRooms()
+	divisionsChan := ObserveDivisions()
+	teachersChan := ObserveTeachers()
+	roomsChan := ObserveRooms()
 
-	return nil
+	return utils.MergeChans(divisionsChan, teachersChan, roomsChan), nil
 }

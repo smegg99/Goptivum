@@ -1,3 +1,4 @@
+// routes/routes.go
 package routes
 
 import (
@@ -11,7 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Initialize(defaultRouter *gin.Engine) {
+func Initialize(defaultRouter *gin.Engine, refreshChan chan string) {
 	defaultLimiter := tollbooth.NewLimiter(1, nil)
 	defaultRouter.Use(static.Serve("/", static.LocalFile(os.Getenv("DIST_PATH"), false)))
 
@@ -20,7 +21,7 @@ func Initialize(defaultRouter *gin.Engine) {
 
 	handlers.Initialize()
 
-	SetupHealthRoutes(defaultRouter, rootGroup)
+	SetupGenericRoutes(defaultRouter, rootGroup, refreshChan)
 	SetupScheduleRoutes(defaultRouter, rootGroup)
 	SetupWeatherRoutes(defaultRouter, rootGroup)
 

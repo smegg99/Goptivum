@@ -1,4 +1,4 @@
-// observer.go
+// observer/observer.go
 package observer
 
 import (

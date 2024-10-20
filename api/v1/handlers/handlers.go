@@ -1,3 +1,4 @@
+// handlers/handlers.go
 package handlers
 
 import (
@@ -35,7 +36,10 @@ func Respond(c *gin.Context, code int, data interface{}) {
 }
 
 func PingHandler(c *gin.Context) {
-	Respond(c, http.StatusOK, gin.H{"message": "pong"})
+	Respond(c, http.StatusOK, models.APIResponse{
+        Message: "pong",
+        Success: true,
+    })
 }
 
 func Initialize() {

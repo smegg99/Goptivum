@@ -1,3 +1,4 @@
+// scraper/observers.go
 package scraper
 
 import (
@@ -11,8 +12,10 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-func ObserveDivisions() {
+func ObserveDivisions() chan string {
 	fmt.Println("observing divisions")
+
+	var refreshChan = make(chan string)
 
 	newDivisionObserver := func(index int64) *observer.Observer {
 		url := fmt.Sprintf(Config.BaseUrl + Config.Endpoints.Division, index)
@@ -43,6 +46,8 @@ func ObserveDivisions() {
 				fmt.Printf("error scraping division: %v\n", err)
 				return
 			}
+
+			refreshChan <- "division"
 
 			if err := datastore.SetDivision(division); err != nil {
 				fmt.Printf("error saving division: %v\n", err)
@@ -107,10 +112,14 @@ func ObserveDivisions() {
 	})
 
 	refreshDivisionsObservers()
+
+	return refreshChan
 }
 
-func ObserveTeachers() {
+func ObserveTeachers() chan string {
 	fmt.Println("observing teachers")
+
+	var refreshChan = make(chan string)
 
 	newTeacherObserver := func(index int64) *observer.Observer {
 		url := fmt.Sprintf(Config.BaseUrl+Config.Endpoints.Teacher, index)
@@ -134,6 +143,8 @@ func ObserveTeachers() {
 				fmt.Printf("error scraping teacher: %v\n", err)
 				return
 			}
+
+			refreshChan <- "teacher"
 
 			if err := datastore.SetTeacher(teacher); err != nil {
 				fmt.Printf("error saving teacher: %v\n", err)
@@ -196,10 +207,14 @@ func ObserveTeachers() {
 	})
 
 	refreshTeachersObservers()
+
+	return refreshChan
 }
 
-func ObserveRooms() {
+func ObserveRooms() chan string {
 	fmt.Println("observing rooms")
+
+	var refreshChan = make(chan string)
 
 	newRoomObserver := func(index int64) *observer.Observer {
 		url := fmt.Sprintf(Config.BaseUrl + Config.Endpoints.Room, index)
@@ -223,6 +238,8 @@ func ObserveRooms() {
 				fmt.Printf("error scraping room: %v\n", err)
 				return
 			}
+
+			refreshChan <- "room"
 
 			if err := datastore.SetRoom(room); err != nil {
 				fmt.Printf("error saving room: %v\n", err)
@@ -284,4 +301,6 @@ func ObserveRooms() {
 	})
 
 	refreshRoomsObservers()
+
+	return refreshChan
 }

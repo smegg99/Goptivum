@@ -1,3 +1,4 @@
+// api/v1/api.go
 package v1
 
 import (
@@ -15,7 +16,7 @@ import (
 var DefaultRouter *gin.Engine
 var Config *config.APIConfig
 
-func Initialize() (chan error) {
+func Initialize(refreshChan chan string) (chan error) {
 	fmt.Println("initializing api/v1")
 
 	Config = &config.Global.API
@@ -24,7 +25,7 @@ func Initialize() (chan error) {
 	DefaultRouter = gin.Default()
 	DefaultRouter.Use(gzip.Gzip(gzip.DefaultCompression))
 
-	routes.Initialize(DefaultRouter)
+	routes.Initialize(DefaultRouter, refreshChan)
 
 	errCh := make(chan error)
 	go func() {

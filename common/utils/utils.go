@@ -1,10 +1,11 @@
-// utils.go
+// utils/utils.go
 package utils
 
 import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -48,4 +49,28 @@ func OpenDoc(baseUrl, endpoint string) (*goquery.Document, error) {
 	}
 
 	return doc, nil
+}
+
+func MergeChans(channels ...chan string) chan string {
+    var wg sync.WaitGroup
+    out := make(chan string)
+
+    multiplex := func(c chan string) {
+        defer wg.Done()
+        for msg := range c {
+            out <- msg
+        }
+    }
+
+    wg.Add(len(channels))
+    for _, ch := range channels {
+        go multiplex(ch)
+    }
+
+    go func() {
+        wg.Wait()
+        close(out)
+    }()
+
+    return out
 }
