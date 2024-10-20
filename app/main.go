@@ -27,15 +27,16 @@ func main() {
 		panic(err)
 	}
 
-	refreshChan, err := scraper.Initialize()
-	if err != nil {
-		panic(err)
-	}
-
 	if err := datastore.Initialize(); err != nil {
 		panic(err)
 	}
 	defer datastore.Cleanup()
+
+	refreshChan, err := scraper.Initialize()
+	if err != nil {
+		panic(err)
+	}
+	defer scraper.Cleanup()
 
 	v1.Initialize(refreshChan)
 

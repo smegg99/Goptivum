@@ -2,6 +2,7 @@
 package observer
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -12,28 +13,39 @@ import (
 )
 
 type Observer struct {
-	url            string
-	extractContent func(*goquery.Document) string
-	hash           string
-	ticker         *time.Ticker
+	Index 		   int64
+	URL            string
+	ExtractContent func(*goquery.Document) string
+	Hash           string
+	Interval       time.Duration
+	Callback       func()
+	NextRun        time.Time
 }
 
 func hashContent(content string) string {
-    hasher := sha256.New()
-    hasher.Write([]byte(content))
-    return hex.EncodeToString(hasher.Sum(nil))
+	hasher := sha256.New()
+	hasher.Write([]byte(content))
+	return hex.EncodeToString(hasher.Sum(nil))
 }
 
-func NewObserver(url string, interval time.Duration, extractFunc func(*goquery.Document) string) *Observer {
+func NewObserver(index int64, url string, interval time.Duration, extractFunc func(*goquery.Document) string, callbackFunc func()) *Observer {
 	return &Observer{
-		url:            url,
-		extractContent: extractFunc,
-		ticker:         time.NewTicker(interval),
+		URL:            url,
+		Index:          index,
+		ExtractContent: extractFunc,
+		Callback: 	    callbackFunc,
+		Interval:       interval,
+		NextRun:        time.Now(),
 	}
 }
 
-func (o *Observer) fetchContent() (*goquery.Document, error) {
-	resp, err := http.Get(o.url)
+func (o *Observer) fetchContent(ctx context.Context, client *http.Client) (*goquery.Document, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", o.URL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create HTTP request: %v", err)
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch the page: %v", err)
 	}
@@ -47,41 +59,31 @@ func (o *Observer) fetchContent() (*goquery.Document, error) {
 	return doc, nil
 }
 
-func (o *Observer) compareHash() bool {
-	doc, err := o.fetchContent()
+func (o *Observer) compareHash(ctx context.Context, client *http.Client) (bool, error) {
+	doc, err := o.fetchContent(ctx, client)
 	if err != nil {
-		fmt.Printf("error fetching content: %v\n", err)
-		return false
+		return false, fmt.Errorf("error fetching content from %s: %v", o.URL, err)
 	}
 
-	content := o.extractContent(doc)
+	content := o.ExtractContent(doc)
 	hash := hashContent(content)
 
-	if hash != o.hash {
-		o.hash = hash
-		return true
+	fmt.Println("checking hash for index", o.Index)
+
+	if hash != o.Hash {
+		o.Hash = hash
+		return true, nil
 	}
 
-	return false
+	return false, nil
 }
 
-func (o *Observer) Start(callback func()) {
-	check := func() {
-		fmt.Println("checking for updates: " + o.url)
-		if o.compareHash() {
-			fmt.Println("content has changed: " + o.url)
-			callback()
-		}
+// Helper method to integrate with the Hub's worker pool.
+func (o *Observer) CompareHashWithClient(ctx context.Context, client *http.Client) bool {
+	changed, err := o.compareHash(ctx, client)
+	if err != nil {
+		fmt.Println(err)
+		return false
 	}
-
-	go func() {
-		check()
-		for range o.ticker.C {
-			check()
-		}
-	}()
-}
-
-func (o *Observer) Stop() {
-	o.ticker.Stop()
+	return changed
 }

@@ -10,6 +10,7 @@ import (
 	"smuggr.xyz/optivum-bsf/common/config"
 	"smuggr.xyz/optivum-bsf/common/models"
 	"smuggr.xyz/optivum-bsf/common/utils"
+	"smuggr.xyz/optivum-bsf/core/hub"
 	"smuggr.xyz/optivum-bsf/core/observer"
 
 	"github.com/PuerkitoBio/goquery"
@@ -31,11 +32,11 @@ var (
 	DivisionsListObserver *observer.Observer
 	TeachersListObserver  *observer.Observer
 	RoomsListObserver     *observer.Observer
-)
 
-var DivisionsObservers = make(map[int64]*observer.Observer)
-var TeachersObservers = make(map[int64]*observer.Observer)
-var RoomsObservers = make(map[int64]*observer.Observer)
+	DivisionsHub *hub.Hub
+	TeachersHub  *hub.Hub
+	RoomsHub     *hub.Hub
+)
 
 var DivisionsDesignators = &models.DivisionsDesignators{
 	Divisions: make(map[string]int64),
@@ -526,9 +527,9 @@ func Initialize() (chan string, error) {
 	fmt.Println("teachers indexes:", TeachersIndexes)
 	fmt.Println("rooms indexes:", RoomsIndexes)
 
-	divisionsIndexesLength := uint64(len(DivisionsIndexes))
-	teachersIndexesLength := uint64(len(TeachersIndexes))
-	roomsIndexesLength := uint64(len(RoomsIndexes))
+	divisionsIndexesLength := int64(len(DivisionsIndexes))
+	teachersIndexesLength := int64(len(TeachersIndexes))
+	roomsIndexesLength := int64(len(RoomsIndexes))
 
 	if divisionsIndexesLength == 0 {
 		return nil, fmt.Errorf("no divisions found")
@@ -550,9 +551,28 @@ func Initialize() (chan string, error) {
 		fmt.Printf("expected %d rooms, found %d\n", Config.Quantities.Rooms, roomsIndexesLength)
 	}
 
-	divisionsChan := ObserveDivisions()
-	teachersChan := ObserveTeachers()
-	roomsChan := ObserveRooms()
+	DivisionsHub = hub.NewHub(int(Config.Quantities.Divisions))
+	TeachersHub = hub.NewHub(int(Config.Quantities.Teachers))
+	RoomsHub = hub.NewHub(int(Config.Quantities.Rooms))
 
-	return utils.MergeChans(divisionsChan, teachersChan, roomsChan), nil
+	divisionsChan := ObserveDivisions()
+	// teachersChan := ObserveTeachers()
+	// roomsChan := ObserveRooms()
+
+	return divisionsChan, nil
+}
+
+func Cleanup() {
+	fmt.Println("cleaning scraper")
+	if DivisionsHub != nil {
+		DivisionsHub.Stop()
+	}
+
+	if TeachersHub != nil {
+		TeachersHub.Stop()
+	}
+
+	if RoomsHub != nil {
+		RoomsHub.Stop()
+	}
 }

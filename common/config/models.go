@@ -11,9 +11,9 @@ type scraperEndpoints struct {
 }
 
 type scraperQuantities struct {
-	Divisions uint64 `mapstructure:"divisions"`
-	Teachers  uint64 `mapstructure:"teachers"`
-	Rooms     uint64 `mapstructure:"rooms"`
+	Divisions int64 `mapstructure:"divisions"`
+	Teachers  int64 `mapstructure:"teachers"`
+	Rooms     int64 `mapstructure:"rooms"`
 }
 
 type ScraperConfig struct {
@@ -36,7 +36,7 @@ type openWeatherConfig struct {
 }
 
 type APIConfig struct {
-	Port        uint16            `mapstructure:"port"`
+	Port        int16            `mapstructure:"port"`
 	OpenWeather openWeatherConfig `mapstructure:"open_weather"`
 }
 
