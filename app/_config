@@ -1,7 +1,7 @@
 {
 	"scraper": {
 		"base_url": "http://localhost:3000/",
-		"endpoints" : {
+		"endpoints": {
 			"division": "o%d.html",
 			"teacher": "n%d.html",
 			"room": "s%d.html",
@@ -10,9 +10,11 @@
 			"rooms_list": "sss.php"
 		},
 		"quantities": {
-			"divisions": 32,
-			"teachers": 81,
-			"rooms": 42
+			"workers": {
+				"division": 10,
+				"teacher": 10,
+				"room": 10
+			}
 		}
 	},
 	"api": {

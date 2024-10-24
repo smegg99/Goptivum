@@ -22,6 +22,13 @@ func WaitForTermination() {
 	fmt.Println("termination signal received")
 }
 
+func Cleanup() {
+	fmt.Println("cleaning up...")
+
+	scraper.Cleanup()
+	datastore.Cleanup();
+}
+
 func main() {
 	if err := config.Initialize(); err != nil {
 		panic(err)
@@ -30,15 +37,15 @@ func main() {
 	if err := datastore.Initialize(); err != nil {
 		panic(err)
 	}
-	defer datastore.Cleanup()
 
-	refreshChan, err := scraper.Initialize()
+	scheduleChannels, err := scraper.Initialize()
 	if err != nil {
 		panic(err)
 	}
-	defer scraper.Cleanup()
 
-	v1.Initialize(refreshChan)
+	v1.Initialize(scheduleChannels)
+	
+	defer Cleanup()
 
 	WaitForTermination()
 }

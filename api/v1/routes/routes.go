@@ -4,6 +4,7 @@ package routes
 import (
 	"os"
 
+	"smuggr.xyz/optivum-bsf/common/models"
 	"smuggr.xyz/optivum-bsf/api/v1/handlers"
 
 	"github.com/didip/tollbooth"
@@ -12,7 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Initialize(defaultRouter *gin.Engine, refreshChan chan string) {
+func Initialize(defaultRouter *gin.Engine, scheduleChannels *models.ScheduleChannels) {
 	defaultLimiter := tollbooth.NewLimiter(1, nil)
 	defaultRouter.Use(static.Serve("/", static.LocalFile(os.Getenv("DIST_PATH"), false)))
 
@@ -21,7 +22,7 @@ func Initialize(defaultRouter *gin.Engine, refreshChan chan string) {
 
 	handlers.Initialize()
 
-	SetupGenericRoutes(defaultRouter, rootGroup, refreshChan)
+	SetupGenericRoutes(defaultRouter, rootGroup, scheduleChannels)
 	SetupScheduleRoutes(defaultRouter, rootGroup)
 	SetupWeatherRoutes(defaultRouter, rootGroup)
 

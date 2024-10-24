@@ -30,7 +30,7 @@
 										7:00- 7:45
 									</td>
 									<td class="l">
-										Zajęcia w ZPKZ
+										Smoking Pot
 									</td>
 									<td class="l">
 										Zajęcia w ZPKZ

@@ -6,20 +6,12 @@ package data;
 option go_package = "./common/models";
 
 message APIResponse {
-	bool success = 1;
+	bool   success = 1;
 	string message = 2;
 }
 
-message DivisionsDesignators {
-	map<string, int64> divisions = 1;
-}
-
-message TeachersDesignators {
-	map<string, int64> teachers = 1;
-}
-
-message RoomsDesignators {
-	map<string, int64> rooms = 1;
+message Designators {
+	map<string, int64> designators = 1;
 }
 
 message Condition {
@@ -34,24 +26,24 @@ message Temperature {
 }
 
 message Forecast {
-	Condition condition = 1;
+	Condition   condition = 1;
 	Temperature temperature = 2;
-	int64 sunrise = 3;
-	int64 sunset = 4;
-	int64 dayOfWeek = 5;
+	int64       sunrise = 3;
+	int64       sunset = 4;
+	int64       dayOfWeek = 5;
 }
 
 message ForecastResponse {
-	string name = 1;
+	string            name = 1;
 	repeated Forecast forecast = 2;
 }
 
 message CurrentWeatherResponse {
-	string name = 1;
-	Condition condition = 2;
+	string      name = 1;
+	Condition   condition = 2;
 	Temperature temperature = 3;
-	int64 sunrise = 4;
-	int64 sunset = 5;
+	int64       sunrise = 4;
+	int64       sunset = 5;
 }
 
 message AirPollutionResponse {
@@ -89,20 +81,20 @@ message Schedule {
 }
 
 message Teacher {
-	int64   index = 1;
+	int64    index = 1;
 	string   designator = 2;
 	string   full_name = 3;
 	Schedule schedule = 4;
 }
 
 message Room {
-	int64   index = 1;
+	int64    index = 1;
 	string   designator = 2;
 	Schedule schedule = 3;
 }
 
 message Division {
-	int64   index = 1;
+	int64    index = 1;
 	string   designator = 2;
 	string   full_name = 3;
 	Schedule schedule = 4;

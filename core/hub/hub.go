@@ -14,18 +14,19 @@ import (
 type Hub struct {
 	observers   map[int64]*observer.Observer
 	addCh       chan *observer.Observer
-	removeCh    chan int64
+	removeCh    chan interface{}
 	tasksCh     chan *observer.Observer
-	workerCount int
+	workerCount int64
 	wg          sync.WaitGroup
+	mu 		    sync.RWMutex
 	quitCh      chan struct{}
 	client      *http.Client
 }
 
-func NewHub(workerCount int) *Hub {
+func NewHub(workerCount int64) *Hub {
 	transport := &http.Transport{
-		MaxIdleConns:        200,
-		MaxIdleConnsPerHost: 100,
+		MaxIdleConns:        2000,
+		MaxIdleConnsPerHost: 1000,
 		IdleConnTimeout:     90 * time.Second,
 	}
 
@@ -37,7 +38,7 @@ func NewHub(workerCount int) *Hub {
 	return &Hub{
 		observers:   make(map[int64]*observer.Observer),
 		addCh:       make(chan *observer.Observer),
-		removeCh:    make(chan int64),
+		removeCh:    make(chan interface{}),
 		tasksCh:     make(chan *observer.Observer, 1000),
 		workerCount: workerCount,
 		quitCh:      make(chan struct{}),
@@ -46,7 +47,7 @@ func NewHub(workerCount int) *Hub {
 }
 
 func (h *Hub) Start() {
-	for i := 0; i < h.workerCount; i++ {
+	for i := int64(0); i < h.workerCount; i++ {
 		h.wg.Add(1)
 		go h.worker(i)
 	}
@@ -72,14 +73,23 @@ func (h *Hub) RemoveObserver(index int64) {
 }
 
 func (h *Hub) GetObserver(index int64) *observer.Observer {
-	return h.observers[index]
+    h.mu.RLock()
+    defer h.mu.RUnlock()
+    return h.observers[index]
 }
 
 func (h *Hub) GetAllObservers() map[int64]*observer.Observer {
-	return h.observers
+    h.mu.RLock()
+    defer h.mu.RUnlock()
+    copyMap := make(map[int64]*observer.Observer, len(h.observers))
+    for k, v := range h.observers {
+        copyMap[k] = v
+    }
+    return copyMap
 }
 
-func (h *Hub) worker(id int) {
+
+func (h *Hub) worker(id int64) {
 	defer h.wg.Done()
 	fmt.Printf("worker %d started\n", id)
 
@@ -106,43 +116,60 @@ func (h *Hub) worker(id int) {
 }
 
 func (h *Hub) scheduler() {
-	defer h.wg.Done()
-	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
+    defer h.wg.Done()
+    ticker := time.NewTicker(1 * time.Second)
+    defer ticker.Stop()
 
-	for {
-		select {
-		case o := <-h.addCh:
-			if _, exists := h.observers[o.Index]; exists {
-				fmt.Printf("observer of index %d already exists\n", o.Index)
-			} else {
-				o.Hash = ""
-				h.observers[o.Index] = o
-				fmt.Printf("added observer of index: %d\n", o.Index)
-			}
+    for {
+        select {
+        case o := <-h.addCh:
+            h.mu.Lock()
+            if _, exists := h.observers[o.Index]; exists {
+                fmt.Printf("observer of index %d already exists\n", o.Index)
+            } else {
+				o.Mu.Lock()
+                o.Hash = ""
+				o.Mu.Unlock()
+                h.observers[o.Index] = o
+                fmt.Printf("added observer of index: %d\n", o.Index)
+            }
+            h.mu.Unlock()
 
-		case index := <-h.removeCh:
-			if o, exists := h.observers[index]; exists {
-				delete(h.observers, index)
-				fmt.Printf("removed observer of index: %d\n", index)
-				// Clean from DB here maybe?
-				o.Hash = ""
-			} else {
-				fmt.Printf("observer of index %d does not exist\n", index)
-			}
+        case _index := <-h.removeCh:
+            index, ok := _index.(int64)
+            if !ok {
+                fmt.Printf("invalid type for index: %T\n", _index)
+                continue
+            }
 
-		case <-ticker.C:
-			now := time.Now()
-			for _, o := range h.observers {
-				if o.NextRun.Before(now) || o.NextRun.Equal(now) {
-					o.NextRun = now.Add(o.Interval)
-					h.tasksCh <- o
-				}
-			}
+            h.mu.Lock()
+            if o, exists := h.observers[index]; exists {
+				o.Mu.Lock()
+                delete(h.observers, index)
+                fmt.Printf("removed observer of index: %d\n", index)
+                o.Hash = ""
+				o.Mu.Unlock()
+            } else {
+                fmt.Printf("observer of index %d does not exist\n", index)
+            }
+            h.mu.Unlock()
 
-		case <-h.quitCh:
-			fmt.Println("stopping scheduler")
-			return
-		}
-	}
+        case <-ticker.C:
+            now := time.Now()
+            h.mu.RLock()
+            for _, o := range h.observers {
+				o.Mu.Lock()
+                if o.NextRun.Before(now) || o.NextRun.Equal(now) {
+                    o.NextRun = now.Add(o.Interval)
+                    h.tasksCh <- o
+                }
+				o.Mu.Unlock()
+            }
+            h.mu.RUnlock()
+
+        case <-h.quitCh:
+            fmt.Println("stopping scheduler")
+            return
+        }
+    }
 }

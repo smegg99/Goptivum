@@ -23,7 +23,7 @@
             <a href="https://zsem.edu.pl/plany/plany/o22.html" target="plan"><button>2P</button></a><br>
             <a href="https://zsem.edu.pl/plany/plany/o26.html" target="plan"><button>2F</button></a><br>
             <a href="https://zsem.edu.pl/plany/plany/o25.html" target="plan"><button>2G</button></a><br>
-            <a href="https://zsem.edu.pl/plany/plany/o1.html" target="plan"><button>5M</button></a><br>
+            <a href="https://zsem.edu.pl/plany/plany/o1.html" target="plan"><button>4M</button></a><br>
           </td>
         </tr>
       </tbody>

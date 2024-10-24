@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
@@ -20,6 +21,7 @@ type Observer struct {
 	Interval       time.Duration
 	Callback       func()
 	NextRun        time.Time
+	Mu 		       sync.RWMutex
 }
 
 func hashContent(content string) string {
@@ -60,6 +62,9 @@ func (o *Observer) fetchContent(ctx context.Context, client *http.Client) (*goqu
 }
 
 func (o *Observer) compareHash(ctx context.Context, client *http.Client) (bool, error) {
+	o.Mu.RLock()
+	defer o.Mu.RUnlock()
+
 	doc, err := o.fetchContent(ctx, client)
 	if err != nil {
 		return false, fmt.Errorf("error fetching content from %s: %v", o.URL, err)

@@ -27,11 +27,9 @@ func Initialize() error {
 	return nil
 }
 
-func Cleanup() error {
+func Cleanup() {
 	fmt.Println("cleaning datastore")
 	if err := DB.Close(); err != nil {
 		panic(err)
 	}
-
-	return nil
 }

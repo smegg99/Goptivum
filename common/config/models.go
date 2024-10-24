@@ -10,10 +10,14 @@ type scraperEndpoints struct {
 	RoomsList     string `mapstructure:"rooms_list"`
 }
 
+type quantitiesWorkers struct {
+	Division int64 `mapstructure:"division"`
+	Teacher  int64 `mapstructure:"teacher"`
+	Room     int64 `mapstructure:"room"`
+}
+
 type scraperQuantities struct {
-	Divisions int64 `mapstructure:"divisions"`
-	Teachers  int64 `mapstructure:"teachers"`
-	Rooms     int64 `mapstructure:"rooms"`
+	Workers quantitiesWorkers `mapstructure:"workers"`
 }
 
 type ScraperConfig struct {

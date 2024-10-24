@@ -9,14 +9,14 @@ import (
 )
 
 type Client struct {
-    MessageChan chan string
+    MessageChan chan interface{}
     Done        chan struct{}
 }
 
 type Hub struct {
     clients    map[*Client]bool
     mutex      sync.RWMutex
-    broadcast  chan string
+    broadcast  chan interface{}
     register   chan *Client
     unregister chan *Client
     retryDelay int
@@ -25,7 +25,7 @@ type Hub struct {
 func NewHub() *Hub {
     return &Hub{
         clients:    make(map[*Client]bool),
-        broadcast:  make(chan string),
+        broadcast:  make(chan interface{}),
         register:   make(chan *Client),
         unregister: make(chan *Client),
         retryDelay: 3000,
@@ -63,7 +63,7 @@ func (h *Hub) Run() {
     }
 }
 
-func (h *Hub) Broadcast(message string) {
+func (h *Hub) Broadcast(message interface{}) {
     h.broadcast <- message
 }
 
@@ -84,7 +84,7 @@ func (h *Hub) Handler() http.HandlerFunc {
         }
 
         client := &Client{
-            MessageChan: make(chan string),
+            MessageChan: make(chan interface{}),
             Done:        make(chan struct{}),
         }
 
