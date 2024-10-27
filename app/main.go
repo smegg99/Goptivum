@@ -7,10 +7,11 @@ import (
 	"os/signal"
 	"syscall"
 
+	"smuggr.xyz/optivum-bsf/api/v1"
 	"smuggr.xyz/optivum-bsf/common/config"
+	"smuggr.xyz/optivum-bsf/common/models"
 	"smuggr.xyz/optivum-bsf/core/datastore"
 	"smuggr.xyz/optivum-bsf/core/scraper"
-	"smuggr.xyz/optivum-bsf/api/v1"
 )
 
 func WaitForTermination() {
@@ -38,12 +39,16 @@ func main() {
 		panic(err)
 	}
 
-	scheduleChannels, err := scraper.Initialize()
+	err := scraper.Initialize()
 	if err != nil {
 		panic(err)
 	}
 
-	v1.Initialize(scheduleChannels)
+	v1.Initialize(&models.ScheduleChannels{
+		Divisons: scraper.DivisionsScraperResource.RefreshChan,
+		Teachers: scraper.TeachersScraperResource.RefreshChan,
+		Rooms:    scraper.RoomsScraperResource.RefreshChan,
+	})
 	
 	defer Cleanup()
 

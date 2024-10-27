@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
-	"strings"
 	"sync"
 
 	"smuggr.xyz/optivum-bsf/common/config"
 	"smuggr.xyz/optivum-bsf/common/models"
 	"smuggr.xyz/optivum-bsf/common/utils"
+	"smuggr.xyz/optivum-bsf/core/datastore"
 	"smuggr.xyz/optivum-bsf/core/hub"
 	"smuggr.xyz/optivum-bsf/core/observer"
 
@@ -19,6 +19,18 @@ import (
 
 var Config config.ScraperConfig
 
+type ResourceType string
+
+const (
+	DivisionResource ResourceType = "division"
+	TeacherResource  ResourceType = "teacher"
+	RoomResource     ResourceType = "room"
+)
+
+func (t ResourceType) String() string {
+	return string(t)
+}
+
 type ScraperResource struct {
 	Indexes     []int64
 	Designators *models.Designators
@@ -26,6 +38,131 @@ type ScraperResource struct {
 	Hub         *hub.Hub
 	IndexRegex  *regexp.Regexp
 	Mu          *sync.RWMutex
+	RefreshChan chan int64
+	Type        ResourceType
+}
+
+func NewScraperResource(indexRegex *regexp.Regexp, resourceType ResourceType) *ScraperResource {
+	return &ScraperResource{
+		Indexes:     []int64{},
+		Designators: &models.Designators{Designators: make(map[string]int64)},
+		Observer:    &observer.Observer{},
+		Hub:         &hub.Hub{},
+		IndexRegex:  indexRegex,
+		Mu:          &sync.RWMutex{},
+		RefreshChan: make(chan int64),
+		Type:        resourceType,
+	}
+}
+
+func (s *ScraperResource) StartHub() {
+	if s.Hub != nil {
+		s.Hub.Start()
+	}
+}
+
+func (s *ScraperResource) StopHub() {
+	if s.Hub != nil {
+		s.Hub.Stop()
+	}
+}
+
+func (s *ScraperResource) UpdateDesignator(newDesignator string, index int64) {
+	s.Mu.Lock()
+	defer s.Mu.Unlock()
+	for _designator, _index := range s.Designators.Designators {
+		if index == _index {
+			delete(s.Designators.Designators, _designator)
+		}
+	}
+	s.Designators.Designators[newDesignator] = index
+}
+
+func (s *ScraperResource) RemoveDesignator(index int64) {
+	s.Mu.Lock()
+	defer s.Mu.Unlock()
+	for designator, _index := range s.Designators.Designators {
+		if index == _index {
+			delete(s.Designators.Designators, designator)
+		}
+	}
+
+	s.Mu.Lock()
+	for key, _index := range s.Designators.Designators {
+		if _index == index {
+			delete(s.Designators.Designators, key)
+			if len(s.Designators.Designators) == 0 {
+				break
+			}
+		}
+	}
+	s.Mu.Unlock()
+}
+
+func (s *ScraperResource) UpdateIndexes(indexes []int64) {
+	s.Mu.Lock()
+	defer s.Mu.Unlock()
+	s.Indexes = indexes
+}
+
+func (s *ScraperResource) AddObserver(o *observer.Observer) {
+	s.Hub.AddObserver(o)
+}
+
+func (s *ScraperResource) newObserver(index int64) *observer.Observer {
+	switch s.Type {
+	case DivisionResource:
+		return newDivisionObserver(index, &s.RefreshChan)
+	case TeacherResource:
+		return newTeacherObserver(index, &s.RefreshChan)
+	case RoomResource:
+		return newRoomObserver(index, &s.RefreshChan)
+	}
+
+	return nil
+}
+
+func (s *ScraperResource) removeFromDatastore(index int64) error {
+	switch s.Type {
+	case DivisionResource:
+		return datastore.DeleteDivision(index)
+	case TeacherResource:
+		return datastore.DeleteTeacher(index)
+	case RoomResource:
+		return datastore.DeleteRoom(index)
+	}
+
+	return nil
+}
+
+func (s *ScraperResource) RefreshObservers() {
+	existingIndexes := make(map[int64]bool)
+	for _, index := range s.Indexes {
+		existingIndexes[index] = true
+		if s.Hub.GetObserver(index) == nil {
+			fmt.Printf("adding observer for resource (%s) %d\n", s.Type, index)
+			observer := s.newObserver(index)
+			s.Hub.AddObserver(observer)
+		}
+	}
+
+	observersCopy := s.Hub.GetAllObservers()
+	if len(observersCopy) > 0 {
+		delete(observersCopy, 0) // Remove the list observer
+	}
+	for index := range observersCopy {
+		if !existingIndexes[index] {
+			fmt.Printf("deleting observer for resource (%s) %d\n", s.Type, index)
+			s.Hub.RemoveObserver(index)
+			if err := s.removeFromDatastore(index); err != nil {
+				fmt.Printf("error deleting resource (%s) from datastore: %v\n", s.Type, err)
+			}
+
+			s.RemoveDesignator(index)
+		}
+	}
+
+	fmt.Printf("observing resource (%s) with %d observer(s)...\n", s.Type, len(s.Hub.GetAllObservers()))
 }
 
 var (
@@ -35,275 +172,10 @@ var (
 )
 
 var (
-	DivisionsIndexes []int64
-	TeachersIndexes  []int64
-	RoomsIndexes     []int64
-
-	DivisionsListObserver *observer.Observer
-	TeachersListObserver  *observer.Observer
-	RoomsListObserver     *observer.Observer
-
-	DivisionsHub *hub.Hub
-	TeachersHub  *hub.Hub
-	RoomsHub     *hub.Hub
-
-	DivisionsMu sync.RWMutex
-	TeachersMu  sync.RWMutex
-	RoomsMu     sync.RWMutex
+	DivisionsScraperResource *ScraperResource
+	TeachersScraperResource  *ScraperResource
+	RoomsScraperResource     *ScraperResource
 )
-
-var DivisionsDesignators = &models.Designators{
-	Designators: make(map[string]int64),
-}
-
-var TeachersDesignators = &models.Designators{
-	Designators: make(map[string]int64),
-}
-
-var RoomsDesignators = &models.Designators{
-	Designators: make(map[string]int64),
-}
-
-func makeDivisionEndpoint(index int64) string {
-	return fmt.Sprintf(Config.Endpoints.Division, index)
-}
-
-func makeTeacherEndpoint(index int64) string {
-	return fmt.Sprintf(Config.Endpoints.Teacher, index)
-}
-
-func makeRoomEndpoint(index int64) string {
-	return fmt.Sprintf(Config.Endpoints.Room, index)
-}
-
-func splitDivisionTitle(s string) (string, string) {
-	parts := strings.Split(s, " ")
-	if len(parts) < 2 {
-		return "", ""
-	}
-	return strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
-}
-
-func splitTeacherTitle(s string) (string, string) {
-	parts := strings.Split(s, " ")
-	if len(parts) < 2 {
-		return "", ""
-	}
-
-	rawDesignator := strings.TrimSpace(parts[1])
-	rawDesignator = strings.Trim(rawDesignator, "()")
-
-	return strings.TrimSpace(parts[0]), rawDesignator
-}
-
-func parseTimeRange(s string) (models.TimeRange, error) {
-	s = strings.ReplaceAll(s, " ", "")
-	parts := strings.Split(s, "-")
-	if len(parts) != 2 {
-		return models.TimeRange{}, fmt.Errorf("invalid time range: %s", s)
-	}
-
-	_start := strings.TrimSpace(parts[0])
-	_end := strings.TrimSpace(parts[1])
-
-	startParts := strings.Split(_start, ":")
-	if len(startParts) != 2 {
-		return models.TimeRange{}, fmt.Errorf("invalid start time: %s", _start)
-	}
-	startHour, err := strconv.ParseInt(startParts[0], 10, 32)
-	if err != nil {
-		return models.TimeRange{}, fmt.Errorf("invalid start hour: %s %v", startParts[0], err)
-	}
-	startMinute, err := strconv.ParseInt(startParts[1], 10, 32)
-	if err != nil {
-		return models.TimeRange{}, fmt.Errorf("invalid start minute: %s %v", startParts[1], err)
-	}
-
-	endParts := strings.Split(_end, ":")
-	if len(endParts) != 2 {
-		return models.TimeRange{}, fmt.Errorf("invalid end time: %s %v", _end, err)
-	}
-	endHour, err := strconv.ParseInt(endParts[0], 10, 32)
-	if err != nil {
-		return models.TimeRange{}, fmt.Errorf("invalid end hour: %s %v", endParts[0], err)
-	}
-
-	endMinute, err := strconv.ParseInt(endParts[1], 10, 32)
-	if err != nil {
-		return models.TimeRange{}, fmt.Errorf("invalid end minute: %s %v", endParts[1], err)
-	}
-
-	start := models.Timestamp{
-		Hour:   startHour,
-		Minute: startMinute,
-	}
-
-	end := models.Timestamp{
-		Hour:   endHour,
-		Minute: endMinute,
-	}
-
-	return models.TimeRange{Start: &start, End: &end}, nil
-}
-
-func parseLesson(rowElement *goquery.Selection, timeRange *models.TimeRange) (*models.Lesson, error) {
-	lessonName := rowElement.Find("span.p").First().Text()
-	// Some lessons contain only the table data with embedded text only
-	if lessonName == "" {
-		lessonName = rowElement.Text()
-	}
-
-	division := rowElement.Find("a.o").First().Text()
-	teacher := rowElement.Find("a.n").First().Text()
-	room := rowElement.Find("a.s").First().Text()
-	lesson := models.Lesson{
-		TimeRange:          timeRange,
-		FullName:           strings.TrimSpace(lessonName),
-		TeacherDesignator:  teacher,
-		DivisionDesignator: division,
-		RoomDesignator:     room,
-	}
-
-	return &lesson, nil
-}
-
-func parseLessons(rowElement *goquery.Selection, timeRange *models.TimeRange) ([]*models.Lesson, error) {
-	lessons := []*models.Lesson{}
-	innerSpanElements := rowElement.Find("span > span.p")
-	if innerSpanElements.Length() > 1 {
-		innerSpanElements.Each(func(i int, s *goquery.Selection) {
-			parentSelection := s.Parent()
-			lesson, err := parseLesson(parentSelection, timeRange)
-			if err != nil {
-				fmt.Println("error parsing lesson", err)
-				return
-			}
-			lessons = append(lessons, lesson)
-		})
-	} else {
-		lesson, err := parseLesson(rowElement, timeRange)
-		if err != nil {
-			fmt.Println("error parsing lesson", err)
-			return nil, err
-		}
-		lessons = append(lessons, lesson)
-	}
-
-	return lessons, nil
-}
-
-func scrapeDivisionTitle(doc *goquery.Document) (string, string, error) {
-	titleSelection := doc.Find("span.tytulnapis").First()
-	if titleSelection.Length() == 0 {
-		return "", "", fmt.Errorf("no division title found")
-	}
-
-	title := titleSelection.Text()
-	designator, fullName := splitDivisionTitle(title)
-
-	return designator, fullName, nil
-}
-
-func scrapeTeacherTitle(doc *goquery.Document) (string, string, error) {
-	titleSelection := doc.Find("span.tytulnapis").First()
-	if titleSelection.Length() == 0 {
-		return "", "", fmt.Errorf("no teacher title found")
-	}
-
-	title := titleSelection.Text()
-	fullName, designator := splitTeacherTitle(title)
-
-	return designator, fullName, nil
-}
-
-func scrapeRoomTitle(doc *goquery.Document) (string, error) {
-	titleSelection := doc.Find("span.tytulnapis").First()
-	if titleSelection.Length() == 0 {
-		return "", fmt.Errorf("no room title found")
-	}
-
-	title := titleSelection.Text()
-	return title, nil
-}
-
-func scrapeSchedule(doc *goquery.Document) (*models.Schedule, error) {
-	var schedule *models.Schedule
-	var timeRange *models.TimeRange
-
-	rowsSelection := doc.Find("table.tabela > tbody > tr")
-	firstRow := rowsSelection.First()
-	if firstRow.Length() == 0 {
-		return schedule, fmt.Errorf("no rows found")
-	}
-
-	columnNumber := 0
-	dayOfWeek := 0
-	columnsCount := firstRow.Children().Length()
-
-	rowsLength := doc.Find("table.tabela > tbody > tr > td.nr").Length() + 1
-	lessonsLength := doc.Find("table.tabela > tbody > tr > td.l").Length()
-
-	// First row is the table headers row so it doesn't count
-	scheduleStartColumn := columnsCount - (lessonsLength / (rowsLength - 1))
-	workDays := columnsCount - scheduleStartColumn
-
-	schedule = &models.Schedule{
-		ScheduleDays: make([]*models.ScheduleDay, workDays),
-	}
-
-	for i := 0; i < workDays; i++ {
-		schedule.ScheduleDays[i] = &models.ScheduleDay{
-			LessonGroups: []*models.LessonGroup{},
-		}
-	}
-
-	doc.Find("table.tabela > tbody > tr > td").Each(func(i int, rowElement *goquery.Selection) {
-		if columnNumber >= columnsCount {
-			columnNumber = 1
-		} else {
-			columnNumber++
-		}
-
-		// first column is row count
-		// second column is time range
-		if columnNumber == 2 {
-			_timerange, err := parseTimeRange(rowElement.Text())
-			if err != nil {
-				fmt.Println("error parsing time range", err)
-				return
-			}
-			timeRange = &_timerange
-			// other columns are lessons
-		} else if columnNumber > scheduleStartColumn {
-			if dayOfWeek < workDays {
-				dayOfWeek++
-			} else {
-				dayOfWeek = 1
-			}
-
-			if utils.IsEmptyOrInvisible(rowElement.Text()) {
-				return
-			}
-			lessons, err := parseLessons(rowElement, timeRange)
-			if err != nil {
-				fmt.Println("error parsing lessons", err)
-				return
-			}
-			//fmt.Println("dayOfWeek:", dayOfWeek, "lessons:", lessons, workDays)
-
-			lessonGroup := &models.LessonGroup{
-				Lessons: lessons,
-			}
-
-			schedule.ScheduleDays[dayOfWeek-1].LessonGroups = append(
-				schedule.ScheduleDays[dayOfWeek-1].LessonGroups,
-				lessonGroup,
-			)
-		}
-	})
-
-	return schedule, nil
-}
 
 func ScrapeDivision(index int64) (*models.Division, error) {
 	endpoint := makeDivisionEndpoint(index)
@@ -326,16 +198,7 @@ func ScrapeDivision(index int64) (*models.Division, error) {
 	division.Designator = designator
 	division.FullName = fullName
 
-	DivisionsMu.Lock()
-	for _designator, _index := range DivisionsDesignators.Designators {
-		if index == _index {
-			fmt.Println("division's name changed, deleting old designator")
-			fmt.Println("old designator:", _designator)
-			delete(DivisionsDesignators.Designators, _designator)
-		}
-	}
-	DivisionsDesignators.Designators[designator] = index
-	DivisionsMu.Unlock()
+	DivisionsScraperResource.UpdateDesignator(designator, index)
 
 	schedule, err := scrapeSchedule(doc)
 	if err != nil {
@@ -367,15 +230,7 @@ func ScrapeTeacher(index int64) (*models.Teacher, error) {
 	teacher.Designator = designator
 	teacher.FullName = fullName
 
-	TeachersMu.Lock()
-	for _designator, _index := range TeachersDesignators.Designators {
-		if index == _index {
-			fmt.Println("teacher's name changed, deleting old designator")
-			delete(TeachersDesignators.Designators, _designator)
-		}
-	}
-	TeachersDesignators.Designators[designator] = index
-	TeachersMu.Unlock()
+	TeachersScraperResource.UpdateDesignator(designator, index)
 
 	schedule, err := scrapeSchedule(doc)
 	if err != nil {
@@ -405,15 +260,7 @@ func ScrapeRoom(index int64) (*models.Room, error) {
 	}
 	room.Designator = designator
 
-	RoomsMu.Lock()
-	for _designator, _index := range RoomsDesignators.Designators {
-		if index == _index {
-			fmt.Println("rooms's name changed, deleting old designator")
-			delete(RoomsDesignators.Designators, _designator)
-		}
-	}
-	RoomsDesignators.Designators[designator] = index
-	RoomsMu.Unlock()
+	RoomsScraperResource.UpdateDesignator(designator, index)
 
 	schedule, err := scrapeSchedule(doc)
 	if err != nil {
@@ -522,31 +369,35 @@ func ScrapeRoomsIndexes() ([]int64, error) {
 	return indexes, nil
 }
 
-func Initialize() (*models.ScheduleChannels, error) {
+func Initialize() error {
 	fmt.Println("initializing scraper")
 	Config = config.Global.Scraper
 
+	DivisionsScraperResource = NewScraperResource(DivisionIndexRegex, DivisionResource)
+	TeachersScraperResource  = NewScraperResource(TeacherIndexRegex, TeacherResource)
+	RoomsScraperResource     = NewScraperResource(RoomIndexRegex, RoomResource)
+
 	divisionsIndexes, err := ScrapeDivisionsIndexes()
 	if err != nil {
-		return nil, fmt.Errorf("error scraping divisions indexes: %w", err)
+		return fmt.Errorf("error scraping divisions indexes: %w", err)
 	}
-	DivisionsIndexes = divisionsIndexes
+	DivisionsScraperResource.Indexes = divisionsIndexes
 
 	teachersIndexes, err := ScrapeTeachersIndexes()
 	if err != nil {
-		return nil, fmt.Errorf("error scraping teachers indexes: %w", err)
+		return fmt.Errorf("error scraping teachers indexes: %w", err)
 	}
-	TeachersIndexes = teachersIndexes
+	TeachersScraperResource.Indexes = teachersIndexes
 
 	roomsIndexes, err := ScrapeRoomsIndexes()
 	if err != nil {
-		return nil, fmt.Errorf("error scraping rooms indexes: %w", err)
+		return fmt.Errorf("error scraping rooms indexes: %w", err)
 	}
-	RoomsIndexes = roomsIndexes
+	RoomsScraperResource.Indexes = roomsIndexes
 
-	divisionsIndexesLength := int64(len(DivisionsIndexes))
-	teachersIndexesLength := int64(len(TeachersIndexes))
-	roomsIndexesLength := int64(len(RoomsIndexes))
+	divisionsIndexesLength := int64(len(divisionsIndexes))
+	teachersIndexesLength := int64(len(teachersIndexes))
+	roomsIndexesLength := int64(len(roomsIndexes))
 
 	fmt.Printf("starting with %d divisions, %d teachers, %d rooms\n", divisionsIndexesLength, teachersIndexesLength, roomsIndexesLength)
 	
@@ -560,32 +411,20 @@ func Initialize() (*models.ScheduleChannels, error) {
 		fmt.Printf("no rooms found despite %d workers\n", Config.Quantities.Workers.Room)
 	}
 
-	DivisionsHub = hub.NewHub(Config.Quantities.Workers.Division)
-	TeachersHub = hub.NewHub(Config.Quantities.Workers.Teacher)
-	RoomsHub = hub.NewHub(Config.Quantities.Workers.Room)
+	DivisionsScraperResource.Hub = hub.NewHub(Config.Quantities.Workers.Division)
+	RoomsScraperResource.Hub = hub.NewHub(Config.Quantities.Workers.Teacher)
+	TeachersScraperResource.Hub = hub.NewHub(Config.Quantities.Workers.Room)
 
-	divisionsChan := ObserveDivisions()
-	teachersChan := ObserveTeachers()
-	roomsChan := ObserveRooms()
+	ObserveDivisions(&DivisionsScraperResource.RefreshChan)
+	ObserveTeachers(&TeachersScraperResource.RefreshChan)
+	ObserveRooms(&RoomsScraperResource.RefreshChan)
 
-	return &models.ScheduleChannels{
-		Divisons: divisionsChan,
-		Teachers: teachersChan,
-		Rooms:    roomsChan,
-	}, nil
+	return nil
 }
 
 func Cleanup() {
 	fmt.Println("cleaning scraper")
-	if DivisionsHub != nil {
-		DivisionsHub.Stop()
-	}
-
-	if TeachersHub != nil {
-		TeachersHub.Stop()
-	}
-
-	if RoomsHub != nil {
-		RoomsHub.Stop()
-	}
+	DivisionsScraperResource.StopHub()
+	TeachersScraperResource.StopHub()
+	RoomsScraperResource.StopHub()
 }

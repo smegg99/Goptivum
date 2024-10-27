@@ -44,7 +44,7 @@ func GetDivisionHandler(c *gin.Context) {
 }
 
 func GetDivisionsHandler(c *gin.Context) {
-	Respond(c, http.StatusOK, scraper.DivisionsDesignators)
+	Respond(c, http.StatusOK, scraper.DivisionsScraperResource.Designators.GetDesignators())
 }
 
 func GetTeacherHandler(c *gin.Context) {
@@ -78,7 +78,7 @@ func GetTeacherHandler(c *gin.Context) {
 }
 
 func GetTeachersHandler(c *gin.Context) {
-	Respond(c, http.StatusOK, scraper.TeachersDesignators)
+	Respond(c, http.StatusOK, scraper.TeachersScraperResource.Designators.GetDesignators())
 }
 
 func GetRoomHandler(c *gin.Context) {
@@ -112,5 +112,5 @@ func GetRoomHandler(c *gin.Context) {
 }
 
 func GetRoomsHandler(c *gin.Context) {
-	Respond(c, http.StatusOK, scraper.RoomsDesignators)
+	Respond(c, http.StatusOK, scraper.RoomsScraperResource.Designators.GetDesignators())
 }

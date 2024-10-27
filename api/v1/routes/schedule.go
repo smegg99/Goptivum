@@ -12,7 +12,7 @@ func SetupScheduleRoutes(router *gin.Engine, rootGroup *gin.RouterGroup) {
 	{
 		divisionGroup.GET("/:index", handlers.GetDivisionHandler)
 	}
-	divisionsGroup := rootGroup.Group("/divisions", handlers.GetDivisionsHandler)
+	divisionsGroup := rootGroup.Group("/divisions")
 	{
 		divisionsGroup.GET("/", handlers.GetDivisionsHandler)
 	}
