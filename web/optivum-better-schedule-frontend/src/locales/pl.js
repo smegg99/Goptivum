@@ -7,6 +7,7 @@ export default {
 	theme: {
 		name: 'Motyw',
 		options: {
+			dracula: 'Drakula',
 			dark: 'Ciemny',
 			light: 'Jasny',
 			auto: 'Automatyczny',

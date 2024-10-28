@@ -7,9 +7,10 @@ export default {
 	theme: {
 		name: 'Тема',
 		options: {
-		dark: 'Темна',
-		light: 'Світла',
-		auto: 'Авто',
+			dracula: 'Дракула',
+			dark: 'Темна',
+			light: 'Світла',
+			auto: 'Авто',
 		},
 	},
 	day: {

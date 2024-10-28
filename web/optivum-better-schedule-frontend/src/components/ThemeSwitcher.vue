@@ -4,6 +4,10 @@
 		<div class="text-center">
 			<span class="theme-title">{{ t('theme.name') }}</span>
 			<v-btn-toggle v-model="currentTheme" mandatory class="ma-4 elevation-8" color="tertiary" variant="outlined">
+				<v-btn value="dracula">
+					<span>{{ t('theme.options.dracula') }}</span>
+					<v-icon end>mdi-ghost</v-icon>
+				</v-btn>
 				<v-btn value="dark">
 					<span>{{ t('theme.options.dark') }}</span>
 					<v-icon end>mdi-weather-night</v-icon>
@@ -21,55 +25,28 @@
 	</v-container>
 </template>
 
-<script setup>
+<script setup lang="ts">
+import { watch, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { useThemeStore } from '@/stores/themeStore';
 import { useTheme } from 'vuetify';
 
 const { t } = useI18n();
+const themeStore = useThemeStore();
+const themeInstance = useTheme();
 
-const currentTheme = ref('auto');
-const theme = useTheme();
-
-onMounted(() => {
-	const savedTheme = localStorage.getItem('theme');
-	if (savedTheme) {
-		currentTheme.value = savedTheme;
-		applyTheme(savedTheme);
-	} else {
-		applyAutoTheme();
-	}
-
-	window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', handleSystemThemeChange);
+const currentTheme = computed({
+	get: () => themeStore.currentTheme,
+	set: (value) => themeStore.setTheme(value),
 });
 
-watch(currentTheme, (newTheme) => {
-	localStorage.setItem('theme', newTheme);
-	applyTheme(newTheme);
-});
-
-function applyTheme(themeValue) {
-	if (themeValue === 'auto') {
-		applyAutoTheme();
-	} else {
-		theme.global.name.value = themeValue;
-	}
-}
-
-function applyAutoTheme() {
-	const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-	theme.global.name.value = prefersDark ? 'dark' : 'light';
-}
-
-function handleSystemThemeChange(event) {
-	if (currentTheme.value === 'auto') {
-		theme.global.name.value = event.matches ? 'dark' : 'light';
-	}
-}
-
-onUnmounted(() => {
-	window.matchMedia('(prefers-color-scheme: dark)').removeEventListener('change', handleSystemThemeChange);
-});
+watch(
+	() => currentTheme.value,
+	() => {
+		themeStore.applyTheme(themeInstance);
+	},
+	{ immediate: true }
+);
 </script>
 
 <style scoped>
