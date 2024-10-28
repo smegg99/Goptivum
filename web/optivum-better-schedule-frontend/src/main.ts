@@ -7,7 +7,6 @@
 // Plugins
 import { registerPlugins } from '@/plugins'
 import 'vuetify/styles';
-import vuetify from './plugins/vuetify';
 import '@mdi/font/css/materialdesignicons.css';
 
 // Components
@@ -16,6 +15,7 @@ import Overlay from './components/Overlay.vue';
 
 // Composables
 import { createApp } from 'vue'
+import { createPinia } from 'pinia';
 import { createI18n } from 'vue-i18n';
 import router from './router'
 
@@ -26,7 +26,7 @@ import uk from './locales/uk';
 
 const i18n = createI18n({
 	legacy: false,
-	locale: 'en',
+	locale: localStorage.getItem('language') || 'en',
 	fallbackLocale: 'en',
 	messages: {
 		en,
@@ -35,10 +35,13 @@ const i18n = createI18n({
 	},
 });
 
+
 const app = createApp(App)
 registerPlugins(app)
 
-app.use(vuetify);
+const pinia = createPinia();
+
+app.use(pinia);
 app.use(router);
 app.use(i18n);
 app.mount('#app');

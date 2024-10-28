@@ -23,7 +23,7 @@
 			"base_url": "https://api.openweathermap.org/data/2.5/",
 			"endpoints": {
 				"current_weather": "weather?lat=%f&lon=%f&appid=%s&lang=%s&units=%s",
-				"forecast_weather": "forecast?lat=%f&lon=%f&appid=%s&lang=%s&units=%s",
+				"forecast_weather": "forecast?lat=%f&lon=%f&appid=%s&lang=%s&units=%s&cnt=%d",
 				"current_air_pollution": "air_pollution?lat=%f&lon=%f&appid=%s"
 			},
 			"lat": 49.60982192707506,

@@ -25,6 +25,18 @@ func Initialize(scheduleChannels *models.ScheduleChannels) (chan error) {
 
 	DefaultRouter = gin.Default()
 	DefaultRouter.Use(gzip.Gzip(gzip.DefaultCompression))
+	DefaultRouter.Use(func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, X-Auth-Token")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
+	})
 
 	routes.Initialize(DefaultRouter, scheduleChannels)
 

@@ -42,9 +42,9 @@
 
   <v-main>
     <div class="fill-height">
-      <v-scroll-y-transition appear>
-        <router-view class="fill-height fill-width" />
-      </v-scroll-y-transition>
+      <router-view class="fill-height fill-width" v-slot="{ Component }">
+        <component :is="Component" />
+      </router-view>
     </div>
   </v-main>
 </template>

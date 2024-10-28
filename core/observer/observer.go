@@ -73,7 +73,7 @@ func (o *Observer) compareHash(ctx context.Context, client *http.Client) (bool, 
 	content := o.ExtractContent(doc)
 	hash := hashContent(content)
 
-	fmt.Println("checking hash for index", o.Index)
+	fmt.Printf("checking hash for %s\n", o.URL)
 
 	if hash != o.Hash {
 		o.Hash = hash
