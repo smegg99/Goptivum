@@ -116,6 +116,7 @@ const items = computed(() => [
 }
 
 .menu-card {
+  z-index: 999;
   width: 32px;
   aspect-ratio: 1 / 1;
   display: inline-flex;

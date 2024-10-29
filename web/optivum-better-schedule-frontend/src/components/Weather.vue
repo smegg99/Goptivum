@@ -10,10 +10,10 @@
             <span class="temperature">{{ temperature }}</span>
           </div>
         </v-col>
-        <v-col class="text-right condition-col" cols="5">
+        <v-col class="text-right condition-col" cols="6">
           <div class="d-flex flex-column align-end">
             <span class="condition-text">{{ conditionName }}</span>
-            <span class="condition-text">{{ conditionDescription }}</span>
+            <span class="condition-text-lower">{{ conditionDescription }}</span>
           </div>
         </v-col>
       </v-row>
@@ -237,7 +237,7 @@ onUnmounted(() => {
 
 <style scoped>
 .weather-card {
-  width: 70%;
+  width: 100%;
   padding: 1.5vw;
   background-color: transparent;
   user-select: none;
@@ -276,7 +276,7 @@ onUnmounted(() => {
 
 .temperature {
   font-size: 3vw;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--v-primary-darken1);
   user-select: none;
 }
@@ -286,6 +286,15 @@ onUnmounted(() => {
 }
 
 .condition-text {
+  font-size: 2vw;
+  font-weight: 800;
+  color: var(--v-secondary-lighten2);
+  text-align: right;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.condition-text-lower {
   font-size: 2vw;
   font-weight: 400;
   color: var(--v-secondary-lighten2);
@@ -323,7 +332,7 @@ onUnmounted(() => {
 }
 
 .forecast-icon {
-  font-size: 2.5vw;
+  font-size: 4vw;
   color: var(--v-info-base);
   user-select: none;
 }
@@ -332,9 +341,9 @@ onUnmounted(() => {
   color: var(--v-primary-lighten4);
 }
 
-@media (max-width: 800px) {
+@media (max-width: 700px) {
   .weather-card {
-    width: 95%;
+    width: 100%;
     padding: 1vw;
   }
 
@@ -352,6 +361,10 @@ onUnmounted(() => {
 
   .condition-text {
     font-size: 3vw;
+  }
+
+  .condition-text-lower {
+    font-size: 2.5vw;
   }
 
   .forecast-day,

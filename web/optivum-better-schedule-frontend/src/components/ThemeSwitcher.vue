@@ -4,22 +4,10 @@
 		<div class="text-center">
 			<span class="theme-title">{{ t('theme.name') }}</span>
 			<v-btn-toggle v-model="currentTheme" mandatory class="ma-4 elevation-8" color="tertiary" variant="outlined">
-				<v-btn value="dracula">
-					<span>{{ t('theme.options.dracula') }}</span>
-					<v-icon end>mdi-ghost</v-icon>
-				</v-btn>
-				<v-btn value="dark">
-					<span>{{ t('theme.options.dark') }}</span>
-					<v-icon end>mdi-weather-night</v-icon>
-				</v-btn>
-				<v-btn value="auto">
-					<span>{{ t('theme.options.auto') }}</span>
-					<v-icon end>mdi-auto-mode</v-icon>
-				</v-btn>
-				<v-btn value="light">
-					<span>{{ t('theme.options.light') }}</span>
-					<v-icon end>mdi-weather-sunny</v-icon>
-				</v-btn>
+				<v-btn value="dracula" icon="mdi-ghost" />
+				<v-btn value="dark" icon="mdi-weather-night" />
+				<v-btn value="auto" icon="mdi-auto-mode" />
+				<v-btn value="light" icon="mdi-weather-sunny" />
 			</v-btn-toggle>
 		</div>
 	</v-container>
