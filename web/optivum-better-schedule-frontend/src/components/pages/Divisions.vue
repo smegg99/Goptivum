@@ -1,22 +1,20 @@
 <!-- Divisions.vue -->
 <template>
-	<v-container fluid class="fill-height fill-width pa-0">
-		<v-slide-y-transition appear>
-			<v-card class="search-container pa-0 elevation-4 rounded-b-lg">
-				<v-text-field v-model="search" class="search" :label="t('search.division')"
-					prepend-inner-icon="mdi-magnify" variant="outlined" />
-			</v-card>
-		</v-slide-y-transition>
-		<v-slide-y-reverse-transition appear>
-			<v-container class="scrollable-grid pa-0">
-				<div class="divisions-grid">
-					<v-col v-for="(item, index) in filteredItems" :key="index" class="grid-item pa-0" cols="auto">
-						<DivisionButton :text="item" :index="index" />
-					</v-col>
-				</div>
+	<v-slide-y-transition appear>
+		<v-card class="search-container pa-0elevation-4 rounded-b-lg">
+			<v-text-field v-model="search" class="search" :label="t('search.division')" prepend-inner-icon="mdi-magnify"
+				variant="outlined" />
+		</v-card>
+	</v-slide-y-transition>
+	<v-slide-y-reverse-transition appear>
+		<v-container class="scrollable-grid pa-0">
+			<v-container class="divisions-grid pa-0">
+				<v-col v-for="(item, index) in filteredItems" :key="index" class="grid-item pa-0" cols="auto">
+					<DivisionButton :text="item" :index="index" />
+				</v-col>
 			</v-container>
-		</v-slide-y-reverse-transition>
-	</v-container>
+		</v-container>
+	</v-slide-y-reverse-transition>
 </template>
 
 <script setup>
@@ -65,7 +63,7 @@ const filteredItems = computed(() => {
 	display: flex;
 	flex-direction: column;
 	height: 100vh;
-	overflow: hidden;
+	overflow: visible;
 }
 
 .search-container {
@@ -77,38 +75,41 @@ const filteredItems = computed(() => {
 	z-index: 10;
 	position: fixed;
 	top: 0;
-	left: 0;
-	right: 0;
-	padding: 15px 0;
+	padding: 1rem;
+}
+
+.v-card {
+	overflow: visible;
 }
 
 .search {
-	margin-left: 15px;
-	margin-right: 15px;
-	margin-top: 15px;
-	margin-bottom: 0;
-	user-select: none;
+	width: 100%;
+	max-width: 100%;
+	margin: 0;
 }
 
 .scrollable-grid {
-	height: calc(100vh - 70px - 24px);
+	overflow-y: auto;
 	width: 100%;
-	overflow: visible;
+	padding: 1rem 0;
+	background-color: var(--v-background-base);
 }
 
 .divisions-grid {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
-	gap: 2rem;
+	grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));
+	gap: 1.5rem;
 	justify-content: center;
-	padding: 2rem;
-	margin-top: 3rem;
-	overflow: visible;
+	background-color: var(--v-background-base);
+	padding: 1.5rem;
+	margin: 0 auto;
+	width: auto;
+	margin: 8.5rem 1.5rem 1.5rem;
 }
 
 .grid-item {
-	width: 8rem;
-	height: 8rem;
+	width: 6rem;
+	height: 6rem;
 	display: flex;
 	justify-content: center;
 	align-items: center;
