@@ -58,11 +58,12 @@ const filteredItems = computed(() => {
 })
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .main-container {
 	display: flex;
 	flex-direction: column;
 	height: 100vh;
+	background-color: rgb(var(--v-theme-background));
 	overflow: visible;
 }
 
@@ -72,7 +73,7 @@ const filteredItems = computed(() => {
 }
 
 .search-container {
-	width: 50%;
+	width: 30%;
 	height: 64px;
 	margin: 16px auto;
 	display: flex;
@@ -95,8 +96,9 @@ const filteredItems = computed(() => {
 .scrollable-grid {
 	overflow-y: auto;
 	width: auto;
-	background-color: var(--v-background-base);
+	background-color: rgb(var(--v-theme-background));
 	padding: 1rem;
+	margin-bottom: 0;
 }
 
 .divisions-grid {
@@ -104,12 +106,12 @@ const filteredItems = computed(() => {
 	grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
 	gap: 2rem;
 	justify-content: center;
-	background-color: var(--v-background-base);
+	background-color: rgb(var(--v-theme-background));
 	padding: 1.5rem;
-	margin: 2rem 2rem 2rem;
+	margin: 2rem 2rem;
 	width: auto;
+	min-height: calc(100vh - 64px);
 }
-
 .grid-item {
 	width: 7rem;
 	height: 7rem;
@@ -117,15 +119,20 @@ const filteredItems = computed(() => {
 	justify-content: center;
 	align-items: center;
 	aspect-ratio: 1 / 1;
+	background-color: transparent;
 }
 
 @media (max-width: 1280px) {
 	.search-container {
-		padding: 0.75rem;
+		width: calc(75% - 32px);
+		max-width: 50vw;
+		margin: 16px 16px 0 auto;
+		padding: 0;
+		justify-content: flex-end;
 	}
 
 	.divisions-grid {
-		grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(5rem, 1rem));
 		gap: 2rem;
 		padding: 1rem;
 		margin: 2rem 2rem 2rem;

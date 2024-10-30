@@ -41,7 +41,7 @@
 
 
 	<v-main>
-		<div class="fill-height">
+		<div class="background-container fill-height">
 			<router-view class="fill-height fill-width" v-slot="{ Component }">
 				<component :is="Component" />
 			</router-view>
@@ -92,6 +92,10 @@ const items = computed(() => [
 	overflow: visible !important;
 	white-space: normal;
 	word-wrap: break-word;
+}
+
+.background-container {
+	background-color: rgb(var(--v-theme-background));
 }
 
 .nav-item :deep(.v-list-item-title) {

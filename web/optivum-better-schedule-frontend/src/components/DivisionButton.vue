@@ -74,7 +74,7 @@ onUnmounted(() => {
 	z-index: 1;
 	width: 100%;
 	height: 100%;
-	font-size: 2.5vw;
+	font-size: 2.5rem;
 	font-weight: 400;
 	display: flex;
 	align-items: center;
@@ -84,7 +84,7 @@ onUnmounted(() => {
 
 @media (max-width: 700px) {
 	.square-button {
-		font-size: 5vw;
+		font-size: 2rem;
 	}
 }
 </style>
