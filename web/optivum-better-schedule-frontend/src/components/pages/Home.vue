@@ -1,7 +1,7 @@
 <!-- Home.vue -->
 <template>
 	<v-slide-y-reverse-transition appear>
-		<v-container class="grid-container" fluid>
+		<v-container class="grid-container pa-0" fluid>
 			<v-row class="home-grid" align="center" justify="center">
 				<v-col cols="12" class="d-flex justify-center grid-item">
 					<Clock />
@@ -35,12 +35,26 @@ import Weather from '../Weather.vue';
 	width: 100%;
 	justify-items: center;
 	align-items: center;
-	gap: 1rem;
+	gap: 0;
 	padding: 0;
+	margin: 0;
 }
 
 .grid-item {
 	max-width: 100%;
 	padding: 0;
+}
+
+.v-container {
+	overflow-y: auto;
+}
+
+.v-container::-webkit-scrollbar {
+	width: 0;
+	height: 0;
+}
+
+.v-container {
+	scrollbar-width: none;
 }
 </style>

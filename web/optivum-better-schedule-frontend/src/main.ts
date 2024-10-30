@@ -62,5 +62,25 @@ themeStore.setTheme(themeStore.currentTheme);
 
 app.use(router);
 app.use(i18n);
+
+router.beforeEach((to, from, next) => {
+	const { t } = i18n.global;
+	const titleKey = to.meta.titleKey as string;
+
+	if (titleKey) {
+		let title = t(titleKey);
+
+		if (to.params.id) {
+			title = t(titleKey, { id: to.params.id });
+		}
+
+		document.title = title;
+	} else {
+		document.title = t('page.title');
+	}
+
+	next();
+});
+
 app.mount('#app');
 app.component('Overlay', Overlay);

@@ -1,7 +1,7 @@
 <!-- ThemeSwitcher.vue -->
 <template>
-	<v-container class="fill-height d-flex justify-center align-center">
-		<div class="text-center">
+	<v-container class="fill-height d-flex justify-center align-center pa-0">
+		<div class=" text-center">
 			<span class="theme-title">{{ t('theme.name') }}</span>
 			<v-btn-toggle v-model="currentTheme" mandatory class="ma-4 elevation-8" color="tertiary" variant="outlined">
 				<v-btn value="dracula" icon="mdi-ghost" />

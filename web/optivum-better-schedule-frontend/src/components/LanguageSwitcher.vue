@@ -1,6 +1,6 @@
 <!-- LanguageSwitcher.vue -->
 <template>
-	<v-container class="d-flex justify-center align-center">
+	<v-container class="d-flex justify-center align-center pa-0">
 		<div class="text-center">
 			<span class="language-title mb-6">{{ t('language.name') }}</span>
 			<v-select v-model="currentLanguage" :items="languages" item-title="label" item-value="code"

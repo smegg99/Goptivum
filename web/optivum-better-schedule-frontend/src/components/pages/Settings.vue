@@ -1,7 +1,7 @@
 <!-- Settings.vue -->
 <template>
 	<v-slide-y-reverse-transition appear>
-		<v-container class="grid-container" fluid>
+		<v-container class="grid-container pa-0" fluid>
 			<v-row class="home-grid" align="center" justify="center">
 				<v-col cols="12" class="d-flex justify-center grid-item">
 					<ThemeSwitcher />

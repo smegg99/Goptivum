@@ -16,6 +16,7 @@ declare module 'vue' {
     Divisions: typeof import('./src/components/pages/Divisions.vue')['default']
     Dots: typeof import('./src/components/Dots.vue')['default']
     Drawer: typeof import('./src/components/Drawer.vue')['default']
+    Fog: typeof import('./src/components/Fog.vue')['default']
     HelloWorld: typeof import('./src/components/HelloWorld.vue')['default']
     Home: typeof import('./src/components/pages/Home.vue')['default']
     HomePage: typeof import('./src/components/pages/HomePage.vue')['default']

@@ -1,7 +1,7 @@
 <!-- Weather.vue -->
 <template>
   <v-row class="d-flex justify-center align-center flex-nowrap" no-gutters>
-    <v-card class="weather-card" flat :class="{ loading: isLoading, transitioning: isTransitioning }">
+    <v-card class="weather-card" :loading="isLoading" flat>
       <v-row class="justify-center align-center weather-info">
         <v-col class="text-center" cols="6">
           <span class="location-info">{{ locationName }}</span>
@@ -32,7 +32,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import axios from 'axios';
 
@@ -47,27 +47,23 @@ const updateUnits = () => {
 
 updateUnits();
 
-watch(
-  () => locale.value,
-  () => {
-    updateUnits();
-    fetchWeatherData();
-  }
-);
-
-const isLoading = ref(true);
-const isTransitioning = ref(false);
-
-const placeholderCities = ['Atlantis', 'Gotham', 'Metropolis', 'El Dorado', 'Shangri-La'];
+const placeholderCities = ['Atlantis', 'Memphis', 'Metropolis', 'El Dorado', 'Shangri-La'];
 const randomCity = placeholderCities[Math.floor(Math.random() * placeholderCities.length)];
+
+const conditionNames = ['thunderstorm', 'drizzle', 'rain', 'snow', 'clear'];
+const conditionDescriptions = ['thunderstorm with light rain', 'heavy intensity drizzle', 'extreme rain', 'heavy snow', 'clear sky']
+const randomConditionIndex = Math.floor(Math.random() * conditionNames.length);
+const randomConditionName = conditionNames[randomConditionIndex];
+const randomConditionDescription = conditionDescriptions[randomConditionIndex];
+
 const locationName = ref(randomCity);
+const isLoading = ref(true);
 
 const temperature = ref(`${Math.floor(Math.random() * 30)}°`);
-const conditionNames = ['Sunny', 'Cloudy', 'Rainy', 'Snowy'];
-const randomCondition = conditionNames[Math.floor(Math.random() * conditionNames.length)];
-const conditionName = ref(randomCondition);
-const conditionDescription = ref('Fetching weather data');
-const conditionIcon = ref(getConditionIcon(randomCondition));
+
+const conditionName = ref(t(`weather.conditions.${randomConditionName}`));
+const conditionDescription = ref(t(`weather.conditions.${randomConditionDescription}`));
+const conditionIcon = ref(getConditionIcon(randomConditionName));
 
 interface ForecastDay {
   code: number;
@@ -76,17 +72,18 @@ interface ForecastDay {
   temp: string;
 }
 
+const dayNames = [
+  t('day.monday'),
+  t('day.tuesday'),
+  t('day.wednesday'),
+  t('day.thursday'),
+  t('day.friday'),
+  t('day.saturday'),
+  t('day.sunday')
+];
+
 const forecastData = ref<ForecastDay[]>(
   Array.from({ length: 3 }, (_, i) => {
-    const dayNames = [
-      t('day.monday'),
-      t('day.tuesday'),
-      t('day.wednesday'),
-      t('day.thursday'),
-      t('day.friday'),
-      t('day.saturday'),
-      t('day.sunday')
-    ];
     const randomDay = dayNames[Math.floor(Math.random() * dayNames.length)];
     const randomTemp = `${Math.floor(Math.random() * 10)}°/${Math.floor(Math.random() * 30)}°`;
     const randomIcon = getConditionIcon(
@@ -101,59 +98,50 @@ const forecastData = ref<ForecastDay[]>(
   })
 );
 
-const fetchWeatherData = async () => {
-  const startTime = performance.now();
+const CACHE_KEY = 'weatherData';
+const CACHE_TIME_KEY = 'weatherDataFetchTime';
+const CACHE_DURATION = 5 * 60 * 1000;
 
-  const cachedData = localStorage.getItem('weatherData');
-  const cachedTime = localStorage.getItem('weatherDataFetchTime');
+const fetchWeatherData = async (retryDelay = 1000) => {
   const now = Date.now();
-  const dataTTL = 30 * 60 * 1000; // 30 minutes
 
-  let useCachedData = false;
+  const cachedData = localStorage.getItem(CACHE_KEY);
+  const cachedTime = localStorage.getItem(CACHE_TIME_KEY);
 
-  if (cachedData && cachedTime) {
-    const cachedTimeNum = parseInt(cachedTime);
-    if (now - cachedTimeNum < dataTTL) {
-      useCachedData = true;
-      const parsedData = JSON.parse(cachedData);
-      processWeatherData(parsedData.currentData, parsedData.forecast);
-      isLoading.value = false;
-    }
+  if (cachedData && cachedTime && now - parseInt(cachedTime) < CACHE_DURATION) {
+    const parsedData = JSON.parse(cachedData);
+    processWeatherData(parsedData.currentData, parsedData.forecast);
+    isLoading.value = false;
+    return;
   }
 
-  if (!useCachedData) {
-    isLoading.value = true;
+  isLoading.value = true;
 
-    try {
-      const currentResponse = await axios.get(
-        `http://localhost:3001/api/v1/weather/current?units=${units.value}`
-      );
-      const forecastResponse = await axios.get(
-        `http://localhost:3001/api/v1/weather/forecast?units=${units.value}`
-      );
+  try {
+    const currentResponse = await axios.get(
+      `http://localhost:3001/api/v1/weather/current?units=${units.value}`
+    );
+    const forecastResponse = await axios.get(
+      `http://localhost:3001/api/v1/weather/forecast?units=${units.value}`
+    );
 
-      const currentData = currentResponse.data;
-      const forecast = forecastResponse.data.forecast;
+    const currentData = currentResponse.data;
+    const forecast = forecastResponse.data.forecast;
 
-      const dataToCache = { currentData, forecast };
-      localStorage.setItem('weatherData', JSON.stringify(dataToCache));
-      localStorage.setItem('weatherDataFetchTime', now.toString());
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ currentData, forecast }));
+    localStorage.setItem(CACHE_TIME_KEY, now.toString());
 
-      const minLoadingTime = 1000 + Math.random() * 1000;
-      const elapsedTime = performance.now() - startTime;
-      const remainingTime = Math.max(minLoadingTime - elapsedTime, 0);
-
-      setTimeout(() => {
-        isTransitioning.value = true;
-        processWeatherData(currentData, forecast);
-
-        setTimeout(() => {
-          isLoading.value = false;
-          isTransitioning.value = false;
-        }, 1000);
-      }, remainingTime);
-    } catch (error) {
+    processWeatherData(currentData, forecast);
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response && error.response.status === 429) {
+      console.warn('Too many requests. Retrying in', retryDelay / 1000, 'seconds.');
+      setTimeout(() => fetchWeatherData(retryDelay * 1.5), retryDelay);
+    } else {
       console.error('Error fetching weather data:', error);
+      isLoading.value = false;
+    }
+  } finally {
+    if (isLoading.value) {
       isLoading.value = false;
     }
   }
@@ -225,12 +213,13 @@ let intervalId: number | null = null;
 onMounted(() => {
   fetchWeatherData();
 
-  intervalId = setInterval(fetchWeatherData, 5 * 1000);
+  intervalId = setInterval(fetchWeatherData, CACHE_DURATION);
 });
 
 onUnmounted(() => {
   if (intervalId !== null) {
     clearInterval(intervalId);
+    intervalId = null;
   }
 });
 </script>
@@ -242,10 +231,6 @@ onUnmounted(() => {
   background-color: transparent;
   user-select: none;
   transition: filter 1s ease, opacity 1s ease;
-}
-
-.loading {
-  filter: blur(15px);
 }
 
 .weather-info {

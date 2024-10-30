@@ -25,7 +25,7 @@ export default {
 	weather: {
 		temperature: 'Temperature',
 		weather: 'Weather',
-	conditions: {
+		conditions: {
 			// Group 2xx: Thunderstorm
 			'thunderstorm': 'Thunderstorm',
 			'thunderstorm with light rain': 'Thunderstorm with Light Rain',
@@ -100,10 +100,19 @@ export default {
 		},
 	},
 	page: {
+		title: 'Optivum - Better Schedule',
 		home: 'Home',
 		divisions: 'Divisions',
+		division: 'Division - {id}',
 		teachers: 'Teachers',
-		classrooms: 'Classrooms',
+		teacher: 'Teacher - {id}',
+		rooms: 'Classrooms',
+		room: 'Classroom - {id}',
 		settings: 'Settings',
 	},
+	search: {
+		division: 'Search division...',
+		teacher: 'Search teacher...',
+		room: 'Search classroom...',
+	}
 };

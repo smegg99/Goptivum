@@ -100,10 +100,19 @@ export default {
 		},
 	},
 	page: {
+		title: 'Optivum - Lepszy Plan Lekcji',
 		home: 'Strona główna',
 		divisions: 'Klasy',
+		division: 'Klasa - {id}',
 		teachers: 'Nauczyciele',
-		classrooms: 'Sale',
+		teacher: 'Nauczyciel - {id}',
+		rooms: 'Sale',
+		room: 'Sala - {id}',
 		settings: 'Ustawienia',
 	},
+	search: {
+		division: 'Wyszukaj klase...',
+		teacher: 'Wyszukaj nauczyciela...',
+		room: 'Wyszukaj sale...',
+	}
 };
