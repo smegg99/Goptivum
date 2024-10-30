@@ -1,9 +1,9 @@
 <!-- Divisions.vue -->
 <template>
 	<v-slide-y-transition appear>
-		<v-card class="search-container pa-0elevation-4 rounded-b-lg">
+		<v-card class="search-container pa-0" elevation="8" rounded="pill">
 			<v-text-field v-model="search" class="search" :label="t('search.division')" prepend-inner-icon="mdi-magnify"
-				variant="outlined" />
+				variant="solo" rounded="pill" hide-details="auto" />
 		</v-card>
 	</v-slide-y-transition>
 	<v-slide-y-reverse-transition appear>
@@ -66,53 +66,74 @@ const filteredItems = computed(() => {
 	overflow: visible;
 }
 
+:deep(.search .v-field--variant-solo) {
+	box-shadow: none !important;
+	border-color: transparent !important;
+}
+
 .search-container {
 	width: 50%;
-	margin: auto;
+	height: 64px;
+	margin: 16px auto;
 	display: flex;
 	justify-content: center;
 	align-items: center;
 	z-index: 10;
-	position: fixed;
-	top: 0;
-	padding: 1rem;
+	position: sticky;
+	top: 16px;
+	padding: 0 1rem;
+}
+
+.search {
+	width: 100%;
 }
 
 .v-card {
 	overflow: visible;
 }
 
-.search {
-	width: 100%;
-	max-width: 100%;
-	margin: 0;
-}
-
 .scrollable-grid {
 	overflow-y: auto;
-	width: 100%;
-	padding: 1rem 0;
+	width: auto;
 	background-color: var(--v-background-base);
+	padding: 1rem;
 }
 
 .divisions-grid {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));
-	gap: 1.5rem;
+	grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+	gap: 2rem;
 	justify-content: center;
 	background-color: var(--v-background-base);
 	padding: 1.5rem;
-	margin: 0 auto;
+	margin: 2rem 2rem 2rem;
 	width: auto;
-	margin: 8.5rem 1.5rem 1.5rem;
 }
 
 .grid-item {
-	width: 6rem;
-	height: 6rem;
+	width: 7rem;
+	height: 7rem;
 	display: flex;
 	justify-content: center;
 	align-items: center;
 	aspect-ratio: 1 / 1;
+}
+
+@media (max-width: 1280px) {
+	.search-container {
+		padding: 0.75rem;
+	}
+
+	.divisions-grid {
+		grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr));
+		gap: 2rem;
+		padding: 1rem;
+		margin: 2rem 2rem 2rem;
+	}
+
+	.grid-item {
+		width: 5rem;
+		height: 5rem;
+	}
 }
 </style>

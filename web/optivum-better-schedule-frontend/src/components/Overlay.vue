@@ -34,7 +34,7 @@
 	</v-navigation-drawer>
 
 	<v-slide-x-transition appear>
-		<v-card class="menu-card rounded-pill pa-8" elevation="8" @click="drawer = !drawer">
+		<v-card class="menu-card rounded-pill" elevation="8" @click="drawer = !drawer">
 			<v-btn icon="mdi-menu" :ripple="true" />
 		</v-card>
 	</v-slide-x-transition>
