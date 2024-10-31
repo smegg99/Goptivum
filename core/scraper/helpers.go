@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"smuggr.xyz/optivum-bsf/common/models"
@@ -24,6 +25,43 @@ func makeTeacherEndpoint(index int64) string {
 
 func makeRoomEndpoint(index int64) string {
 	return fmt.Sprintf(Config.Endpoints.Room, index)
+}
+
+func waitForFirstRefresh() {
+	var wg sync.WaitGroup
+
+	divisionObservers := len(DivisionsScraperResource.Hub.GetAllObservers(true))
+	teacherObservers := len(TeachersScraperResource.Hub.GetAllObservers(true))
+	roomObservers := len(RoomsScraperResource.Hub.GetAllObservers(true))
+
+	totalObservers := divisionObservers + teacherObservers + roomObservers
+	wg.Add(totalObservers)
+
+	waitForRefresh := func(ch <-chan int64, count int) {
+		for i := 0; i <= count; i++ {
+			go func() {
+				<-ch
+				wg.Done()
+			}()
+		}
+	}
+
+	waitForRefresh(DivisionsScraperResource.RefreshChan, divisionObservers)
+	waitForRefresh(TeachersScraperResource.RefreshChan, teacherObservers)
+	waitForRefresh(RoomsScraperResource.RefreshChan, roomObservers)
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	// Some observers may not refresh so we
+	// need to wait for a certain amount of time
+	select {
+	case <-done:
+	case <-time.After(15 * time.Second):
+	}
 }
 
 func splitDivisionTitle(s string) (string, string) {
@@ -173,13 +211,27 @@ func scrapeTeacherTitle(doc *goquery.Document) (string, string, error) {
 	return designator, fullName, nil
 }
 
-func scrapeRoomTitle(doc *goquery.Document) (string, error) {
+func splitRoomTitle(s string) (string, string) {
+	parts := strings.SplitN(s, " ", 2)
+	if len(parts) == 0 {
+		return "", ""
+	}
+	designator := strings.TrimSpace(parts[0])
+	var fullName string
+	if len(parts) > 1 {
+		fullName = strings.TrimSpace(parts[1])
+	}
+	return designator, fullName
+}
+
+func scrapeRoomTitle(doc *goquery.Document) (string, string, error) {
 	title, err := scrapeTitle(doc)
 	if err != nil {
-		return "", fmt.Errorf("error scraping title: %w", err)
+		return "", "", fmt.Errorf("error scraping title: %w", err)
 	}
+	designator, fullName := splitRoomTitle(title)
 
-	return title, nil
+	return designator, fullName, nil
 }
 
 func scrapeSchedule(doc *goquery.Document) (*models.Schedule, error) {

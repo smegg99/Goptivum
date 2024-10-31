@@ -1,17 +1,19 @@
 <!-- Home.vue -->
 <template>
-	<v-slide-y-reverse-transition appear>
-		<v-container class="grid-container pa-0" fluid>
-			<v-row class="home-grid" align="center" justify="center">
-				<v-col cols="12" class="d-flex justify-center grid-item">
+	<v-container class="grid-container pa-0" fluid>
+		<v-row class="home-grid" align="center" justify="center">
+			<v-col class="d-flex justify-center grid-item">
+				<v-slide-y-transition appear>
 					<Clock />
-				</v-col>
-				<v-col cols="12" class="d-flex justify-center grid-item">
+				</v-slide-y-transition>
+			</v-col>
+			<v-col class="d-flex justify-center grid-item">
+				<v-slide-y-reverse-transition appear>
 					<Weather />
-				</v-col>
-			</v-row>
-		</v-container>
-	</v-slide-y-reverse-transition>
+				</v-slide-y-reverse-transition>
+			</v-col>
+		</v-row>
+	</v-container>
 </template>
 
 <script setup lang="ts">
@@ -31,17 +33,19 @@ import Weather from '../Weather.vue';
 
 .home-grid {
 	flex-wrap: nowrap;
-	display: grid;
+	display: flex;
+	flex-direction: column;
 	width: 100%;
 	justify-items: center;
 	align-items: center;
-	gap: 0;
+	flex-grow: 0;
+	gap: 5vh;
 	padding: 0;
 	margin: 0;
 }
 
 .grid-item {
-	max-width: 100%;
+	width: 90%;
 	padding: 0;
 }
 

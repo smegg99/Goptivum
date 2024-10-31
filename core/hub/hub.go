@@ -78,10 +78,13 @@ func (h *Hub) GetObserver(index int64) *observer.Observer {
     return h.observers[index]
 }
 
-func (h *Hub) GetAllObservers() map[int64]*observer.Observer {
+func (h *Hub) GetAllObservers(ignoreFirst bool) map[int64]*observer.Observer {
     h.mu.RLock()
     defer h.mu.RUnlock()
     copyMap := make(map[int64]*observer.Observer, len(h.observers))
+	if ignoreFirst {
+		delete(copyMap, 0)
+	}
     for k, v := range h.observers {
         copyMap[k] = v
     }

@@ -12,6 +12,7 @@ declare module 'vue' {
     Clock: typeof import('./src/components/clock/Clock.vue')['default']
     copy: typeof import('./src/components/HelloWorld copy.vue')['default']
     Digit: typeof import('./src/components/clock/Digit.vue')['default']
+    Division: typeof import('./src/components/pages/Division.vue')['default']
     DivisionButton: typeof import('./src/components/DivisionButton.vue')['default']
     Divisions: typeof import('./src/components/pages/Divisions.vue')['default']
     Dots: typeof import('./src/components/Dots.vue')['default']

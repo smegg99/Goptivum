@@ -1,4 +1,3 @@
-<!-- Divisions.vue -->
 <template>
 	<v-slide-y-transition appear>
 		<v-card class="search-container pa-0" elevation="8" rounded="pill">
@@ -9,53 +8,61 @@
 	<v-slide-y-reverse-transition appear>
 		<v-container class="scrollable-grid pa-0">
 			<v-container class="divisions-grid pa-0">
-				<v-col v-for="(item, index) in filteredItems" :key="index" class="grid-item pa-0" cols="auto">
-					<DivisionButton :text="item" :index="index" />
+				<v-col v-for="(designator, index) in filteredDivisions" :key="index" class="grid-item pa-0">
+					<DivisionButton :text="designator.text" :index="index" :id="designator.id" />
 				</v-col>
 			</v-container>
 		</v-container>
 	</v-slide-y-reverse-transition>
 </template>
 
-<script setup>
-import { ref, computed } from 'vue'
+<script setup lang="ts">
+import { ref, onMounted, computed } from 'vue';
+import axios from 'axios';
 import { useI18n } from 'vue-i18n';
-import DivisionButton from '../DivisionButton.vue';
 
-const { t, locale } = useI18n();
+interface Division {
+	text: string;
+	id: number;
+	full_name: string;
+}
 
-const search = ref('')
-const items = ref([
-	'1M', '2M', '3M', '4M', '5M',
-	'1F', '2F', '3F', '4F', '5F',
-	'1A', '2A', '3A', '4A', '5A',
-	'1B', '2B', '3B', '4B', '5B',
-	'1C', '2C', '3C', '4C', '5C',
-	'1D', '2D', '3D', '4D', '5D',
-	'1E', '2E', '3E', '4E', '5E',
-	'1G', '2G', '3G', '4G', '5G',
-	'1H', '2H', '3H', '4H', '5H',
-	'1I', '2I', '3I', '4I', '5I',
-	'1J', '2J', '3J', '4J', '5J',
-	'1K', '2K', '3K', '4K', '5K',
-	'1L', '2L', '3L', '4L', '5L',
-	'1N', '2N', '3N', '4N', '5N',
-	'1O', '2O', '3O', '4O', '5O',
-	'1P', '2P', '3P', '4P', '5P',
-	'1R', '2R', '3R', '4R', '5R',
-	'1S', '2S', '3S', '4S', '5S',
-	'1T', '2T', '3T', '4T', '5T',
-	'1U', '2U', '3U', '4U', '5U',
-	'1W', '2W', '3W', '4W', '5W',
-	'1X', '2X', '3X', '4X', '5X',
-	'1Y', '2Y', '3Y', '4Y', '5Y',
-	'1Z', '2Z', '3Z', '4Z', '5Z',
-])
+const { t } = useI18n();
+const search = ref('');
+const divisions = ref<Division[]>([]);
+const loading = ref(false);
+const error = ref<string | null>(null);
 
-const filteredItems = computed(() => {
-	if (!search.value) return items.value
-	return items.value.filter(item => item.toLowerCase().includes(search.value.toLowerCase()))
-})
+const fetchDivisions = async () => {
+	loading.value = true;
+	try {
+		const response = await axios.get('/api/v1/divisions');
+		const designators = response.data.designators;
+		const fullNames = response.data.full_names;
+
+		divisions.value = Object.keys(designators).map((key) => ({
+			text: key,
+			id: designators[key],
+			full_name: Object.keys(fullNames).find((name) => fullNames[name] === designators[key]) || '',
+		}));
+	} catch (err) {
+		console.error('Error fetching divisions:', err);
+		error.value = 'Failed to fetch division data.';
+	} finally {
+		loading.value = false;
+	}
+};
+
+onMounted(fetchDivisions);
+
+const filteredDivisions = computed(() => {
+	const searchValue = search.value.toLowerCase().replace(/\s+/g, '');
+	return divisions.value.filter(
+		(division) =>
+			division.text.toLowerCase().includes(searchValue) ||
+			division.full_name.toLowerCase().replace(/\s+/g, '').includes(searchValue)
+	);
+});
 </script>
 
 <style scoped lang="scss">
@@ -94,24 +101,26 @@ const filteredItems = computed(() => {
 }
 
 .scrollable-grid {
-	overflow-y: auto;
 	width: auto;
+	height: auto;
+	overflow-y: auto;
 	background-color: rgb(var(--v-theme-background));
-	padding: 1rem;
 	margin-bottom: 0;
 }
 
 .divisions-grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
-	gap: 2rem;
+	column-gap: 2rem;
+	row-gap: 2rem;
 	justify-content: center;
 	background-color: rgb(var(--v-theme-background));
 	padding: 1.5rem;
-	margin: 2rem 2rem;
+	margin: 2rem 2rem 2rem;
 	width: auto;
-	min-height: calc(100vh - 64px);
+	height: auto;
 }
+
 .grid-item {
 	width: 7rem;
 	height: 7rem;
@@ -122,7 +131,7 @@ const filteredItems = computed(() => {
 	background-color: transparent;
 }
 
-@media (max-width: 1280px) {
+@media (max-width: 1279px) {
 	.search-container {
 		width: calc(75% - 32px);
 		max-width: 50vw;
@@ -132,15 +141,15 @@ const filteredItems = computed(() => {
 	}
 
 	.divisions-grid {
-		grid-template-columns: repeat(auto-fill, minmax(5rem, 1rem));
+		grid-template-columns: repeat(auto-fill, minmax(7rem, 1rem));
 		gap: 2rem;
 		padding: 1rem;
 		margin: 2rem 2rem 2rem;
 	}
-
+	
 	.grid-item {
-		width: 5rem;
-		height: 5rem;
+		width: 7rem;
+		height: 7rem;
 	}
 }
 </style>

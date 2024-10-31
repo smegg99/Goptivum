@@ -33,7 +33,7 @@ func (t ResourceType) String() string {
 
 type ScraperResource struct {
 	Indexes     []int64
-	Designators *models.Designators
+	Metadata    *models.Metadata
 	Observer    *observer.Observer
 	Hub         *hub.Hub
 	IndexRegex  *regexp.Regexp
@@ -45,7 +45,10 @@ type ScraperResource struct {
 func NewScraperResource(indexRegex *regexp.Regexp, resourceType ResourceType) *ScraperResource {
 	return &ScraperResource{
 		Indexes:     []int64{},
-		Designators: &models.Designators{Designators: make(map[string]int64)},
+		Metadata:    &models.Metadata{
+			Designators: make(map[string]int64),
+			FullNames:   make(map[string]int64),
+		},
 		Observer:    &observer.Observer{},
 		Hub:         &hub.Hub{},
 		IndexRegex:  indexRegex,
@@ -67,36 +70,44 @@ func (s *ScraperResource) StopHub() {
 	}
 }
 
-func (s *ScraperResource) UpdateDesignator(newDesignator string, index int64) {
+func (s *ScraperResource) UpdateMetadata(newDesignator, newFullName string, index int64) {
 	s.Mu.Lock()
 	defer s.Mu.Unlock()
-	for _designator, _index := range s.Designators.Designators {
+	for _designator, _index := range s.Metadata.Designators {
 		if index == _index {
-			delete(s.Designators.Designators, _designator)
+			delete(s.Metadata.Designators, _designator)
 		}
 	}
-	s.Designators.Designators[newDesignator] = index
+	s.Metadata.Designators[newDesignator] = index
+
+	for _full_name, _index := range s.Metadata.FullNames {
+		if index == _index {
+			delete(s.Metadata.FullNames, _full_name)
+		}
+	}
+	s.Metadata.FullNames[newFullName] = index
 }
 
-func (s *ScraperResource) RemoveDesignator(index int64) {
+func (s *ScraperResource) RemoveMetadata(index int64) {
 	s.Mu.Lock()
 	defer s.Mu.Unlock()
-	for designator, _index := range s.Designators.Designators {
+	for designator, _index := range s.Metadata.Designators {
 		if index == _index {
-			delete(s.Designators.Designators, designator)
-		}
-	}
-
-	s.Mu.Lock()
-	for key, _index := range s.Designators.Designators {
-		if _index == index {
-			delete(s.Designators.Designators, key)
-			if len(s.Designators.Designators) == 0 {
+			delete(s.Metadata.Designators, designator)
+			if len(s.Metadata.Designators) == 0 {
 				break
 			}
 		}
 	}
-	s.Mu.Unlock()
+
+	for fullName, _index := range s.Metadata.FullNames {
+		if index == _index {
+			delete(s.Metadata.FullNames, fullName)
+			if len(s.Metadata.FullNames) == 0 {
+				break
+			}
+		}
+	}
 }
 
 func (s *ScraperResource) UpdateIndexes(indexes []int64) {
@@ -146,10 +157,7 @@ func (s *ScraperResource) RefreshObservers() {
 		}
 	}
 
-	observersCopy := s.Hub.GetAllObservers()
-	if len(observersCopy) > 0 {
-		delete(observersCopy, 0) // Remove the list observer
-	}
+	observersCopy := s.Hub.GetAllObservers(true)
 	for index := range observersCopy {
 		if !existingIndexes[index] {
 			fmt.Printf("deleting observer for resource (%s) %d\n", s.Type, index)
@@ -158,11 +166,11 @@ func (s *ScraperResource) RefreshObservers() {
 				fmt.Printf("error deleting resource (%s) from datastore: %v\n", s.Type, err)
 			}
 
-			s.RemoveDesignator(index)
+			s.RemoveMetadata(index)
 		}
 	}
 
-	fmt.Printf("observing resource (%s) with %d observer(s)...\n", s.Type, len(s.Hub.GetAllObservers()))
+	fmt.Printf("observing resource (%s) with %d observer(s)...\n", s.Type, len(s.Hub.GetAllObservers(false)))
 }
 
 var (
@@ -198,7 +206,7 @@ func ScrapeDivision(index int64) (*models.Division, error) {
 	division.Designator = designator
 	division.FullName = fullName
 
-	DivisionsScraperResource.UpdateDesignator(designator, index)
+	DivisionsScraperResource.UpdateMetadata(designator, fullName, index)
 
 	schedule, err := scrapeSchedule(doc)
 	if err != nil {
@@ -230,7 +238,7 @@ func ScrapeTeacher(index int64) (*models.Teacher, error) {
 	teacher.Designator = designator
 	teacher.FullName = fullName
 
-	TeachersScraperResource.UpdateDesignator(designator, index)
+	TeachersScraperResource.UpdateMetadata(designator, fullName, index)
 
 	schedule, err := scrapeSchedule(doc)
 	if err != nil {
@@ -251,16 +259,18 @@ func ScrapeRoom(index int64) (*models.Room, error) {
 	room := models.Room{
 		Index:      index,
 		Designator: "",
+		FullName:   "",
 		Schedule:   &models.Schedule{},
 	}
 
-	designator, err := scrapeRoomTitle(doc)
+	designator, fullName, err := scrapeRoomTitle(doc)
 	if err != nil {
 		return nil, fmt.Errorf("error scraping division title: %w", err)
 	}
 	room.Designator = designator
+	room.FullName = fullName
 
-	RoomsScraperResource.UpdateDesignator(designator, index)
+	RoomsScraperResource.UpdateMetadata(designator, fullName, index)
 
 	schedule, err := scrapeSchedule(doc)
 	if err != nil {
@@ -418,6 +428,8 @@ func Initialize() error {
 	ObserveDivisions(&DivisionsScraperResource.RefreshChan)
 	ObserveTeachers(&TeachersScraperResource.RefreshChan)
 	ObserveRooms(&RoomsScraperResource.RefreshChan)
+
+	waitForFirstRefresh()
 
 	return nil
 }

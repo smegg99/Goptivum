@@ -41,7 +41,7 @@
 
 
 	<v-main>
-		<div class="background-container fill-height">
+		<div class="background-container">
 			<router-view class="fill-height fill-width" v-slot="{ Component }">
 				<component :is="Component" />
 			</router-view>
@@ -95,6 +95,9 @@ const items = computed(() => [
 }
 
 .background-container {
+	height: 100%;
+	padding: 0;
+	overflow: hidden;
 	background-color: rgb(var(--v-theme-background));
 }
 
@@ -116,7 +119,6 @@ const items = computed(() => [
 	align-items: center;
 	justify-items: center;
 	max-height: 100%;
-	overflow: hidden;
 }
 
 .menu-card {

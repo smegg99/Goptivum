@@ -1,7 +1,7 @@
 <!-- Clock.vue -->
 <template>
-	<v-row class="d-flex justify-center align-center flex-nowrap" no-gutters>
-		<v-card class="clock-card pa-6 d-flex flex-nowrap" flat>
+	<v-row class="d-flex justify-center align-center flex-nowrap">
+		<v-card class="clock-card d-flex flex-nowrap" flat>
 			<v-col v-for="(unit, index) in timeUnits" :key="index" class="d-flex align-center pa-0" cols="auto">
 				<div class="digit-group">
 					<DigitalClockDigit v-for="(digit, digitIndex) in unit.digits" :key="digitIndex" :value="digit" />

@@ -227,10 +227,8 @@ onUnmounted(() => {
 <style scoped>
 .weather-card {
   width: 100%;
-  padding: 1.5vw;
   background-color: transparent;
   user-select: none;
-  transition: filter 1s ease, opacity 1s ease;
 }
 
 .weather-info {
@@ -239,7 +237,7 @@ onUnmounted(() => {
 
 .location-info {
   font-size: 3vw;
-  font-weight: 600;
+  font-weight: 800;
   white-space: nowrap;
   color: var(--v-primary-base);
   user-select: none;
@@ -254,14 +252,14 @@ onUnmounted(() => {
 
 .condition-icon {
   font-size: 4vw;
-  margin-right: 0.3vw;
+  margin-right: 1vw;
   color: var(--v-warning-base);
   user-select: none;
 }
 
 .temperature {
   font-size: 3vw;
-  font-weight: 400;
+  font-weight: 600;
   color: var(--v-primary-darken1);
   user-select: none;
 }
@@ -272,7 +270,7 @@ onUnmounted(() => {
 
 .condition-text {
   font-size: 2vw;
-  font-weight: 800;
+  font-weight: 600;
   color: var(--v-secondary-lighten2);
   text-align: right;
   white-space: nowrap;
@@ -282,9 +280,10 @@ onUnmounted(() => {
 .condition-text-lower {
   font-size: 2vw;
   font-weight: 400;
+  font-style: italic;
   color: var(--v-secondary-lighten2);
   text-align: right;
-  white-space: nowrap;
+  text-wrap-mode: auto;
   user-select: none;
 }
 
@@ -304,14 +303,14 @@ onUnmounted(() => {
 
 .forecast-day {
   font-size: 1.8vw;
-  font-weight: 500;
+  font-weight: 800;
   color: var(--v-secondary-lighten1);
   user-select: none;
 }
 
 .forecast-temp {
   font-size: 1.6vw;
-  font-weight: 400;
+  font-weight: 600;
   color: var(--v-secondary-darken1);
   user-select: none;
 }
@@ -326,14 +325,13 @@ onUnmounted(() => {
   color: var(--v-primary-lighten4);
 }
 
-@media (max-width: 700px) {
+@media (max-width: 1279px) {
   .weather-card {
     width: 100%;
-    padding: 1vw;
   }
 
   .location-info {
-    font-size: 5vw;
+    font-size: 4vw;
   }
 
   .condition-icon {
@@ -349,7 +347,42 @@ onUnmounted(() => {
   }
 
   .condition-text-lower {
+    font-size: 2vw;
+  }
+
+  .forecast-day,
+  .forecast-temp {
     font-size: 2.5vw;
+  }
+
+  .forecast-icon {
+    font-size: 6vw;
+  }
+}
+
+@media (max-width: 600px) {
+  .weather-card {
+    width: 100%;
+  }
+
+  .location-info {
+    font-size: 6vw;
+  }
+
+  .condition-icon {
+    font-size: 8vw;
+  }
+
+  .temperature {
+    font-size: 4vw;
+  }
+
+  .condition-text {
+    font-size: 5vw;
+  }
+
+  .condition-text-lower {
+    font-size: 3vw;
   }
 
   .forecast-day,
@@ -358,7 +391,7 @@ onUnmounted(() => {
   }
 
   .forecast-icon {
-    font-size: 6vw;
+    font-size: 8vw;
   }
 }
 </style>

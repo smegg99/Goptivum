@@ -1,9 +1,9 @@
 <!-- Settings.vue -->
 <template>
 	<v-slide-y-reverse-transition appear>
-		<v-container class="grid-container pa-0" fluid>
+		<v-container class="pa-0" fluid>
 			<v-row class="home-grid" align="center" justify="center">
-				<v-col cols="12" class="d-flex justify-center grid-item">
+				<v-col class="d-flex justify-center grid-item">
 					<ThemeSwitcher />
 				</v-col>
 				<LanguageSwitcher />
@@ -16,3 +16,21 @@
 import ThemeSwitcher from '../ThemeSwitcher.vue';
 import LanguageSwitcher from '../LanguageSwitcher.vue';
 </script>
+
+<style scoped>
+.home-grid {
+	flex-wrap: nowrap;
+	display: grid;
+	width: 100%;
+	justify-items: center;
+	align-items: center;
+	gap: 4vh;
+	padding: 0;
+	margin: 0;
+}
+
+.grid-item {
+	max-width: 100%;
+	padding: 0;
+}
+</style>

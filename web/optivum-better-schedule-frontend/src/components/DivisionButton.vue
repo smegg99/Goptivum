@@ -1,8 +1,8 @@
 <template>
 	<div ref="tilt" class="tilt-wrapper">
 		<v-btn class="square-button" :style="{ backgroundColor: getButtonColor(index) }" :ripple="true" elevation="8"
-			variant="text" rounded="xl">
-			<span>{{ props.text }}</span>
+			variant="text" rounded="xl" :to="`/division/${props.id}`" nav link>
+			<span class="button-text">{{ props.text }}</span>
 		</v-btn>
 	</div>
 </template>
@@ -23,14 +23,11 @@ interface VanillaTiltHTMLElement extends HTMLElement {
 	vanillaTilt: VanillaTilt;
 }
 
-const props = defineProps<{ text: string; index: number }>();
+const props = defineProps<{ text: string; index: number; id: number }>();
 const tilt = ref<VanillaTiltHTMLElement | null>(null);
 
-// Determine if tilt should be enabled based on screen size
 const enableTilt = ref(window.innerWidth > 700);
 
-
-// Initialize or destroy VanillaTilt based on screen size
 watchEffect(() => {
 	if (enableTilt.value && tilt.value) {
 		VanillaTilt.init(tilt.value, {
@@ -46,7 +43,6 @@ watchEffect(() => {
 	}
 });
 
-// Listen for screen resize to enable or disable tilt
 window.addEventListener('resize', () => {
 	enableTilt.value = window.innerWidth > 700;
 });
@@ -62,7 +58,6 @@ onUnmounted(() => {
 </script>
 
 <style scoped lang="scss">
-/* Using Vuetify theme colors */
 .tilt-wrapper {
 	display: inline-block;
 	width: 100%;
@@ -82,7 +77,11 @@ onUnmounted(() => {
 	user-select: none;
 }
 
-@media (max-width: 700px) {
+.button-text {
+	user-select: none;
+}
+
+@media (max-width: 1279) {
 	.square-button {
 		font-size: 2rem;
 	}
