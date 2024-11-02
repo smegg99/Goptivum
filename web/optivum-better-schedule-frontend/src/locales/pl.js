@@ -119,5 +119,6 @@ export default {
 	schedule: {
 		ordered_number: 'Nr',
 		time_range: 'Godzina',
+		lesson: 'Lekcja',
 	}
 };
