@@ -1,6 +1,6 @@
 <!-- Home.vue -->
 <template>
-	<v-container class="grid-container pa-0" fluid>
+	<v-container class="grid-container pa-0 fill-height fill-width" fluid>
 		<v-row class="home-grid" align="center" justify="center">
 			<v-col class="d-flex justify-center grid-item">
 				<v-slide-y-transition appear>

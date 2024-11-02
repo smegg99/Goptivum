@@ -220,6 +220,8 @@ func splitRoomTitle(s string) (string, string) {
 	var fullName string
 	if len(parts) > 1 {
 		fullName = strings.TrimSpace(parts[1])
+	} else {
+		fullName = designator
 	}
 	return designator, fullName
 }

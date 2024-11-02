@@ -17,6 +17,8 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
+// TODO: Add the ability to add more resource indexes to the scraper, (SKat)
+
 var Config config.ScraperConfig
 
 type ResourceType string
@@ -68,6 +70,40 @@ func (s *ScraperResource) StopHub() {
 	if s.Hub != nil {
 		s.Hub.Stop()
 	}
+}
+
+func (s *ScraperResource) GetDesignatorFromIndex(index int64) string {
+	s.Mu.RLock()
+	defer s.Mu.RUnlock()
+	for designator, _index := range s.Metadata.Designators {
+		if index == _index {
+			return designator
+		}
+	}
+	return ""
+}
+
+func (s *ScraperResource) GetFullNameFromIndex(index int64) string {
+	s.Mu.RLock()
+	defer s.Mu.RUnlock()
+	for fullName, _index := range s.Metadata.FullNames {
+		if index == _index {
+			return fullName
+		}
+	}
+	return ""
+}
+
+func (s *ScraperResource) GetIndexFromDesignator(designator string) int64 {
+	s.Mu.RLock()
+	defer s.Mu.RUnlock()
+	return s.Metadata.Designators[designator]
+}
+
+func (s *ScraperResource) GetIndexFromFullName(fullName string) int64 {
+	s.Mu.RLock()
+	defer s.Mu.RUnlock()
+	return s.Metadata.FullNames[fullName]
 }
 
 func (s *ScraperResource) UpdateMetadata(newDesignator, newFullName string, index int64) {

@@ -1,12 +1,14 @@
 <!-- Home.vue -->
 <template>
-	<v-slide-y-reverse-transition appear>
-		<v-container class="grid-container pa-0" fluid>
-			<v-row class="division-grid" align="center" justify="center">
-				<ScheduleTable :index="id" />
-			</v-row>
-		</v-container>
-	</v-slide-y-reverse-transition>
+	<div class="fill-height fill-width pa-0">
+		<v-slide-y-reverse-transition appear>
+			<div class="grid-container pa-0" fluid>
+				<v-row class="division-grid" align="center" justify="center">
+					<ScheduleTable class="grid-item" :index="id" :type="type" />
+				</v-row>
+			</div>
+		</v-slide-y-reverse-transition>
+	</div>
 </template>
 
 <script setup lang="ts">
@@ -16,6 +18,7 @@ import { useRoute } from 'vue-router';
 
 const route = useRoute();
 const id = Number(route.params.id);
+const type = "division"
 </script>
 
 <style scoped>

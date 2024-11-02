@@ -119,10 +119,10 @@ const fetchWeatherData = async (retryDelay = 1000) => {
 
   try {
     const currentResponse = await axios.get(
-      `http://localhost:3001/api/v1/weather/current?units=${units.value}`
+      `/api/v1/weather/current?units=${units.value}`
     );
     const forecastResponse = await axios.get(
-      `http://localhost:3001/api/v1/weather/forecast?units=${units.value}`
+      `/api/v1/weather/forecast?units=${units.value}`
     );
 
     const currentData = currentResponse.data;
@@ -160,7 +160,7 @@ const processWeatherData = (currentData: any, forecast: any[]) => {
   conditionIcon.value = getConditionIcon(currentData.condition.name);
 
   forecastData.value = forecast.map((dayData: any) => {
-    const dayName = t('day.' + getDayName(dayData.dayOfWeek));
+    const dayName = t('day.' + getDayName(dayData.dayOfWeek || 0));
     const temp = `${Math.round(dayData.temperature.min)}°/${Math.round(
       dayData.temperature.max
     )}°`;

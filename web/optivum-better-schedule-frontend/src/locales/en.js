@@ -101,6 +101,7 @@ export default {
 	},
 	page: {
 		title: 'Optivum - Better Schedule',
+		not_found: 'Page Not Found',
 		home: 'Home',
 		divisions: 'Divisions',
 		division: 'Division - {id}',
@@ -114,5 +115,9 @@ export default {
 		division: 'Search division...',
 		teacher: 'Search teacher...',
 		room: 'Search classroom...',
+	},
+	schedule: {
+		ordered_number: 'No.',
+		time_range: 'Time',
 	}
 };

@@ -101,6 +101,7 @@ export default {
 	},
 	page: {
 		title: 'Optivum - Lepszy Plan Lekcji',
+		not_found: 'Nie znaleziono strony',
 		home: 'Strona główna',
 		divisions: 'Klasy',
 		division: 'Klasa - {id}',
@@ -114,5 +115,9 @@ export default {
 		division: 'Wyszukaj klase...',
 		teacher: 'Wyszukaj nauczyciela...',
 		room: 'Wyszukaj sale...',
+	},
+	schedule: {
+		ordered_number: 'Nr',
+		time_range: 'Godzina',
 	}
 };

@@ -1,15 +1,17 @@
 <!-- Settings.vue -->
 <template>
-	<v-slide-y-reverse-transition appear>
-		<v-container class="pa-0" fluid>
-			<v-row class="home-grid" align="center" justify="center">
-				<v-col class="d-flex justify-center grid-item">
-					<ThemeSwitcher />
-				</v-col>
-				<LanguageSwitcher />
-			</v-row>
-		</v-container>
-	</v-slide-y-reverse-transition>
+	<v-container class="fill-height fill-width pa-0">
+		<v-slide-y-reverse-transition appear>
+			<v-container class="pa-0" fluid>
+				<v-row class="home-grid" align="center" justify="center">
+					<v-col class="d-flex justify-center grid-item">
+						<ThemeSwitcher />
+					</v-col>
+					<LanguageSwitcher />
+				</v-row>
+			</v-container>
+		</v-slide-y-reverse-transition>
+	</v-container>
 </template>
 
 <script setup lang="ts">
