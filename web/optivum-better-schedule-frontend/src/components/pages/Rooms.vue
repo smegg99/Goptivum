@@ -169,7 +169,6 @@ onMounted(fetchRooms);
 	align-items: center;
 	justify-content: center;
 	padding: 16px;
-	color: rgba(0, 0, 0, 0.6);
 }
 
 .no-rooms v-icon {
