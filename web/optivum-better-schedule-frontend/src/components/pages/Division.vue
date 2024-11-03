@@ -1,6 +1,6 @@
 <!-- Home.vue -->
 <template>
-	<div class="fill-height fill-width pa-0">
+	<!-- <div class="fill-height fill-width pa-0">
 		<v-slide-y-reverse-transition appear>
 			<div class="grid-container pa-0 fill-height">
 				<v-row class="division-grid" align="center" justify="center">
@@ -8,7 +8,8 @@
 				</v-row>
 			</div>
 		</v-slide-y-reverse-transition>
-	</div>
+	</div> -->
+	<ScheduleTable class="grid-item" :index="id" :type="type" />
 </template>
 
 <script setup lang="ts">
