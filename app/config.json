@@ -11,9 +11,9 @@
 		},
 		"quantities": {
 			"workers": {
-				"division": 10,
-				"teacher": 10,
-				"room": 10
+				"division": 5,
+				"teacher": 5,
+				"room": 5
 			}
 		}
 	},

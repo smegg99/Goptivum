@@ -102,6 +102,10 @@ export default {
 	page: {
 		title: 'Optivum - Lepszy Plan Lekcji',
 		not_found: 'Nie znaleziono strony',
+		no_schedule: 'Brak planu na ten dzień',
+		no_divisions: 'Nie znaleziono klas',
+		no_teachers: 'Nie znaleziono nauczycieli',
+		no_rooms: 'Nie znaleziono sali',
 		home: 'Strona główna',
 		divisions: 'Klasy',
 		division: 'Klasa - {id}',

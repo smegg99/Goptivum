@@ -101,7 +101,11 @@ export default {
 	},
 	page: {
 		title: 'Optivum - Better Schedule',
-		not_found: 'Page Not Found',
+		not_found: 'Page not found',
+		no_schedule: 'No schedule for this day',
+		no_divisions: 'No divisions found',
+		no_teachers: 'No teachers found',
+		no_rooms: 'No classrooms found',
 		home: 'Home',
 		divisions: 'Divisions',
 		division: 'Division - {id}',

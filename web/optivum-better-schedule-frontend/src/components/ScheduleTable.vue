@@ -20,14 +20,15 @@
 							</v-tab>
 						</v-tabs>
 					</v-card>
-					<v-tabs-items v-model="activeTab">
-						<v-tab-item v-for="(day, dayIndex) in scheduleData?.schedule.schedule_days" :key="dayIndex">
-							<v-table class="schedule-table" v-if="activeTab === dayIndex">
+					<v-window v-model="activeTab" touch :show-arrows="false">
+						<v-window-item v-for="(day, dayIndex) in scheduleData?.schedule.schedule_days" :key="dayIndex">
+							<v-table class="schedule-table" v-if="day.lesson_groups && day.lesson_groups.length > 0">
 								<tbody>
 									<tr v-for="(lessonGroup, groupIndex) in day.lesson_groups" :key="groupIndex"
 										:style="{ backgroundColor: getRowColor(groupIndex) }">
-										<td class="narrower-column"><span class="schedule-no">{{ groupIndex + 1
-												}}.</span></td>
+										<td class="narrower-column">
+											<span class="schedule-no">{{ groupIndex + 1 }}.</span>
+										</td>
 										<td class="narrow-column">
 											<div class="stacked-time">
 												<span class="schedule-time">{{
@@ -36,39 +37,40 @@
 													formatTime(lessonGroup.lessons[0]?.time_range.end) }}</span>
 											</div>
 										</td>
-
 										<td class="schedule-table-data pa-0">
 											<div v-for="lesson in lessonGroup.lessons" :key="lesson.full_name"
 												class="stacked-lesson">
-												<span class="schedule-lesson-name">{{ lesson.full_name }}</span>&nbsp;
-
+												<span class="schedule-lesson-name">{{ lesson.full_name }}</span>
+												&nbsp;
 												<router-link
 													v-if="lesson.teacher_designator && teacherIndexes[lesson.teacher_designator] !== undefined"
 													:to="'/teacher/' + teacherIndexes[lesson.teacher_designator]"
 													class="schedule-lesson-teacher">
-													&nbsp;{{ lesson.teacher_designator }}
+													{{ lesson.teacher_designator }}
 												</router-link>
-
+												&nbsp;
 												<router-link
 													v-if="lesson.room_designator && roomIndexes[lesson.room_designator] !== undefined"
 													:to="'/room/' + roomIndexes[lesson.room_designator]"
 													class="schedule-lesson-room">
-													&nbsp;{{ lesson.room_designator }}
+													{{ lesson.room_designator }}
 												</router-link>
-
+												&nbsp;
 												<router-link
 													v-if="lesson.division_designator && divisionIndexes[lesson.division_designator] !== undefined"
 													:to="'/division/' + divisionIndexes[lesson.division_designator]"
 													class="schedule-lesson-division">
-													&nbsp;{{ lesson.division_designator }}
+													{{ lesson.division_designator }}
 												</router-link>
 											</div>
 										</td>
 									</tr>
 								</tbody>
 							</v-table>
-						</v-tab-item>
-					</v-tabs-items>
+							<v-empty-state v-else icon="mdi-calendar-remove" class="no-schedule"
+								:title="t('page.no_schedule')" />
+						</v-window-item>
+					</v-window>
 				</template>
 
 				<!-- Desktop View -->
@@ -96,7 +98,7 @@
 								<td v-for="(day, dayIndex) in scheduleData?.schedule.schedule_days" :key="dayIndex"
 									class="schedule-table-data">
 									<div
-										v-if="day.lesson_groups.some((lg: LessonGroup) => formatTime(lg.lessons[0]?.time_range.start) + ' - ' + formatTime(lg.lessons[0]?.time_range.end) === timeRange)">
+										v-if="day.lesson_groups && day.lesson_groups.some((lg: LessonGroup) => formatTime(lg.lessons[0]?.time_range.start) + ' - ' + formatTime(lg.lessons[0]?.time_range.end) === timeRange)">
 										<div v-for="lesson in day.lesson_groups.find((lg: LessonGroup) => formatTime(lg.lessons[0]?.time_range.start) + ' - ' + formatTime(lg.lessons[0]?.time_range.end) === timeRange)?.lessons"
 											:key="lesson.full_name" class="stacked-lesson">
 											<span class="schedule-lesson-name">{{ lesson.full_name }}</span>
@@ -126,12 +128,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, defineProps } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
 import { useTheme } from 'vuetify';
+import { useRoute } from 'vue-router';
 
-const props = defineProps<{ index: number; type: 'teacher' | 'room' | 'division' }>();
+const route = useRoute();
+const id = Number(route.params.id);
+const props = defineProps<{ type: 'teacher' | 'room' | 'division' }>();
 
 interface TimeRange {
 	hour?: number;
@@ -154,7 +159,7 @@ interface LessonGroup {
 }
 
 interface ScheduleDay {
-	lesson_groups: LessonGroup[];
+	lesson_groups?: LessonGroup[];
 }
 
 interface Schedule {
@@ -197,7 +202,7 @@ const getRowColor = (rowIndex: number) => {
 
 const fetchData = async () => {
 	try {
-		const scheduleResponse = await axios.get(`/api/v1/${props.type}/${props.index}`);
+		const scheduleResponse = await axios.get(`/api/v1/${props.type}/${id}`);
 		if (scheduleResponse.status === 404) {
 			notFound.value = true;
 			return;
@@ -238,13 +243,15 @@ onMounted(fetchData);
 const uniqueTimeRanges = computed(() => {
 	const timeSet = new Set<string>();
 	scheduleData.value?.schedule.schedule_days.forEach((day) => {
-		day.lesson_groups.forEach((lessonGroup) => {
-			const timeRange = lessonGroup.lessons[0]?.time_range;
-			if (timeRange) {
-				const formattedTimeRange = `${formatTime(timeRange.start)} - ${formatTime(timeRange.end)}`;
-				timeSet.add(formattedTimeRange);
-			}
-		});
+		if (Array.isArray(day.lesson_groups)) {
+			day.lesson_groups.forEach((lessonGroup) => {
+				const timeRange = lessonGroup.lessons[0]?.time_range;
+				if (timeRange) {
+					const formattedTimeRange = `${formatTime(timeRange.start)} - ${formatTime(timeRange.end)}`;
+					timeSet.add(formattedTimeRange);
+				}
+			});
+		}
 	});
 	return Array.from(timeSet).sort();
 });
@@ -306,10 +313,12 @@ function formatTime(time: TimeRange | undefined): string {
 .v-table td,
 .v-table th {
 	padding: 4px !important;
+	user-select: none;
 }
 
 .schedule-table th,
 .schedule-table td {
+	user-select: none;
 	text-align: left;
 	overflow-wrap: break-word;
 	word-break: break-word;
@@ -337,6 +346,7 @@ function formatTime(time: TimeRange | undefined): string {
 	width: 100%;
 	text-transform: uppercase;
 	letter-spacing: 0.2em;
+	user-select: none;
 }
 
 .schedule-no,
@@ -386,22 +396,23 @@ schedule-table td.schedule-table-data {
 
 @media (max-width: 895px) {
 	.schedule-title-container {
-        max-width: 90vw;
-        margin: 0 auto;
-        height: 64px;
-        position: absolute;
-        top: 16px;
-        right: 16px;
-    }
+		max-width: 60vw;
+		margin: 0 auto;
+		height: 64px;
+		position: absolute;
+		top: 16px;
+		right: 16px;
+	}
 
 	.schedule-title {
-		font-size: clamp(0.5rem, 4.5vw, 3.5rem);
+		font-size: clamp(0.8rem, 3vw, 3.5rem);
 		font-weight: 800;
 		text-align: right;
 		max-width: 100%;
 		text-transform: uppercase;
-		letter-spacing: 0.1em;
-		white-space: nowrap;
+		letter-spacing: clamp(0.1em, 0.15em, 0.2em);
+
+		text-wrap: wrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}

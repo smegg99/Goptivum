@@ -1,33 +1,49 @@
+<!-- DivisionsPage.vue -->
 <template>
 	<v-slide-y-transition appear>
 		<v-card class="search-container pa-0" elevation="8" rounded="pill">
 			<v-text-field v-model="search" class="search" :label="t('search.division')" prepend-inner-icon="mdi-magnify"
-				variant="solo" rounded="pill" hide-details="auto" />
+				variant="solo" rounded="pill" hide-details="auto" @input="debouncedSearch" />
 		</v-card>
 	</v-slide-y-transition>
+
 	<v-slide-y-reverse-transition appear>
 		<v-container class="scrollable-grid pa-0">
 			<v-container class="divisions-grid pa-0">
-				<v-col v-for="(designator, index) in filteredDivisions" :key="index" class="grid-item pa-0">
-					<DivisionButton :text="designator.text" :index="index" :id="designator.id" />
+				<v-col v-for="(division, index) in filteredDivisions" :key="division.id" class="grid-item pa-0">
+					<DivisionButton :text="division.full_name" :designator="division.designator" :index="index"
+						:id="division.id" />
 				</v-col>
 			</v-container>
+			<v-empty-state v-if="!loading && filteredDivisions.length === 0" icon="mdi-magnify-remove-outline"
+				class="no-divisions" :title="t('page.no_divisions')" />
 		</v-container>
 	</v-slide-y-reverse-transition>
+
+	<div v-if="loading" class="loading">
+		<v-progress-circular indeterminate color="primary"></v-progress-circular>
+	</div>
+
+	<div v-if="error" class="error">
+		{{ error }}
+	</div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
+import { debounce } from 'lodash-es';
+import DivisionButton from '../DivisionButton.vue'
 
 interface Division {
-	text: string;
+	designator: string;
 	id: number;
 	full_name: string;
 }
 
 const { t } = useI18n();
+
 const search = ref('');
 const divisions = ref<Division[]>([]);
 const loading = ref(false);
@@ -40,11 +56,16 @@ const fetchDivisions = async () => {
 		const designators = response.data.designators;
 		const fullNames = response.data.full_names;
 
-		divisions.value = Object.keys(designators).map((key) => ({
-			text: key,
-			id: designators[key],
-			full_name: Object.keys(fullNames).find((name) => fullNames[name] === designators[key]) || '',
-		}));
+		divisions.value = Object.keys(designators).map((designator) => {
+			const id = designators[designator];
+			const full_name = Object.keys(fullNames).find((name) => fullNames[name] === id) || '';
+
+			return {
+				designator,
+				id,
+				full_name,
+			};
+		});
 	} catch (err) {
 		console.error('Error fetching divisions:', err);
 		error.value = 'Failed to fetch division data.';
@@ -53,16 +74,18 @@ const fetchDivisions = async () => {
 	}
 };
 
-onMounted(fetchDivisions);
+const debouncedSearch = debounce(() => { }, 100);
 
 const filteredDivisions = computed(() => {
-	const searchValue = search.value.toLowerCase().replace(/\s+/g, '');
+	const searchValue = search.value.toLowerCase().trim();
 	return divisions.value.filter(
 		(division) =>
-			division.text.toLowerCase().includes(searchValue) ||
-			division.full_name.toLowerCase().replace(/\s+/g, '').includes(searchValue)
+			division.designator.toLowerCase().includes(searchValue) ||
+			division.full_name.toLowerCase().includes(searchValue)
 	);
 });
+
+onMounted(fetchDivisions);
 </script>
 
 <style scoped lang="scss">
@@ -106,29 +129,50 @@ const filteredDivisions = computed(() => {
 	overflow-y: auto;
 	background-color: rgb(var(--v-theme-background));
 	margin-bottom: 0;
+	overflow: visible;
 }
 
 .divisions-grid {
 	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
-	column-gap: 2rem;
+	grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+	column-gap: clamp(0rem, 2vw, 1rem);
 	row-gap: 2rem;
-	justify-content: center;
+	justify-content: space-evenly;
 	background-color: rgb(var(--v-theme-background));
-	padding: 1.5rem;
-	margin: 2rem 2rem 2rem;
+	margin: 1rem 1rem 1rem;
+	margin-top: 0;
 	width: auto;
 	height: auto;
+	overflow: visible;
 }
 
 .grid-item {
-	width: 7rem;
+	width: 12rem;
 	height: 7rem;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	overflow: visible;
+}
+
+.loading,
+.error {
 	display: flex;
 	justify-content: center;
 	align-items: center;
-	aspect-ratio: 1 / 1;
-	background-color: transparent;
+	padding: 1rem;
+}
+
+.no-divisions {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 16px;
+}
+
+.no-divisions v-icon {
+	margin-bottom: 8px;
 }
 
 @media (max-width: 1279px) {
@@ -152,15 +196,32 @@ const filteredDivisions = computed(() => {
 	}
 
 	.divisions-grid {
-		grid-template-columns: repeat(auto-fill, minmax(7rem, 1rem));
-		gap: 2rem;
-		padding: 1rem;
-		margin: 2rem 2rem 2rem;
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(30%, 1fr));
+		row-gap: 0rem;
+		justify-content: center;
+		padding: 1.5rem;
+		margin: 0 1rem;
+		width: auto;
+		max-width: 100%;
 	}
-	
+
 	.grid-item {
-		width: 7rem;
-		height: 7rem;
+		width: 100%;
+		aspect-ratio: 2 / 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		overflow: hidden;
+		padding: 0.5rem;
+		margin: 16px 0 16px 0;
+		box-sizing: border-box;
+	}
+}
+
+@media (max-width: 767px) {
+	.divisions-grid {
+		grid-template-columns: repeat(auto-fill, minmax(50%, 1fr));
 	}
 }
 </style>

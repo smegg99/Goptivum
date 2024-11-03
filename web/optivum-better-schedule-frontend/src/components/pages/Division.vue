@@ -9,19 +9,16 @@
 			</div>
 		</v-slide-y-reverse-transition>
 	</div> -->
-	<ScheduleTable class="grid-item" :index="id" :type="type" />
+	<ScheduleTable :type="type" />
 </template>
 
 <script setup lang="ts">
 import ScheduleTable from '../ScheduleTable.vue';
-import { useRoute } from 'vue-router';
 
-const route = useRoute();
-const id = Number(route.params.id);
 const type = "division";
 </script>
 
-<style scoped>
+<!-- <style scoped>
 .grid-container {
 	display: grid;
 	grid-template-rows: 1fr;
@@ -70,4 +67,4 @@ const type = "division";
 		padding-top: 0;
 	}
 }
-</style>
+</style> -->
