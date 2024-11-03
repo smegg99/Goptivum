@@ -135,9 +135,20 @@ const filteredDivisions = computed(() => {
 	.search-container {
 		width: calc(75% - 32px);
 		max-width: 50vw;
-		margin: 16px 16px 0 auto;
+		margin: 0px 0px 0 auto;
+		height: 64px;
 		padding: 0;
 		justify-content: flex-end;
+		position: fixed;
+		top: 16px;
+		right: 16px;
+		z-index: 10;
+		display: flex;
+		align-items: center;
+	}
+
+	.scrollable-grid {
+		margin-top: calc(64px + 16px);
 	}
 
 	.divisions-grid {

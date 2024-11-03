@@ -7,10 +7,11 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    _: typeof import('./src/components/_.vue')['default']
     AppBar: typeof import('./src/components/AppBar.vue')['default']
     ClassesTab: typeof import('./src/components/ClassesTab.vue')['default']
     Clock: typeof import('./src/components/clock/Clock.vue')['default']
-    copy: typeof import('./src/components/HelloWorld copy.vue')['default']
+    copy: typeof import('./src/components/ScheduleTable copy.vue')['default']
     Digit: typeof import('./src/components/clock/Digit.vue')['default']
     Division: typeof import('./src/components/pages/Division.vue')['default']
     DivisionButton: typeof import('./src/components/DivisionButton.vue')['default']

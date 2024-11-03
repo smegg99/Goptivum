@@ -134,52 +134,51 @@ func parseTimeRange(s string) (models.TimeRange, error) {
 	return models.TimeRange{Start: &start, End: &end}, nil
 }
 
-func parseLesson(rowElement *goquery.Selection, timeRange *models.TimeRange) (*models.Lesson, error) {
-	lessonName := rowElement.Find("span.p").First().Text()
-	// Some lessons contain only the table data with embedded text only
-	if lessonName == "" {
-		lessonName = rowElement.Text()
-	}
+func parseLesson(rowElement *goquery.Selection, timeRange *models.TimeRange) ([]*models.Lesson, error) {
+    var lessons []*models.Lesson
 
-	division := rowElement.Find("a.o").First().Text()
-	teacher := rowElement.Find("a.n").First().Text()
-	room := rowElement.Find("a.s").First().Text()
-	lesson := models.Lesson{
-		TimeRange:          timeRange,
-		FullName:           strings.TrimSpace(lessonName),
-		TeacherDesignator:  teacher,
-		DivisionDesignator: division,
-		RoomDesignator:     room,
-	}
+    html, err := rowElement.Html()
+    if err != nil {
+        return nil, fmt.Errorf("error getting HTML content: %v", err)
+    }
 
-	return &lesson, nil
+    html = strings.ReplaceAll(html, "<br>", "<br/>")
+    segments := strings.Split(html, "<br/>")
+
+    for _, segment := range segments {
+        segment = strings.TrimSpace(segment)
+        if segment == "" || segment == "&nbsp;" {
+            continue
+        }
+
+        segmentHTML := "<div>" + segment + "</div>"
+
+        segmentDoc, err := goquery.NewDocumentFromReader(strings.NewReader(segmentHTML))
+        if err != nil {
+            fmt.Println("error parsing segment:", err)
+            continue
+        }
+
+        lessonName := strings.TrimSpace(segmentDoc.Find("span.p").First().Text())
+        if lessonName == "" {
+            lessonName = strings.TrimSpace(segmentDoc.Text())
+        }
+        teacher := strings.TrimSpace(segmentDoc.Find("a.n").First().Text())
+        division := strings.TrimSpace(segmentDoc.Find("a.o").First().Text())
+        room := strings.TrimSpace(segmentDoc.Find("a.s").First().Text())
+
+        lesson := &models.Lesson{
+            TimeRange:          timeRange,
+            FullName:           lessonName,
+            TeacherDesignator:  teacher,
+            DivisionDesignator: division,
+            RoomDesignator:     room,
+        }
+        lessons = append(lessons, lesson)
+    }
+
+    return lessons, nil
 }
-
-func parseLessons(rowElement *goquery.Selection, timeRange *models.TimeRange) ([]*models.Lesson, error) {
-	lessons := []*models.Lesson{}
-	innerSpanElements := rowElement.Find("span > span.p")
-	if innerSpanElements.Length() > 1 {
-		innerSpanElements.Each(func(i int, s *goquery.Selection) {
-			parentSelection := s.Parent()
-			lesson, err := parseLesson(parentSelection, timeRange)
-			if err != nil {
-				fmt.Println("error parsing lesson", err)
-				return
-			}
-			lessons = append(lessons, lesson)
-		})
-	} else {
-		lesson, err := parseLesson(rowElement, timeRange)
-		if err != nil {
-			fmt.Println("error parsing lesson", err)
-			return nil, err
-		}
-		lessons = append(lessons, lesson)
-	}
-
-	return lessons, nil
-}
-
 func scrapeTitle(doc *goquery.Document) (string, error) {
 	titleSelection := doc.Find("span.tytulnapis").First()
 	if titleSelection.Length() == 0 {
@@ -294,7 +293,7 @@ func scrapeSchedule(doc *goquery.Document) (*models.Schedule, error) {
 			if utils.IsEmptyOrInvisible(rowElement.Text()) {
 				return
 			}
-			lessons, err := parseLessons(rowElement, timeRange)
+			lessons, err := parseLesson(rowElement, timeRange)
 			if err != nil {
 				fmt.Println("error parsing lessons", err)
 				return

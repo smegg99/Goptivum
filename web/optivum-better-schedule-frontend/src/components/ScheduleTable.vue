@@ -5,7 +5,7 @@
 
 	<v-row class="division-grid" align="center" justify="center">
 		<v-slide-y-transition appear>
-			<div class="schedule-title-container grid-item pa-0">
+			<div class="schedule-title-container pa-0">
 				<span class="schedule-title">{{ title }}</span>
 			</div>
 		</v-slide-y-transition>
@@ -123,7 +123,6 @@
 		</v-fade-transition>
 	</v-row>
 </template>
-
 
 <script setup lang="ts">
 import { ref, onMounted, computed, defineProps } from 'vue';
@@ -268,6 +267,11 @@ function formatTime(time: TimeRange | undefined): string {
 </script>
 
 <style scoped>
+.v-table {
+	--v-table-header-height: 8px;
+	--v-table-row-height: 4px;
+}
+
 .division-grid {
 	flex-wrap: nowrap;
 	display: grid;
@@ -290,7 +294,6 @@ function formatTime(time: TimeRange | undefined): string {
 
 .schedule-table {
 	width: 100%;
-	height: auto;
 	table-layout: fixed;
 	font-size: 1vw;
 }
@@ -315,17 +318,12 @@ function formatTime(time: TimeRange | undefined): string {
 	align-items: center;
 	z-index: 10;
 	position: sticky;
-	top: 1vw;
-	padding: 0 1vw;
 }
 
 .schedule-title {
 	font-size: 3.5rem;
 	font-weight: 800;
 	text-align: center;
-	display: flex;
-	justify-content: center;
-	align-items: center;
 	width: 100%;
 	text-transform: uppercase;
 	letter-spacing: 0.1em;
@@ -357,8 +355,7 @@ function formatTime(time: TimeRange | undefined): string {
 }
 
 .stacked-lesson {
-	display: block;
-	padding-bottom: 4px;
+	display: block;;
 }
 
 schedule-table td.schedule-table-data {
@@ -370,9 +367,31 @@ schedule-table td.schedule-table-data {
 		margin-top: calc(64px + 16px);
 	}
 
+	.schedule-title-container {
+        max-width: 90vw;
+        margin: 0 auto;
+        height: 64px;
+        position: absolute;
+        top: 16px;
+        right: 16px;
+    }
+
+	.schedule-title {
+		font-size: clamp(0.5rem, 4.5vw, 3.5rem);
+		font-weight: 800;
+		text-align: right;
+		max-width: 100%;
+		text-transform: uppercase;
+		letter-spacing: 0.1em;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
 	.schedule-container {
 		width: 100vw;
 		height: 100%;
+		margin-top: calc(16px);
 	}
 
 	.schedule-table th.narrow-column,
@@ -397,10 +416,6 @@ schedule-table td.schedule-table-data {
 		padding: 0px !important;
 	}
 
-	.schedule-title {
-		font-size: 3rem;
-	}
-
 	.schedule-table {
         font-size: 2vw;
     }
@@ -410,11 +425,6 @@ schedule-table td.schedule-table-data {
 		font-size: 2vw;
 		text-align: left;
 		border: none;
-	}
-
-
-	.schedule-title {
-		font-size: 4vw;
 	}
 
 	.schedule-table-data {
@@ -434,7 +444,7 @@ schedule-table td.schedule-table-data {
 	}
 
 	.schedule-no {
-		width: 2em;
+		width: 1em;
 		padding-left: 0.2em;
 	}
 

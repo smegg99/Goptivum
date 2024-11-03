@@ -26,7 +26,6 @@ const type = "division";
 	grid-template-rows: 1fr;
 	align-items: center;
 	justify-items: center;
-	overflow: hidden;
 	padding: 0;
 	height: 100vh;
 }
