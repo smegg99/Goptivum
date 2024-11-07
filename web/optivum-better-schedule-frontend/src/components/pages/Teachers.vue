@@ -1,31 +1,56 @@
-<!-- TeachersPage.vue -->
+<!-- pages/Teachers.vue -->
 <template>
-	<v-slide-y-transition appear>
+	<template v-if="!reducedAnimationsEnabled">
+		<v-slide-y-transition appear>
+			<v-card class="search-container pa-0" elevation="8" rounded="pill">
+				<v-text-field v-model="search" class="search" :label="t('search.teacher')"
+					prepend-inner-icon="mdi-magnify" variant="solo" rounded="pill" hide-details="auto"
+					@input="debouncedSearch" />
+			</v-card>
+		</v-slide-y-transition>
+
+		<v-slide-y-reverse-transition appear>
+			<v-container class="scrollable-grid pa-0">
+				<v-container :key="searchKey" class="teachers-grid pa-0">
+					<v-col v-for="(teacher, index) in filteredTeachers" :key="teacher.id" class="grid-item pa-0"
+						:class="{ 'animated-item': !reducedAnimationsEnabled }"
+						:style="!reducedAnimationsEnabled ? delayStyle(index) : {}">
+						<TeacherButton :text="teacher.full_name" :designator="teacher.designator" :index="index"
+							:id="teacher.id" />
+					</v-col>
+				</v-container>
+
+				<v-empty-state v-if="!loading && !error && filteredTeachers.length === 0"
+					icon="mdi-magnify-remove-outline" class="no-teachers" :title="t('page.no_teachers')" />
+				<v-empty-state v-if="error" icon="mdi-alert-circle" color="error" class="no-teachers"
+					:title="t('page.teachers_error')" />
+			</v-container>
+		</v-slide-y-reverse-transition>
+	</template>
+
+	<template v-else>
 		<v-card class="search-container pa-0" elevation="8" rounded="pill">
 			<v-text-field v-model="search" class="search" :label="t('search.teacher')" prepend-inner-icon="mdi-magnify"
 				variant="solo" rounded="pill" hide-details="auto" @input="debouncedSearch" />
 		</v-card>
-	</v-slide-y-transition>
 
-	<v-slide-y-reverse-transition appear>
 		<v-container class="scrollable-grid pa-0">
-			<v-container class="teachers-grid pa-0">
+			<v-container :key="searchKey" class="teachers-grid pa-0">
 				<v-col v-for="(teacher, index) in filteredTeachers" :key="teacher.id" class="grid-item pa-0">
 					<TeacherButton :text="teacher.full_name" :designator="teacher.designator" :index="index"
 						:id="teacher.id" />
 				</v-col>
 			</v-container>
-			<v-empty-state v-if="!loading && filteredTeachers.length === 0" icon="mdi-magnify-remove-outline"
+
+			<v-empty-state v-if="!loading && !error && filteredTeachers.length === 0" icon="mdi-magnify-remove-outline"
 				class="no-teachers" :title="t('page.no_teachers')" />
+			<v-empty-state v-if="error" icon="mdi-alert-circle" color="error" class="no-teachers"
+				:title="t('page.teachers_error')" />
 		</v-container>
-	</v-slide-y-reverse-transition>
+	</template>
 
 	<div v-if="loading" class="loading">
-		<v-progress-circular indeterminate color="primary"></v-progress-circular>
-	</div>
-
-	<div v-if="error" class="error">
-		{{ error }}
+		<v-progress-circular indeterminate></v-progress-circular>
 	</div>
 </template>
 
@@ -34,7 +59,8 @@ import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
 import { debounce } from 'lodash-es';
-import TeacherButton from '@/components/TeacherButton.vue'; // Adjust the path as necessary
+import TeacherButton from '@/components/TeacherButton.vue';
+import { useMiscStore } from '@/stores/miscStore';
 
 interface Teacher {
 	designator: string;
@@ -42,7 +68,18 @@ interface Teacher {
 	full_name: string;
 }
 
+interface TeacherResponse {
+	data: TeacherResponseData;
+}
+
+interface TeacherResponseData {
+	designators: { [key: string]: { values: number[] } };
+	full_names: { [key: string]: { values: number[] } };
+}
+
 const { t } = useI18n();
+const miscStore = useMiscStore();
+const reducedAnimationsEnabled = computed(() => miscStore.reducedAnimationsEnabled);
 
 const search = ref('');
 const teachers = ref<Teacher[]>([]);
@@ -52,18 +89,13 @@ const error = ref<string | null>(null);
 const fetchTeachers = async () => {
 	loading.value = true;
 	try {
-		const response = await axios.get('/api/v1/teachers');
+		const response: TeacherResponse = await axios.get('/api/v1/teachers');
 		const designators = response.data.designators;
 		const fullNames = response.data.full_names;
 
-		teachers.value = Object.keys(designators).map((designator) => {
-			const id = designators[designator];
-			var full_name = Object.keys(fullNames).find((name) => fullNames[name] === id) || '';
-
-			// Temporary fix for missing teacher names due to duplicate full names
-			if (id === 13) {
-				full_name = 'M.Bochniarz';
-			}
+		teachers.value = Object.entries(designators).map(([designator, { values }]) => {
+			const id = values[0];
+			const full_name = Object.keys(fullNames).find(name => fullNames[name].values.includes(id)) || '';
 
 			return {
 				designator,
@@ -73,12 +105,14 @@ const fetchTeachers = async () => {
 		});
 	} catch (err) {
 		console.error('Error fetching teachers:', err);
+		error.value = 'Failed to fetch teacher data.';
 	} finally {
 		loading.value = false;
 	}
 };
 
-const debouncedSearch = debounce(() => {}, 100);
+const debouncedSearch = debounce(() => { }, 100);
+const searchKey = computed(() => search.value);
 
 const filteredTeachers = computed(() => {
 	const searchValue = search.value.toLowerCase().trim();
@@ -87,6 +121,10 @@ const filteredTeachers = computed(() => {
 			teacher.designator.toLowerCase().includes(searchValue) ||
 			teacher.full_name.toLowerCase().includes(searchValue)
 	);
+});
+
+const delayStyle = (index: number) => ({
+	animationDelay: `${index * 50}ms`,
 });
 
 onMounted(fetchTeachers);
@@ -159,6 +197,35 @@ onMounted(fetchTeachers);
 	overflow: visible;
 }
 
+.animated-item {
+	opacity: 0;
+	transform: translateY(100%);
+	animation: fadeInUp 0.5s forwards;
+}
+
+@keyframes fadeInUp {
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.animated-item.fade-leave-active {
+	animation: fadeOutDown 0.5s forwards;
+}
+
+@keyframes fadeOutDown {
+	from {
+		opacity: 1;
+		transform: translateY(0);
+	}
+
+	to {
+		opacity: 0;
+		transform: translateY(100%);
+	}
+}
+
 .loading,
 .error {
 	display: flex;
@@ -167,16 +234,15 @@ onMounted(fetchTeachers);
 	padding: 1rem;
 }
 
-.no-results {
+.no-teachers {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
 	padding: 16px;
-	color: rgba(0, 0, 0, 0.6);
 }
 
-.no-results v-icon {
+.no-teachers v-icon {
 	margin-bottom: 8px;
 }
 

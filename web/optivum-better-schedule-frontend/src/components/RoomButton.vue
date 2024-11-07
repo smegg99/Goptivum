@@ -3,7 +3,7 @@
 		<v-btn class="button" :style="{ backgroundColor: getButtonColor(index) }" :ripple="true" elevation="8"
 			variant="text" rounded="xl" :to="`/room/${props.id}`" nav link>
 			<div class="button-content">
-				<span :class="['full-name', fontSizeClass]">{{ props.text }}</span>
+				<span :class="['full-name', fontSizeClass]">{{ full_name }}</span>
 			</div>
 		</v-btn>
 	</div>
@@ -13,8 +13,11 @@
 import { ref, onUnmounted, watchEffect, computed } from 'vue';
 import VanillaTilt from 'vanilla-tilt';
 import { useTheme } from 'vuetify';
+import { useMiscStore } from '@/stores/miscStore';
 
 const theme = useTheme();
+const miscStore = useMiscStore();
+const reducedAnimationsEnabled = computed(() => miscStore.reducedAnimationsEnabled);
 
 const getButtonColor = (index: number) => {
 	const colors = theme.current.value.colors;
@@ -32,15 +35,19 @@ const props = defineProps<{
 	id: number;
 }>();
 
+const full_name = computed(() => {
+	return props.text === props.designator ? props.text : `${props.text} (${props.designator})`;
+});
+
 const tilt = ref<VanillaTiltHTMLElement | null>(null);
-const enableTilt = ref(window.innerWidth > 700);
+const enableTilt = ref(window.innerWidth > 700 && !reducedAnimationsEnabled.value);
 
 watchEffect(() => {
 	if (enableTilt.value && tilt.value) {
 		VanillaTilt.init(tilt.value, {
 			max: 15,
 			speed: 400,
-			scale: 1.05,
+			scale: 1.1,
 			glare: false,
 			reverse: false,
 			transition: true,
@@ -63,7 +70,6 @@ onUnmounted(() => {
 	window.removeEventListener('resize', resizeHandler);
 });
 
-// Compute a class based on text length
 const fontSizeClass = computed(() => {
 	if (props.text.length <= 5) return 'font-large';
 	if (props.text.length <= 10) return 'font-medium';
@@ -113,17 +119,17 @@ const fontSizeClass = computed(() => {
 }
 
 .font-large {
-	font-size: 1.5rem;
+	font-size: 1.85rem;
 	font-weight: 800;
 }
 
 .font-medium {
-	font-size: 1.2rem;
+	font-size: 1.25rem;
 	font-weight: 800;
 }
 
 .font-small {
-	font-size: 1rem;
+	font-size: 0.9rem;
 	font-weight: 800;
 }
 

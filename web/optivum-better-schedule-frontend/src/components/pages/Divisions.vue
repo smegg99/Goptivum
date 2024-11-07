@@ -1,31 +1,55 @@
-<!-- DivisionsPage.vue -->
+<!-- pages/Divisions.vue -->
 <template>
-	<v-slide-y-transition appear>
+	<v-slide-y-transition appear v-if="!reducedAnimationsEnabled">
 		<v-card class="search-container pa-0" elevation="8" rounded="pill">
 			<v-text-field v-model="search" class="search" :label="t('search.division')" prepend-inner-icon="mdi-magnify"
 				variant="solo" rounded="pill" hide-details="auto" @input="debouncedSearch" />
 		</v-card>
 	</v-slide-y-transition>
-
-	<v-slide-y-reverse-transition appear>
-		<v-container class="scrollable-grid pa-0">
-			<v-container class="divisions-grid pa-0">
-				<v-col v-for="(division, index) in filteredDivisions" :key="division.id" class="grid-item pa-0">
-					<DivisionButton :text="division.full_name" :designator="division.designator" :index="index"
-						:id="division.id" />
-				</v-col>
-			</v-container>
-			<v-empty-state v-if="!loading && filteredDivisions.length === 0" icon="mdi-magnify-remove-outline"
-				class="no-divisions" :title="t('page.no_divisions')" />
-		</v-container>
-	</v-slide-y-reverse-transition>
-
-	<div v-if="loading" class="loading">
-		<v-progress-circular indeterminate color="primary"></v-progress-circular>
+	<div v-else>
+		<v-card class="search-container pa-0" elevation="8" rounded="pill">
+			<v-text-field v-model="search" class="search" :label="t('search.division')" prepend-inner-icon="mdi-magnify"
+				variant="solo" rounded="pill" hide-details="auto" @input="debouncedSearch" />
+		</v-card>
 	</div>
 
-	<div v-if="error" class="error">
-		{{ error }}
+	<v-slide-y-reverse-transition appear v-if="!reducedAnimationsEnabled">
+		<v-container class="scrollable-grid pa-0">
+			<v-container :key="searchKey" class="scrollable-grid pa-0">
+				<v-container class="divisions-grid pa-0">
+					<v-col v-for="(division, index) in filteredDivisions" :key="division.id" class="grid-item pa-0"
+						:class="{ 'animated-item': !reducedAnimationsEnabled }"
+						:style="!reducedAnimationsEnabled ? delayStyle(index) : {}">
+						<DivisionButton :text="division.full_name" :designator="division.designator" :index="index"
+							:id="division.id" />
+					</v-col>
+				</v-container>
+			</v-container>
+			<v-empty-state v-if="!loading && !error && filteredDivisions.length === 0" icon="mdi-magnify-remove-outline"
+				class="no-divisions" :title="t('page.no_divisions')" />
+			<v-empty-state v-if="error" icon="mdi-alert-circle" color="error" class="no-divisions"
+				:title="t('page.divisions_error')" />
+		</v-container>
+	</v-slide-y-reverse-transition>
+	<div v-else>
+		<v-container class="scrollable-grid pa-0">
+			<v-container :key="searchKey" class="scrollable-grid pa-0">
+				<v-container class="divisions-grid pa-0">
+					<v-col v-for="(division, index) in filteredDivisions" :key="division.id" class="grid-item pa-0">
+						<DivisionButton :text="division.full_name" :designator="division.designator" :index="index"
+							:id="division.id" />
+					</v-col>
+				</v-container>
+			</v-container>
+			<v-empty-state v-if="!loading && !error && filteredDivisions.length === 0" icon="mdi-magnify-remove-outline"
+				class="no-divisions" :title="t('page.no_divisions')" />
+			<v-empty-state v-if="error" icon="mdi-alert-circle" color="error" class="no-divisions"
+				:title="t('page.divisions_error')" />
+		</v-container>
+	</div>
+
+	<div v-if="loading" class="loading">
+		<v-progress-circular indeterminate></v-progress-circular>
 	</div>
 </template>
 
@@ -34,7 +58,8 @@ import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
 import { debounce } from 'lodash-es';
-import DivisionButton from '../DivisionButton.vue'
+import DivisionButton from '../DivisionButton.vue';
+import { useMiscStore } from '@/stores/miscStore';
 
 interface Division {
 	designator: string;
@@ -42,23 +67,40 @@ interface Division {
 	full_name: string;
 }
 
+interface DivisionResponse {
+	data: DivisionResponseData;
+}
+
+interface DivisionResponseData {
+	designators: { [key: string]: { values: number[] } };
+	full_names: { [key: string]: { values: number[] } };
+}
+
 const { t } = useI18n();
+const miscStore = useMiscStore();
+const reducedAnimationsEnabled = computed(() => miscStore.reducedAnimationsEnabled);
 
 const search = ref('');
 const divisions = ref<Division[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
 
+// Forces remounting the component when the search key changes so animations are triggered
+const searchKey = computed(() => search.value);
+const delayStyle = (index: number) => ({
+	animationDelay: `${index * 50}ms`,
+});
+
 const fetchDivisions = async () => {
 	loading.value = true;
 	try {
-		const response = await axios.get('/api/v1/divisions');
+		const response: DivisionResponse = await axios.get('/api/v1/divisions');
 		const designators = response.data.designators;
 		const fullNames = response.data.full_names;
 
-		divisions.value = Object.keys(designators).map((designator) => {
-			const id = designators[designator];
-			const full_name = Object.keys(fullNames).find((name) => fullNames[name] === id) || '';
+		divisions.value = Object.entries(designators).map(([designator, { values }]) => {
+			const id = values[0];
+			const full_name = Object.keys(fullNames).find(name => fullNames[name].values.includes(id)) || '';
 
 			return {
 				designator,
@@ -153,6 +195,35 @@ onMounted(fetchDivisions);
 	align-items: center;
 	justify-content: center;
 	overflow: visible;
+}
+
+.animated-item {
+	opacity: 0;
+	transform: translateY(100%);
+	animation: fadeInUp 0.5s forwards;
+}
+
+@keyframes fadeInUp {
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.animated-item.fade-leave-active {
+	animation: fadeOutDown 0.5s forwards;
+}
+
+@keyframes fadeOutDown {
+	from {
+		opacity: 1;
+		transform: translateY(0);
+	}
+
+	to {
+		opacity: 0;
+		transform: translateY(100%);
+	}
 }
 
 .loading,

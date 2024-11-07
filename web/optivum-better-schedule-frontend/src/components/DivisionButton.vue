@@ -12,11 +12,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onUnmounted, watchEffect } from 'vue';
+import { ref, onUnmounted, watchEffect, computed } from 'vue';
 import VanillaTilt from 'vanilla-tilt';
 import { useTheme } from 'vuetify';
+import { useMiscStore } from '@/stores/miscStore';
 
 const theme = useTheme();
+const miscStore = useMiscStore();
+const reducedAnimationsEnabled = computed(() => miscStore.reducedAnimationsEnabled);
 
 const getButtonColor = (index: number) => {
 	const colors = theme.current.value.colors;
@@ -35,14 +38,14 @@ const props = defineProps<{
 }>();
 
 const tilt = ref<VanillaTiltHTMLElement | null>(null);
-const enableTilt = ref(window.innerWidth > 700);
+const enableTilt = ref(window.innerWidth > 700 && !reducedAnimationsEnabled.value);
 
 watchEffect(() => {
 	if (enableTilt.value && tilt.value) {
 		VanillaTilt.init(tilt.value, {
 			max: 15,
 			speed: 400,
-			scale: 1.05,
+			scale: 1.1,
 			glare: false,
 			reverse: false,
 			transition: true,

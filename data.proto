@@ -10,9 +10,13 @@ message APIResponse {
 	string message = 2;
 }
 
+message Duplicates {
+	repeated int64 values = 1;
+}
+
 message Metadata {
-	map<string, int64> designators = 1;
-	map<string, int64> full_names = 2;
+	map<string, Duplicates> designators = 1;
+	map<string, Duplicates> full_names = 2;
 }
 
 message Condition {

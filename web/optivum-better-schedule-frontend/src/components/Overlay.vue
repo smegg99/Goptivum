@@ -10,7 +10,7 @@
 							<v-icon>{{ item.prependIcon }}</v-icon>
 						</template>
 						<template #title>
-							<span>{{ item.title }}</span>
+							<span class="nav-item-title">{{ item.title }}</span>
 						</template>
 					</v-list-item>
 				</v-list>
@@ -107,6 +107,10 @@ const items = computed(() => [
 
 .nav-item :deep(.v-icon) {
 	font-size: 1.5rem;
+}
+
+.nav-item-title {
+	user-select: none;
 }
 
 .no-scroll {

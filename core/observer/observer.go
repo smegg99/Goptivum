@@ -65,7 +65,18 @@ func (o *Observer) compareHash(ctx context.Context, client *http.Client) (bool, 
 	o.Mu.RLock()
 	defer o.Mu.RUnlock()
 
-	doc, err := o.fetchContent(ctx, client)
+	var doc *goquery.Document
+	var err error
+
+	for i := 0; i < 3; i++ {
+		doc, err = o.fetchContent(ctx, client)
+		if err == nil {
+			break
+		}
+		fmt.Printf("error fetching content from %s, retrying... (%d/3)\n", o.URL, i+1)
+		time.Sleep(1 * time.Second)
+	}
+
 	if err != nil {
 		return false, fmt.Errorf("error fetching content from %s: %v", o.URL, err)
 	}

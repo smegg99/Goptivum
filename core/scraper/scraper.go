@@ -22,7 +22,6 @@ import (
 var Config config.ScraperConfig
 
 type ResourceType string
-
 const (
 	DivisionResource ResourceType = "division"
 	TeacherResource  ResourceType = "teacher"
@@ -32,6 +31,12 @@ const (
 func (t ResourceType) String() string {
 	return string(t)
 }
+
+type MetadataType string
+const (
+	DesignatorMetadata MetadataType = "designator"
+	FullNameMetadata   MetadataType = "fullname"
+)
 
 type ScraperResource struct {
 	Indexes     []int64
@@ -48,8 +53,8 @@ func NewScraperResource(indexRegex *regexp.Regexp, resourceType ResourceType) *S
 	return &ScraperResource{
 		Indexes:     []int64{},
 		Metadata:    &models.Metadata{
-			Designators: make(map[string]int64),
-			FullNames:   make(map[string]int64),
+			Designators: make(map[string]*models.Duplicates),
+			FullNames:   make(map[string]*models.Duplicates),
 		},
 		Observer:    &observer.Observer{},
 		Hub:         &hub.Hub{},
@@ -72,35 +77,57 @@ func (s *ScraperResource) StopHub() {
 	}
 }
 
+func (s *ScraperResource) IsIndexInMetadata(index int64, metadataType MetadataType) (bool, string) {
+	s.Mu.RLock()
+	defer s.Mu.RUnlock()
+	var metadata map[string]*models.Duplicates
+	if metadataType == DesignatorMetadata {
+		metadata = s.Metadata.Designators
+	} else if metadataType == FullNameMetadata {
+		metadata = s.Metadata.FullNames
+	} else {
+		return false, ""
+	}
+
+	for key, duplicates := range metadata {
+		for _, _index := range duplicates.Values {
+			if index == _index {
+				return true, key
+			}
+		}
+	}
+	return false, ""
+}
+
 func (s *ScraperResource) GetDesignatorFromIndex(index int64) string {
 	s.Mu.RLock()
 	defer s.Mu.RUnlock()
-	for designator, _index := range s.Metadata.Designators {
-		if index == _index {
-			return designator
-		}
+	
+	if inDuplicates, designator := s.IsIndexInMetadata(index, DesignatorMetadata); inDuplicates {
+		return designator
 	}
+
 	return ""
 }
 
 func (s *ScraperResource) GetFullNameFromIndex(index int64) string {
 	s.Mu.RLock()
 	defer s.Mu.RUnlock()
-	for fullName, _index := range s.Metadata.FullNames {
-		if index == _index {
-			return fullName
-		}
+	
+	if inDuplicates, fullName := s.IsIndexInMetadata(index, FullNameMetadata); inDuplicates {
+		return fullName
 	}
+
 	return ""
 }
 
-func (s *ScraperResource) GetIndexFromDesignator(designator string) int64 {
+func (s *ScraperResource) GetIndexFromDesignator(designator string) *models.Duplicates {
 	s.Mu.RLock()
 	defer s.Mu.RUnlock()
 	return s.Metadata.Designators[designator]
 }
 
-func (s *ScraperResource) GetIndexFromFullName(fullName string) int64 {
+func (s *ScraperResource) GetIndexFromFullName(fullName string) *models.Duplicates {
 	s.Mu.RLock()
 	defer s.Mu.RUnlock()
 	return s.Metadata.FullNames[fullName]
@@ -109,37 +136,62 @@ func (s *ScraperResource) GetIndexFromFullName(fullName string) int64 {
 func (s *ScraperResource) UpdateMetadata(newDesignator, newFullName string, index int64) {
 	s.Mu.Lock()
 	defer s.Mu.Unlock()
-	for _designator, _index := range s.Metadata.Designators {
-		if index == _index {
-			delete(s.Metadata.Designators, _designator)
-		}
-	}
-	s.Metadata.Designators[newDesignator] = index
 
-	for _full_name, _index := range s.Metadata.FullNames {
-		if index == _index {
-			delete(s.Metadata.FullNames, _full_name)
+	for designator, duplicates := range s.Metadata.Designators {
+		for i, _index := range duplicates.Values {
+			if index == _index {
+				duplicates.Values = append(duplicates.Values[:i], duplicates.Values[i+1:]...)
+				if len(duplicates.Values) == 0 {
+					delete(s.Metadata.Designators, designator)
+				}
+				break
+			}
 		}
 	}
-	s.Metadata.FullNames[newFullName] = index
+	if _, exists := s.Metadata.Designators[newDesignator]; !exists {
+		s.Metadata.Designators[newDesignator] = &models.Duplicates{}
+	}
+	s.Metadata.Designators[newDesignator].Values = append(s.Metadata.Designators[newDesignator].Values, index)
+
+	for fullName, duplicates := range s.Metadata.FullNames {
+		for i, _index := range duplicates.Values {
+			if index == _index {
+				duplicates.Values = append(duplicates.Values[:i], duplicates.Values[i+1:]...)
+				if len(duplicates.Values) == 0 {
+					delete(s.Metadata.FullNames, fullName)
+				}
+				break
+			}
+		}
+	}
+	if _, exists := s.Metadata.FullNames[newFullName]; !exists {
+		s.Metadata.FullNames[newFullName] = &models.Duplicates{}
+	}
+	s.Metadata.FullNames[newFullName].Values = append(s.Metadata.FullNames[newFullName].Values, index)
 }
 
 func (s *ScraperResource) RemoveMetadata(index int64) {
 	s.Mu.Lock()
 	defer s.Mu.Unlock()
-	for designator, _index := range s.Metadata.Designators {
-		if index == _index {
-			delete(s.Metadata.Designators, designator)
-			if len(s.Metadata.Designators) == 0 {
+	for designator, duplicates := range s.Metadata.Designators {
+		for i, _index := range duplicates.Values {
+			if index == _index {
+				duplicates.Values = append(duplicates.Values[:i], duplicates.Values[i+1:]...)
+				if len(duplicates.Values) == 0 {
+					delete(s.Metadata.Designators, designator)
+				}
 				break
 			}
 		}
 	}
 
-	for fullName, _index := range s.Metadata.FullNames {
-		if index == _index {
-			delete(s.Metadata.FullNames, fullName)
-			if len(s.Metadata.FullNames) == 0 {
+	for fullName, duplicates := range s.Metadata.FullNames {
+		for i, _index := range duplicates.Values {
+			if index == _index {
+				duplicates.Values = append(duplicates.Values[:i], duplicates.Values[i+1:]...)
+				if len(duplicates.Values) == 0 {
+					delete(s.Metadata.FullNames, fullName)
+				}
 				break
 			}
 		}
@@ -336,9 +388,9 @@ func ScrapeDivisionsIndexes() ([]int64, error) {
 					return
 				}
 				endpoint := makeDivisionEndpoint(num)
-				_, err = utils.OpenDoc(Config.BaseUrl, endpoint)
-				if err != nil {
-					fmt.Printf("error opening division document: %v\n", err)
+		
+				if !utils.CheckURL(Config.BaseUrl + endpoint) {
+					fmt.Printf("error opening division " + Config.BaseUrl + endpoint + "\n")
 					return
 				}
 				indexes = append(indexes, num)
@@ -369,9 +421,9 @@ func ScrapeTeachersIndexes() ([]int64, error) {
 					return
 				}
 				endpoint := makeTeacherEndpoint(num)
-				_, err = utils.OpenDoc(Config.BaseUrl, endpoint)
-				if err != nil {
-					fmt.Printf("error opening teacher document: %v\n", err)
+
+				if !utils.CheckURL(Config.BaseUrl + endpoint) {
+					fmt.Printf("error opening teacher " + Config.BaseUrl + endpoint + "\n")
 					return
 				}
 				indexes = append(indexes, num)
@@ -402,9 +454,9 @@ func ScrapeRoomsIndexes() ([]int64, error) {
 					return
 				}
 				endpoint := makeRoomEndpoint(num)
-				_, err = utils.OpenDoc(Config.BaseUrl, endpoint)
-				if err != nil {
-					fmt.Printf("error opening room document: %v\n", err)
+
+				if !utils.CheckURL(Config.BaseUrl + endpoint) {
+					fmt.Printf("error opening room " + Config.BaseUrl + endpoint + "\n")
 					return
 				}
 				indexes = append(indexes, num)

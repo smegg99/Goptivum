@@ -1,13 +1,14 @@
 <!-- ThemeSwitcher.vue -->
 <template>
 	<v-container class="fill-height d-flex justify-center align-center pa-0">
-		<div class=" text-center">
+		<div class="text-center">
 			<span class="theme-title">{{ t('theme.name') }}</span>
 			<v-btn-toggle v-model="currentTheme" mandatory class="ma-4 elevation-8" color="tertiary" variant="outlined">
 				<v-btn value="dracula" icon="mdi-ghost" />
 				<v-btn value="dark" icon="mdi-weather-night" />
 				<v-btn value="auto" icon="mdi-auto-mode" />
 				<v-btn value="light" icon="mdi-weather-sunny" />
+				<v-btn value="oled" icon="mdi-sprout" />
 			</v-btn-toggle>
 		</div>
 	</v-container>
@@ -38,6 +39,14 @@ watch(
 </script>
 
 <style scoped>
+.text-center {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	text-align: center;
+}
+
 .theme-title {
 	font-size: 1.25rem;
 	font-weight: bold;

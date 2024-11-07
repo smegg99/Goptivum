@@ -106,3 +106,18 @@ func DeleteRoom(index int64) error {
     key := []byte(fmt.Sprintf("room:%d", index))
     return deleteItem(key)
 }
+
+func SetMetadata(metadata *models.Metadata) error {
+    key := []byte("metadata")
+    return setItem(key, metadata)
+}
+
+func GetMetadata() (*models.Metadata, error) {
+    key := []byte("metadata")
+    metadata := &models.Metadata{}
+    err := getItem(key, metadata)
+    if err != nil {
+        return nil, err
+    }
+    return metadata, nil
+}

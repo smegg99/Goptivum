@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n';
 
 export const useLocaleStore = defineStore('locale', () => {
 	const { locale } = useI18n();
-	const currentLocale = ref(localStorage.getItem('language') || 'en');
+	const currentLocale = ref(localStorage.getItem('language') || 'pl');
 
 	watch(currentLocale, (newLocale) => {
 		locale.value = newLocale;

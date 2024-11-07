@@ -6,17 +6,31 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
+var HttpClient = &http.Client{
+	Transport: &http.Transport{
+		MaxIdleConns:        2000,
+		MaxIdleConnsPerHost: 1000,
+		IdleConnTimeout:     90 * time.Second,
+	},
+	Timeout: 20 * time.Second,
+}
+
 func CheckURL(url string) bool {
+	fmt.Println("checking URL:", url)
+
 	// #nosec G107
-	resp, err := http.Get(url)
+	resp, err := HttpClient.Get(url)
 	if err != nil {
 		return false
 	}
 	defer resp.Body.Close()
+
+	fmt.Printf("got status code: %d for %s\n", resp.StatusCode, url)
 
 	return resp.StatusCode == http.StatusOK
 }
@@ -31,12 +45,26 @@ func IsEmptyOrInvisible(text string) bool {
 func OpenDoc(baseUrl, endpoint string) (*goquery.Document, error) {
 	url := fmt.Sprintf("%s%s", baseUrl, endpoint)
 	fmt.Printf("fetching URL: %s\n", url)
-	
-	// #nosec G107
-	res, err := http.Get(url)
+
+	var res *http.Response
+	var err error
+
+	for i := 0; i < 3; i++ {
+		// #nosec G107
+		res, err = HttpClient.Get(url)
+		if err == nil && res.StatusCode == http.StatusOK {
+			break
+		}
+		if res != nil {
+			res.Body.Close()
+		}
+		time.Sleep(1 * time.Second)
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("error fetching URL: %w", err)
 	}
+
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {

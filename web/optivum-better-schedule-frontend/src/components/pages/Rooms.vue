@@ -1,29 +1,56 @@
+<!-- pages/Rooms.vue -->
 <template>
-	<v-slide-y-transition appear>
+	<template v-if="!reducedAnimationsEnabled">
+		<v-slide-y-transition appear>
+			<v-card class="search-container pa-0" elevation="8" rounded="pill">
+				<v-text-field v-model="search" class="search" :label="t('search.room')" prepend-inner-icon="mdi-magnify"
+					variant="solo" rounded="pill" hide-details="auto" @input="debouncedSearch" />
+			</v-card>
+		</v-slide-y-transition>
+
+		<v-slide-y-reverse-transition appear>
+			<v-container class="scrollable-grid pa-0">
+				<v-container :key="searchKey" class="scrollable-grid pa-0">
+					<v-container class="rooms-grid pa-0">
+						<v-col v-for="(room, index) in filteredRooms" :key="room.id" class="grid-item pa-0"
+							:class="{ 'animated-item': !reducedAnimationsEnabled }"
+							:style="!reducedAnimationsEnabled ? delayStyle(index) : {}">
+							<RoomButton :text="room.full_name" :designator="room.designator" :index="index"
+								:id="room.id" />
+						</v-col>
+					</v-container>
+				</v-container>
+				<v-empty-state v-if="!loading && !error && filteredRooms.length === 0" icon="mdi-magnify-remove-outline"
+					class="no-rooms" :title="t('page.no_rooms')" />
+				<v-empty-state v-if="error" icon="mdi-alert-circle" color="error" class="no-rooms"
+					:title="t('page.rooms_error')" />
+			</v-container>
+		</v-slide-y-reverse-transition>
+	</template>
+
+	<template v-else>
 		<v-card class="search-container pa-0" elevation="8" rounded="pill">
 			<v-text-field v-model="search" class="search" :label="t('search.room')" prepend-inner-icon="mdi-magnify"
 				variant="solo" rounded="pill" hide-details="auto" @input="debouncedSearch" />
 		</v-card>
-	</v-slide-y-transition>
 
-	<v-slide-y-reverse-transition appear>
 		<v-container class="scrollable-grid pa-0">
-			<v-container class="rooms-grid pa-0">
-				<v-col v-for="(room, index) in filteredRooms" :key="room.id" class="grid-item pa-0">
-					<RoomButton :text="room.full_name" :designator="room.designator" :index="index" :id="room.id" />
-				</v-col>
+			<v-container :key="searchKey" class="scrollable-grid pa-0">
+				<v-container class="rooms-grid pa-0">
+					<v-col v-for="(room, index) in filteredRooms" :key="room.id" class="grid-item pa-0">
+						<RoomButton :text="room.full_name" :designator="room.designator" :index="index" :id="room.id" />
+					</v-col>
+				</v-container>
 			</v-container>
-			<v-empty-state v-if="!loading && filteredRooms.length === 0" icon="mdi-magnify-remove-outline"
+			<v-empty-state v-if="!loading && !error && filteredRooms.length === 0" icon="mdi-magnify-remove-outline"
 				class="no-rooms" :title="t('page.no_rooms')" />
+			<v-empty-state v-if="error" icon="mdi-alert-circle" color="error" class="no-rooms"
+				:title="t('page.rooms_error')" />
 		</v-container>
-	</v-slide-y-reverse-transition>
+	</template>
 
 	<div v-if="loading" class="loading">
-		<v-progress-circular indeterminate color="primary"></v-progress-circular>
-	</div>
-
-	<div v-if="error" class="error">
-		{{ error }}
+		<v-progress-circular indeterminate></v-progress-circular>
 	</div>
 </template>
 
@@ -32,7 +59,8 @@ import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
 import { debounce } from 'lodash-es';
-import RoomButton from '../RoomButton.vue'
+import RoomButton from '../RoomButton.vue';
+import { useMiscStore } from '@/stores/miscStore';
 
 interface Room {
 	designator: string;
@@ -40,7 +68,18 @@ interface Room {
 	full_name: string;
 }
 
+interface RoomResponse {
+	data: RoomResponseData;
+}
+
+interface RoomResponseData {
+	designators: { [key: string]: { values: number[] } };
+	full_names: { [key: string]: { values: number[] } };
+}
+
 const { t } = useI18n();
+const miscStore = useMiscStore();
+const reducedAnimationsEnabled = computed(() => miscStore.reducedAnimationsEnabled);
 
 const search = ref('');
 const rooms = ref<Room[]>([]);
@@ -50,20 +89,18 @@ const error = ref<string | null>(null);
 const fetchRooms = async () => {
 	loading.value = true;
 	try {
-		const response = await axios.get('/api/v1/rooms');
+		const response: RoomResponse = await axios.get('/api/v1/rooms');
 		const designators = response.data.designators;
 		const fullNames = response.data.full_names;
 
-		rooms.value = Object.keys(designators).map((designator) => {
-			const id = designators[designator];
-			const designatorKey = Object.keys(designators).find(key => designators[key] === id);
-			const full_name = Object.keys(fullNames).find((name) => fullNames[name] === id) || '';
-			const display_name = designatorKey && designatorKey !== full_name ? `${full_name} (${designatorKey})` : full_name;
+		rooms.value = Object.entries(designators).map(([designator, { values }]) => {
+			const id = values[0];
+			const full_name = Object.keys(fullNames).find(name => fullNames[name].values.includes(id)) || '';
 
 			return {
 				designator,
 				id,
-				full_name: display_name,
+				full_name,
 			};
 		});
 	} catch (err) {
@@ -83,6 +120,11 @@ const filteredRooms = computed(() => {
 			room.designator.toLowerCase().includes(searchValue) ||
 			room.full_name.toLowerCase().includes(searchValue)
 	);
+});
+
+const searchKey = computed(() => search.value);
+const delayStyle = (index: number) => ({
+	animationDelay: `${index * 50}ms`,
 });
 
 onMounted(fetchRooms);
@@ -153,6 +195,35 @@ onMounted(fetchRooms);
 	align-items: center;
 	justify-content: center;
 	overflow: visible;
+}
+
+.animated-item {
+	opacity: 0;
+	transform: translateY(100%);
+	animation: fadeInUp 0.5s forwards;
+}
+
+@keyframes fadeInUp {
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.animated-item.fade-leave-active {
+	animation: fadeOutDown 0.5s forwards;
+}
+
+@keyframes fadeOutDown {
+	from {
+		opacity: 1;
+		transform: translateY(0);
+	}
+
+	to {
+		opacity: 0;
+		transform: translateY(100%);
+	}
 }
 
 .loading,

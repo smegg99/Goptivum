@@ -13,6 +13,9 @@ export default {
 			auto: 'Automatyczny',
 		},
 	},
+	animations: {
+		name: 'Zredukuj Animacje',
+	},
 	day: {
 		monday: 'Poniedziałek',
 		tuesday: 'Wtorek',
@@ -99,13 +102,28 @@ export default {
 			'clouds': 'Chmury',
 		},
 	},
+	air_quality: {
+		quality: 'Jakość powietrza',
+		conditions: {
+			very_good: 'Bardzo dobra',
+			good: 'Dobra',
+			moderate: 'Umiarkowana',
+			unhealthy_for_sensitive_groups: 'Dostateczna',
+			unhealthy: 'Zła',
+			very_unhealthy: 'Bardzo zła',
+			hazardous: 'Zagrożenie dla zdrowia',
+		},
+	},
 	page: {
-		title: 'Optivum - Lepszy Plan Lekcji',
+		title: 'GOptivum - Lepszy Plan Lekcji',
 		not_found: 'Nie znaleziono strony',
 		no_schedule: 'Brak planu na ten dzień',
 		no_divisions: 'Nie znaleziono klas',
 		no_teachers: 'Nie znaleziono nauczycieli',
 		no_rooms: 'Nie znaleziono sali',
+		divisions_error: 'Błąd podczas pobierania klas',
+		teachers_error: 'Błąd podczas pobierania nauczycieli',
+		rooms_error: 'Błąd podczas pobierania sal',
 		home: 'Strona główna',
 		divisions: 'Klasy',
 		division: 'Klasa - {id}',
@@ -124,5 +142,6 @@ export default {
 		ordered_number: 'Nr',
 		time_range: 'Godzina',
 		lesson: 'Lekcja',
+		room_title_prefix: 'Sala {id}' ,
 	}
 };

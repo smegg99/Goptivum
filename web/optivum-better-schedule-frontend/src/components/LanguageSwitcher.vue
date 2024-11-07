@@ -20,7 +20,6 @@ const { t } = useI18n();
 const localeStore = useLocaleStore();
 
 const currentLanguage = ref(localeStore.currentLocale);
-
 const languageCodes = ['en', 'pl', 'uk'];
 
 const languages = computed(() => {
@@ -46,6 +45,14 @@ watch(
 </script>
 
 <style scoped>
+.text-center {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: center;
+	text-align: center;
+}
+
 .language-title {
 	font-size: 1.25rem;
 	font-weight: bold;

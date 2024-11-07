@@ -1,19 +1,30 @@
 <!-- Weather.vue -->
 <template>
   <v-row class="d-flex justify-center align-center flex-nowrap" no-gutters>
-    <v-card class="weather-card" :loading="isLoading" flat>
+    <v-card class="weather-card" flat>
       <v-row class="justify-center align-center weather-info">
-        <v-col class="text-center" cols="6">
+        <v-col class="text-center" cols="4">
           <span class="location-info">{{ locationName }}</span>
-          <div class="temp-info">
+          <div class="info">
             <v-icon class="condition-icon">{{ conditionIcon }}</v-icon>
             <span class="temperature">{{ temperature }}</span>
           </div>
         </v-col>
-        <v-col class="text-right condition-col" cols="6">
-          <div class="d-flex flex-column align-end">
+
+        <v-col class="text-right condition-col" cols="4">
+          <div class="d-flex flex-column justify-center align-center">
             <span class="condition-text">{{ conditionName }}</span>
             <span class="condition-text-lower">{{ conditionDescription }}</span>
+          </div>
+        </v-col>
+
+        <v-col class="text-center" cols="4">
+          <div class="d-flex flex-column justify-center align-center">
+            <span class="condition-text">{{ t('air_quality.quality') }}</span>
+            <span class="condition-text-lower">{{ airQualityLabel }}</span>
+          </div>
+          <div class="info">
+            <v-icon class="air-quality-icon">{{ airQualityIcon }}</v-icon>
           </div>
         </v-col>
       </v-row>
@@ -64,6 +75,11 @@ const temperature = ref(`${Math.floor(Math.random() * 30)}°`);
 const conditionName = ref(t(`weather.conditions.${randomConditionName}`));
 const conditionDescription = ref(t(`weather.conditions.${randomConditionDescription}`));
 const conditionIcon = ref(getConditionIcon(randomConditionName));
+
+const airQualityIndex = ref(0);
+const airQualityLabel = ref('');
+const airQualityIcon = ref('');
+
 
 interface ForecastDay {
   code: number;
@@ -138,11 +154,15 @@ const fetchWeatherData = async (retryDelay = 1000) => {
       setTimeout(() => fetchWeatherData(retryDelay * 1.5), retryDelay);
     } else {
       console.error('Error fetching weather data:', error);
-      isLoading.value = false;
+      setTimeout(() => {
+        isLoading.value = false;
+      }, 1000);
     }
   } finally {
     if (isLoading.value) {
-      isLoading.value = false;
+      setTimeout(() => {
+        isLoading.value = false;
+      }, 1000);
     }
   }
 };
@@ -175,6 +195,39 @@ const processWeatherData = (currentData: any, forecast: any[]) => {
     };
   });
 };
+
+function getAirQualityInfo(pm25: number, pm10: number) {
+  const aqi = Math.max(pm25, pm10);
+
+  if (aqi <= 12) {
+    return { label: t('air_quality.conditions.very_good'), icon: 'mdi-emoticon-outline' };
+  } else if (aqi <= 35.4) {
+    return { label: t('air_quality.conditions.good'), icon: 'mdi-emoticon-neutral-outline' };
+  } else if (aqi <= 55.4) {
+    return { label: t('air_quality.conditions.moderate'), icon: 'mdi-emoticon-confused-outline' };
+  } else if (aqi <= 150.4) {
+    return { label: t('air_quality.conditions.unhealthy_for_sensitive_groups'), icon: 'mdi-emoticon-sad-outline' };
+  } else if (aqi <= 250.4) {
+    return { label: t('air_quality.conditions.very_unhealthy'), icon: 'mdi-emoticon-frown-outline' };
+  } else {
+    return { label: t('air_quality.conditions.hazardous'), icon: 'mdi-emoticon-dead-outline' };
+  }
+}
+
+const fetchAirQualityData = async () => {
+  try {
+    const response = await axios.get('/api/v1/air/current');
+    const components = response.data.components;
+    const { label, icon } = getAirQualityInfo(components.pm2_5, components.pm10);
+
+    airQualityIndex.value = Math.max(components.pm2_5, components.pm10);
+    airQualityLabel.value = label;
+    airQualityIcon.value = icon;
+  } catch (error) {
+    console.error('Error fetching air quality data:', error);
+  }
+};
+
 
 const getDayName = (dayOfWeek: number) => {
   const days = [
@@ -212,8 +265,12 @@ let intervalId: number | null = null;
 
 onMounted(() => {
   fetchWeatherData();
+  fetchAirQualityData();
 
-  intervalId = setInterval(fetchWeatherData, CACHE_DURATION);
+  intervalId = setInterval(() => {
+    fetchWeatherData();
+    fetchAirQualityData();
+  }, CACHE_DURATION);
 });
 
 onUnmounted(() => {
@@ -235,32 +292,33 @@ onUnmounted(() => {
   margin-bottom: 1vw;
 }
 
+.air-quality-info,
 .location-info {
   font-size: 3vw;
   font-weight: 800;
   white-space: nowrap;
-  color: var(--v-primary-base);
   user-select: none;
 }
 
-.temp-info {
+.info {
   display: flex;
   justify-content: center;
   align-items: center;
   margin-top: 0.5vw;
 }
 
+.air-quality-icon,
 .condition-icon {
   font-size: 4vw;
   margin-right: 1vw;
-  color: var(--v-warning-base);
+  color: rgb(var(--v-theme-gradient2));
   user-select: none;
 }
 
 .temperature {
   font-size: 3vw;
   font-weight: 600;
-  color: var(--v-primary-darken1);
+  color: rgb(var(--v-theme-gradient2));
   user-select: none;
 }
 
@@ -270,19 +328,18 @@ onUnmounted(() => {
 
 .condition-text {
   font-size: 2vw;
-  font-weight: 600;
-  color: var(--v-secondary-lighten2);
-  text-align: right;
+  font-weight: 800;
+  text-align: center;
   white-space: nowrap;
   user-select: none;
 }
 
 .condition-text-lower {
-  font-size: 2vw;
+  font-size: 1.5vw;
   font-weight: 400;
   font-style: italic;
-  color: var(--v-secondary-lighten2);
-  text-align: right;
+  color: rgb(var(--v-theme-gradient2));
+  text-align: center;
   text-wrap-mode: auto;
   user-select: none;
 }
@@ -304,25 +361,20 @@ onUnmounted(() => {
 .forecast-day {
   font-size: 1.8vw;
   font-weight: 800;
-  color: var(--v-secondary-lighten1);
   user-select: none;
 }
 
 .forecast-temp {
   font-size: 1.6vw;
   font-weight: 600;
-  color: var(--v-secondary-darken1);
+  color: rgb(var(--v-theme-gradient1));
   user-select: none;
 }
 
 .forecast-icon {
   font-size: 4vw;
-  color: var(--v-info-base);
+  color: rgb(var(--v-theme-gradient1));
   user-select: none;
-}
-
-.muted-text {
-  color: var(--v-primary-lighten4);
 }
 
 @media (max-width: 1279px) {
@@ -334,6 +386,7 @@ onUnmounted(() => {
     font-size: 4vw;
   }
 
+  .air-quality-icon,
   .condition-icon {
     font-size: 6vw;
   }
@@ -366,9 +419,10 @@ onUnmounted(() => {
   }
 
   .location-info {
-    font-size: 6vw;
+    font-size: 3vw;
   }
 
+  .air-quality-icon,
   .condition-icon {
     font-size: 8vw;
   }
@@ -378,7 +432,7 @@ onUnmounted(() => {
   }
 
   .condition-text {
-    font-size: 5vw;
+    font-size: 3vw;
   }
 
   .condition-text-lower {

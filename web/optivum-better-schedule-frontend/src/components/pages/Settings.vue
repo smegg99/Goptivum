@@ -1,4 +1,4 @@
-<!-- Settings.vue -->
+<!-- pages/Settings.vue -->
 <template>
 	<v-container class="fill-height fill-width pa-0">
 		<v-slide-y-reverse-transition appear>
@@ -7,7 +7,12 @@
 					<v-col class="d-flex justify-center grid-item">
 						<ThemeSwitcher />
 					</v-col>
-					<LanguageSwitcher />
+					<v-col class="d-flex justify-center grid-item">
+						<LanguageSwitcher />
+					</v-col>
+					<v-col class="d-flex justify-center grid-item">
+						<AnimationsSwitcher />
+					</v-col>
 				</v-row>
 			</v-container>
 		</v-slide-y-reverse-transition>
@@ -17,6 +22,7 @@
 <script setup lang="ts">
 import ThemeSwitcher from '../ThemeSwitcher.vue';
 import LanguageSwitcher from '../LanguageSwitcher.vue';
+import AnimationsSwitcher from '../AnimationsSwitcher.vue';
 </script>
 
 <style scoped>

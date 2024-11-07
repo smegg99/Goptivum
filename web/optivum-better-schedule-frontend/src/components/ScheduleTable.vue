@@ -1,16 +1,16 @@
 <template>
-	<v-slide-y-transition appear>
-		<v-empty-state v-if="notFound" headline="404" :title="t('page.not_found')" />
+	<v-slide-y-transition appear mode="out-in">
+		<v-empty-state v-if="notFound" headline="404" :title="t('page.not_found')" :key="transitionKey" />
 	</v-slide-y-transition>
 
 	<v-row class="division-grid" align="center" justify="center">
-		<v-slide-y-transition appear>
-			<div class="schedule-title-container pa-0">
+		<v-slide-x-reverse-transition appear mode="out-in">
+			<div class="schedule-title-container pa-0" :key="transitionKey">
 				<span class="schedule-title">{{ title }}</span>
 			</div>
-		</v-slide-y-transition>
-		<v-fade-transition appear>
-			<div class="schedule-container grid-item pa-0">
+		</v-slide-x-reverse-transition>
+		<v-fade-transition appear mode="out-in">
+			<div class="schedule-container grid-item pa-0" :key="transitionKey">
 				<!-- Mobile View -->
 				<template v-if="isMobileView">
 					<v-card variant="flat">
@@ -41,27 +41,29 @@
 											<div v-for="lesson in lessonGroup.lessons" :key="lesson.full_name"
 												class="stacked-lesson">
 												<span class="schedule-lesson-name">{{ lesson.full_name }}</span>
-												&nbsp;
-												<router-link
-													v-if="lesson.teacher_designator && teacherIndexes[lesson.teacher_designator] !== undefined"
-													:to="'/teacher/' + teacherIndexes[lesson.teacher_designator]"
-													class="schedule-lesson-teacher">
-													{{ lesson.teacher_designator }}
-												</router-link>
-												&nbsp;
-												<router-link
-													v-if="lesson.room_designator && roomIndexes[lesson.room_designator] !== undefined"
-													:to="'/room/' + roomIndexes[lesson.room_designator]"
-													class="schedule-lesson-room">
-													{{ lesson.room_designator }}
-												</router-link>
-												&nbsp;
-												<router-link
-													v-if="lesson.division_designator && divisionIndexes[lesson.division_designator] !== undefined"
-													:to="'/division/' + divisionIndexes[lesson.division_designator]"
-													class="schedule-lesson-division">
-													{{ lesson.division_designator }}
-												</router-link>
+												<template v-if="showTeacherLink && lesson.teacher_designator">
+													&nbsp;<router-link
+														:to="'/teacher/' + teacherIndexes[lesson.teacher_designator]"
+														class="schedule-lesson-teacher">
+														{{ lesson.teacher_designator }}
+													</router-link>&nbsp;
+												</template>
+
+												<template v-if="showDivisionLink && lesson.division_designator">
+													&nbsp;<router-link
+														:to="'/division/' + divisionIndexes[lesson.division_designator]"
+														class="schedule-lesson-division">
+														{{ lesson.division_designator }}
+													</router-link>&nbsp;
+												</template>
+
+												<template v-if="showRoomLink && lesson.room_designator">
+													&nbsp;<router-link
+														:to="'/room/' + roomIndexes[lesson.room_designator]"
+														class="schedule-lesson-room">
+														{{ lesson.room_designator }}
+													</router-link>&nbsp;
+												</template>
 											</div>
 										</td>
 									</tr>
@@ -102,18 +104,29 @@
 										<div v-for="lesson in day.lesson_groups.find((lg: LessonGroup) => formatTime(lg.lessons[0]?.time_range.start) + ' - ' + formatTime(lg.lessons[0]?.time_range.end) === timeRange)?.lessons"
 											:key="lesson.full_name" class="stacked-lesson">
 											<span class="schedule-lesson-name">{{ lesson.full_name }}</span>
-											&nbsp;
-											<router-link v-if="lesson.teacher_designator"
-												:to="'/teacher/' + teacherIndexes[lesson.teacher_designator]"
-												class="schedule-lesson-teacher">
-												{{ lesson.teacher_designator }}
-											</router-link>
-											&nbsp;
-											<router-link v-if="lesson.room_designator"
-												:to="'/room/' + roomIndexes[lesson.room_designator]"
-												class="schedule-lesson-room">
-												{{ lesson.room_designator }}
-											</router-link>
+
+											<template v-if="showTeacherLink && lesson.teacher_designator">
+												&nbsp;<router-link
+													:to="'/teacher/' + teacherIndexes[lesson.teacher_designator]"
+													class="schedule-lesson-teacher">
+													{{ lesson.teacher_designator }}
+												</router-link>&nbsp;
+											</template>
+
+											<template v-if="showDivisionLink && lesson.division_designator">
+												&nbsp;<router-link
+													:to="'/division/' + divisionIndexes[lesson.division_designator]"
+													class="schedule-lesson-division">
+													{{ lesson.division_designator }}
+												</router-link>&nbsp;
+											</template>
+
+											<template v-if="showRoomLink && lesson.room_designator">
+												&nbsp;<router-link :to="'/room/' + roomIndexes[lesson.room_designator]"
+													class="schedule-lesson-room">
+													{{ lesson.room_designator }}
+												</router-link>&nbsp;
+											</template>
 										</div>
 									</div>
 									<div v-else>&nbsp; <!-- Placeholder for empty cells --></div>
@@ -128,15 +141,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
 import { useTheme } from 'vuetify';
-import { useRoute } from 'vue-router';
 
-const route = useRoute();
-const id = Number(route.params.id);
-const props = defineProps<{ type: 'teacher' | 'room' | 'division' }>();
+const props = defineProps<{ id: string; type: 'teacher' | 'room' | 'division' }>();
 
 interface TimeRange {
 	hour?: number;
@@ -173,6 +183,11 @@ interface DivisionData {
 	schedule: Schedule;
 }
 
+interface IndexesResponse {
+	designators: Record<string, { values: number[] }>;
+	full_names: Record<string, { values: number[] }>;
+}
+
 const { t } = useI18n();
 const theme = useTheme();
 
@@ -182,16 +197,33 @@ const scheduleData = ref<DivisionData | null>(null);
 const title = computed(() => {
 	const fullName = scheduleData.value?.full_name ?? '';
 	const designator = scheduleData.value?.designator ? ` (${scheduleData.value.designator})` : '';
+	if (fullName === scheduleData.value?.designator) {
+		if (props.type === 'room') {
+			return t('schedule.room_title_prefix') + scheduleData.value.designator;
+		}
+
+		return fullName;
+	}
+
 	return fullName + designator;
 });
+
+// Used to force transition when the id changes
+const transitionKey = computed(() => props.id);
+
+const showTeacherLink = computed(() => props.type !== 'teacher');
+const showDivisionLink = computed(() => props.type !== 'division');
+const showRoomLink = computed(() => props.type !== 'room');
+
 const teacherIndexes = ref<Record<string, number>>({});
 const roomIndexes = ref<Record<string, number>>({});
 const divisionIndexes = ref<Record<string, number>>({});
+
 const notFound = ref(false);
 const isMobileView = ref(window.innerWidth < mobileViewBreakpoint);
 const activeTab = ref(0);
 
-window.addEventListener("resize", () => {
+window.addEventListener('resize', () => {
 	isMobileView.value = window.innerWidth < mobileViewBreakpoint;
 });
 
@@ -200,9 +232,19 @@ const getRowColor = (rowIndex: number) => {
 	return rowIndex % 2 === 0 ? colors.background : colors.surface;
 };
 
+function extractIndexes(data: Record<string, { values: number[] }>): Record<string, number> {
+	const indexes: Record<string, number> = {};
+	for (const key in data) {
+		if (data[key].values && data[key].values.length > 0) {
+			indexes[key] = data[key].values[0];
+		}
+	}
+	return indexes;
+}
+
 const fetchData = async () => {
 	try {
-		const scheduleResponse = await axios.get(`/api/v1/${props.type}/${id}`);
+		const scheduleResponse = await axios.get(`/api/v1/${props.type}/${props.id}`);
 		if (scheduleResponse.status === 404) {
 			notFound.value = true;
 			return;
@@ -215,22 +257,22 @@ const fetchData = async () => {
 				axios.get(`/api/v1/rooms`),
 				axios.get(`/api/v1/teachers`),
 			]);
-			roomIndexes.value = roomsResponse.data.designators;
-			teacherIndexes.value = teachersResponse.data.designators;
+			roomIndexes.value = extractIndexes((roomsResponse.data as IndexesResponse).designators);
+			teacherIndexes.value = extractIndexes((teachersResponse.data as IndexesResponse).designators);
 		} else if (props.type === 'teacher') {
 			const [roomsResponse, divisionsResponse] = await Promise.all([
 				axios.get(`/api/v1/rooms`),
 				axios.get(`/api/v1/divisions`),
 			]);
-			roomIndexes.value = roomsResponse.data.designators;
-			divisionIndexes.value = divisionsResponse.data.designators;
+			roomIndexes.value = extractIndexes((roomsResponse.data as IndexesResponse).designators);
+			divisionIndexes.value = extractIndexes((divisionsResponse.data as IndexesResponse).designators);
 		} else if (props.type === 'room') {
 			const [teachersResponse, divisionsResponse] = await Promise.all([
 				axios.get(`/api/v1/teachers`),
 				axios.get(`/api/v1/divisions`),
 			]);
-			teacherIndexes.value = teachersResponse.data.designators;
-			divisionIndexes.value = divisionsResponse.data.designators;
+			teacherIndexes.value = extractIndexes((teachersResponse.data as IndexesResponse).designators);
+			divisionIndexes.value = extractIndexes((divisionsResponse.data as IndexesResponse).designators);
 		}
 	} catch (err) {
 		console.error('Error fetching data:', err);
@@ -239,6 +281,14 @@ const fetchData = async () => {
 };
 
 onMounted(fetchData);
+
+// This had to be done because I changed the way the component is used in the parent component
+watch(
+	() => [props.id, props.type],
+	() => {
+		fetchData();
+	}
+);
 
 const uniqueTimeRanges = computed(() => {
 	const timeSet = new Set<string>();
@@ -264,7 +314,7 @@ const availableDayNames = computed(() => {
 		t('day.thursday'),
 		t('day.friday'),
 		t('day.saturday'),
-		t('day.sunday')
+		t('day.sunday'),
 	];
 	return dayNames.slice(0, scheduleData.value?.schedule.schedule_days.length ?? 0);
 });
@@ -275,7 +325,6 @@ function formatTime(time: TimeRange | undefined): string {
 	const minutes = time.minute !== undefined ? String(time.minute).padStart(2, '0') : '00';
 	return `${hours}:${minutes}`;
 }
-
 </script>
 
 <style scoped>
@@ -322,7 +371,7 @@ function formatTime(time: TimeRange | undefined): string {
 	text-align: left;
 	overflow-wrap: break-word;
 	word-break: break-word;
-	font-size: 1vh;
+	font-size: 1.5vh;
 	border: 1px solid rgba(255, 255, 255, 0.15);
 	white-space: normal;
 }
@@ -330,7 +379,7 @@ function formatTime(time: TimeRange | undefined): string {
 .schedule-title-container {
 	width: 100%;
 	height: auto;
-	margin-top: 2vh;
+	margin-top: 0vh;
 	margin-bottom: 1vh;
 	display: flex;
 	justify-content: center;
@@ -369,9 +418,10 @@ function formatTime(time: TimeRange | undefined): string {
 .schedule-lesson-teacher,
 .schedule-lesson-room,
 .schedule-lesson-division {
-    font-size: 1.25vh;
+    font-size: 1.5vh;
     display: inline;
     white-space: nowrap;
+	text-decoration: none;
 }
 
 .stacked-lesson {
