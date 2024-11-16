@@ -56,7 +56,9 @@ func OpenDoc(baseUrl, endpoint string) (*goquery.Document, error) {
 			break
 		}
 		if res != nil {
-			res.Body.Close()
+			if err := res.Body.Close(); err != nil {
+				return nil, fmt.Errorf("error closing response body: %w", err)
+			}
 		}
 		time.Sleep(1 * time.Second)
 	}

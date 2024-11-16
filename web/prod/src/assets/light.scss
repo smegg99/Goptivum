@@ -1,0 +1,71 @@
+.gradient-light-bg-primary {
+	background: linear-gradient(45deg, #B257D9, #BD6FDE);
+}
+
+.gradient-light-bg-secondary {
+	background: linear-gradient(45deg, #556BDD, #7789E4);
+}
+
+.gradient-light-text-primary {
+	background: linear-gradient(45deg, #BD6FDE, #B257D9);
+}
+
+.gradient-light-text-secondary {
+	background: linear-gradient(45deg, #7789E4, #556BDD);
+}
+
+.gradient-light-text-primary-accent {
+	background: linear-gradient(45deg, #1A1A1A, #2E2E2E);
+}
+
+.gradient-light-text-secondary-accent {
+	background: linear-gradient(45deg, #2E2E2E, #3C3C3C);
+}
+
+.gradient-light-text-air-very_good {
+	background: linear-gradient(45deg, #5FC9D7, #7DD9E1);
+}
+
+.gradient-light-text-air-good {
+	background: linear-gradient(45deg, #36D05F, #4FDB71);
+}
+
+.gradient-light-text-air-moderate {
+	background: linear-gradient(45deg, #7CD65F, #92E075);
+}
+
+.gradient-light-text-air-unhealthy {
+	background: linear-gradient(45deg, #D7D05C, #E3DA74);
+}
+
+.gradient-light-text-air-very_unhealthy {
+	background: linear-gradient(45deg, #DB8A53, #F1956B);
+}
+
+.gradient-light-text-air-hazardous {
+	background: linear-gradient(45deg, #DB4343, #EC5151);
+}
+
+.gradient-light-bg-schedule_current_lesson {
+	background: linear-gradient(45deg, rgba(236, 81, 81, 0.75), rgba(219, 67, 67, 0.2));
+}
+
+.gradient-light-bg-schedule_break {
+	background: linear-gradient(45deg, rgba(79, 219, 113, 0.75), rgba(54, 208, 95, 0.2));
+}
+
+.gradient-light-text-primary,
+.gradient-light-text-secondary,
+.gradient-light-text-primary-accent,
+.gradient-light-text-secondary-accent,
+.gradient-light-text-air-very_good,
+.gradient-light-text-air-good,
+.gradient-light-text-air-moderate,
+.gradient-light-text-air-unhealthy,
+.gradient-light-text-air-very_unhealthy,
+.gradient-light-text-air-hazardous {
+	background-clip: text;
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	color: transparent;
+}

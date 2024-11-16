@@ -25,6 +25,5 @@ go.work.sum
 .env
 .VSCodeCounter
 app/db
-web/optivum-better-schedule-frontend/src/components/_.vue
 app/dist
 build

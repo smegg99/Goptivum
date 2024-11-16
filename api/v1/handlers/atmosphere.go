@@ -4,7 +4,6 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 	"net/http"
 	"os"
 	"sort"
@@ -53,7 +52,15 @@ func WeatherForecastHandler(c *gin.Context) {
         return
     }
 
-    forecastList := openWeatherData["list"].([]interface{})
+    forecastList, ok := openWeatherData["list"].([]interface{})
+    if !ok {
+        Respond(c, http.StatusInternalServerError, models.APIResponse{
+            Message: "invalid forecast data format",
+            Success: false,
+        })
+        return
+    }
+
     forecastResponse := &models.ForecastResponse{
         Name: openWeatherData["city"].(map[string]interface{})["name"].(string),
     }
@@ -76,7 +83,6 @@ func WeatherForecastHandler(c *gin.Context) {
     sort.Strings(dates)
 
     now := time.Now().UTC()
-    currentTimeOfDaySeconds := now.Hour()*3600 + now.Minute()*60 + now.Second()
 
     datesProcessed := 0
     for _, dateStr := range dates {
@@ -89,21 +95,20 @@ func WeatherForecastHandler(c *gin.Context) {
             continue
         }
 
-        if datesProcessed >= 3 {
-            break
-        }
-
         forecasts := forecastsByDate[dateStr]
 
-        minTimeDiff := int64(1<<63 - 1)
         var closestForecast map[string]interface{}
+        minTimeDiff := int64(1<<63 - 1)
 
         for _, fMap := range forecasts {
             fDt := int64(fMap["dt"].(float64))
             fTime := time.Unix(fDt, 0).UTC()
 
-            fTimeOfDaySeconds := fTime.Hour() * 3600 + fTime.Minute() * 60 + fTime.Second()
-            timeDiff := int64(math.Abs(float64(fTimeOfDaySeconds - currentTimeOfDaySeconds)))
+            if fTime.Before(now) {
+                continue
+            }
+
+            timeDiff := fDt - now.Unix()
 
             if timeDiff < minTimeDiff {
                 minTimeDiff = timeDiff
@@ -112,10 +117,27 @@ func WeatherForecastHandler(c *gin.Context) {
         }
 
         if closestForecast != nil {
-            condition := closestForecast["weather"].([]interface{})[0].(map[string]interface{})
-            temperature := closestForecast["main"].(map[string]interface{})
-            sunrise := int64(openWeatherData["city"].(map[string]interface{})["sunrise"].(float64))
-            sunset := int64(openWeatherData["city"].(map[string]interface{})["sunset"].(float64))
+            conditionList, ok := closestForecast["weather"].([]interface{})
+            if !ok || len(conditionList) == 0 {
+                continue
+            }
+            conditionMap, ok := conditionList[0].(map[string]interface{})
+            if !ok {
+                continue
+            }
+
+            temperatureMap, ok := closestForecast["main"].(map[string]interface{})
+            if !ok {
+                continue
+            }
+
+            cityMap, ok := openWeatherData["city"].(map[string]interface{})
+            if !ok {
+                continue
+            }
+
+            sunrise := int64(cityMap["sunrise"].(float64))
+            sunset := int64(cityMap["sunset"].(float64))
 
             dt := int64(closestForecast["dt"].(float64))
             t := time.Unix(dt, 0).UTC()
@@ -123,21 +145,25 @@ func WeatherForecastHandler(c *gin.Context) {
 
             forecastResponse.Forecast = append(forecastResponse.Forecast, &models.Forecast{
                 Condition: &models.Condition{
-                    Name:        condition["main"].(string),
-                    Description: condition["description"].(string),
+                    Name:        conditionMap["main"].(string),
+                    Description: conditionMap["description"].(string),
                 },
                 Temperature: &models.Temperature{
-                    Current: temperature["temp"].(float64),
-                    Min:     temperature["temp_min"].(float64),
-                    Max:     temperature["temp_max"].(float64),
+                    Current: temperatureMap["temp"].(float64),
+                    Min:     temperatureMap["temp_min"].(float64),
+                    Max:     temperatureMap["temp_max"].(float64),
                 },
                 Sunrise:   sunrise,
                 Sunset:    sunset,
                 DayOfWeek: dayOfWeek,
             })
-        }
 
-        datesProcessed++
+            datesProcessed++
+
+            if datesProcessed >= 3 {
+                break
+            }
+        }
     }
 
     Respond(c, http.StatusOK, forecastResponse)

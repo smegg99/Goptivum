@@ -1,0 +1,41 @@
+.font-larger {
+	font-size: 1.75rem;
+}
+
+.font-large {
+	font-size: 1.5rem;
+}
+
+.font-medium {
+	font-size: 1.2rem;
+}
+
+.font-small {
+	font-size: 1.1rem;
+}
+
+.font-smaller {
+	font-size: 0.75rem;
+}
+
+@media (max-width: 767px) {
+	.font-larger {
+		font-size: 1.5rem;
+	}
+
+	.font-large {
+		font-size: 1.2rem;
+	}
+
+	.font-medium {
+		font-size: 1rem;
+	}
+
+	.font-small {
+		font-size: 0.85rem;
+	}
+
+	.font-smaller {
+		font-size: 0.6rem;
+	}
+}

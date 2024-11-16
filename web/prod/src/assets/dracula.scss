@@ -1,0 +1,64 @@
+.gradient-dracula-bg-primary {
+	background: linear-gradient(45deg, #8b3a64, #AD487C);
+}
+
+.gradient-dracula-bg-secondary {
+	background: linear-gradient(45deg, #6fa8b4, #5D9FAC);
+}
+
+.gradient-dracula-text-primary {
+	background: linear-gradient(45deg, #AD487C, #8b3a64);
+}
+
+.gradient-dracula-text-secondary {
+	background: linear-gradient(45deg, #5D9FAC, #6fa8b4);
+}
+
+.gradient-dracula-text-primary-accent {
+	background: linear-gradient(45deg, #ffffff, #F8F8F2);
+}
+
+.gradient-dracula-text-secondary-accent {
+	background: linear-gradient(45deg, #F8F8F2, #F8F8F2);
+}
+
+.gradient-dracula-text-air-very_good {
+	background: linear-gradient(45deg, #8BE9FD, #AFEFFE);
+}
+
+.gradient-dracula-text-air-good {
+	background: linear-gradient(45deg, #50FA7B, #74FB96);
+}
+
+.gradient-dracula-text-air-moderate {
+	background: linear-gradient(45deg, #A1FA84, #B5FB9D);
+}
+
+.gradient-dracula-text-air-unhealthy {
+	background: linear-gradient(45deg, #F1FA8C, #F3FB9D);
+}
+
+.gradient-dracula-text-air-very_unhealthy {
+	background: linear-gradient(45deg, #FFB86C, #FFC485);
+}
+
+.gradient-dracula-text-air-hazardous {
+	background: linear-gradient(45deg, #FF5555, #FF7070);
+}
+
+.gradient-dracula-text-primary,
+.gradient-dracula-text-secondary,
+.gradient-dracula-text-primary-accent,
+.gradient-dracula-text-secondary-accent,
+.gradient-dracula-text-air-very_good,
+.gradient-dracula-text-air-good,
+.gradient-dracula-text-air-moderate,
+.gradient-dracula-text-air-unhealthy,
+.gradient-dracula-text-air-very_unhealthy,
+.gradient-dracula-text-air-hazardous
+{
+	background-clip: text;
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	color: transparent;
+}
