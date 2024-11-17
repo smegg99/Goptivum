@@ -4,9 +4,9 @@ package routes
 import (
 	"os"
 
-	"smuggr.xyz/optivum-bsf/common/config"
-	"smuggr.xyz/optivum-bsf/common/models"
-	"smuggr.xyz/optivum-bsf/api/v1/handlers"
+	"smuggr.xyz/goptivum/api/v1/handlers"
+	"smuggr.xyz/goptivum/common/config"
+	"smuggr.xyz/goptivum/common/models"
 
 	//"github.com/didip/tollbooth"
 	//"github.com/didip/tollbooth_gin"
@@ -18,7 +18,7 @@ var Config config.APIConfig
 
 func Initialize(defaultRouter *gin.Engine, scheduleChannels *models.ScheduleChannels) {
 	Config = config.Global.API
-	
+
 	//defaultLimiter := tollbooth.NewLimiter(0.5, nil)
 	defaultRouter.Use(static.Serve("/", static.LocalFile(os.Getenv("DIST_PATH"), false)))
 

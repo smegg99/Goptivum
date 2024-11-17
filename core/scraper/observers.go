@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"smuggr.xyz/optivum-bsf/core/observer"
+	"smuggr.xyz/goptivum/core/observer"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
-func ObserveDivisions(refreshChan *chan int64)  {
+func ObserveDivisions(refreshChan *chan int64) {
 	fmt.Println("observing divisions")
 
 	refreshDivisionsObservers := func() {

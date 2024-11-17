@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"smuggr.xyz/optivum-bsf/common/models"
-	"smuggr.xyz/optivum-bsf/core/datastore"
-	"smuggr.xyz/optivum-bsf/core/scraper"
+	"smuggr.xyz/goptivum/common/models"
+	"smuggr.xyz/goptivum/core/datastore"
+	"smuggr.xyz/goptivum/core/scraper"
 
 	"github.com/gin-gonic/gin"
 )
@@ -52,7 +52,7 @@ func GetTeacherHandler(c *gin.Context) {
 	if err != nil {
 		Respond(c, http.StatusBadRequest, models.APIResponse{
 			Message: "invalid index",
-			Success: false,	
+			Success: false,
 		})
 		return
 	}
@@ -62,7 +62,7 @@ func GetTeacherHandler(c *gin.Context) {
 		if teacher == nil {
 			Respond(c, http.StatusNotFound, models.APIResponse{
 				Message: "teacher not found",
-				Success: false,	
+				Success: false,
 			})
 			return
 		}
@@ -86,7 +86,7 @@ func GetRoomHandler(c *gin.Context) {
 	if err != nil {
 		Respond(c, http.StatusBadRequest, models.APIResponse{
 			Message: "invalid index",
-			Success: false,	
+			Success: false,
 		})
 		return
 	}

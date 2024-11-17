@@ -7,12 +7,12 @@ import (
 	"strconv"
 	"sync"
 
-	"smuggr.xyz/optivum-bsf/common/config"
-	"smuggr.xyz/optivum-bsf/common/models"
-	"smuggr.xyz/optivum-bsf/common/utils"
-	"smuggr.xyz/optivum-bsf/core/datastore"
-	"smuggr.xyz/optivum-bsf/core/hub"
-	"smuggr.xyz/optivum-bsf/core/observer"
+	"smuggr.xyz/goptivum/common/config"
+	"smuggr.xyz/goptivum/common/models"
+	"smuggr.xyz/goptivum/common/utils"
+	"smuggr.xyz/goptivum/core/datastore"
+	"smuggr.xyz/goptivum/core/hub"
+	"smuggr.xyz/goptivum/core/observer"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -22,6 +22,7 @@ import (
 var Config config.ScraperConfig
 
 type ResourceType string
+
 const (
 	DivisionResource ResourceType = "division"
 	TeacherResource  ResourceType = "teacher"
@@ -33,6 +34,7 @@ func (t ResourceType) String() string {
 }
 
 type MetadataType string
+
 const (
 	DesignatorMetadata MetadataType = "designator"
 	FullNameMetadata   MetadataType = "fullname"
@@ -51,8 +53,8 @@ type ScraperResource struct {
 
 func NewScraperResource(indexRegex *regexp.Regexp, resourceType ResourceType) *ScraperResource {
 	return &ScraperResource{
-		Indexes:     []int64{},
-		Metadata:    &models.Metadata{
+		Indexes: []int64{},
+		Metadata: &models.Metadata{
 			Designators: make(map[string]*models.Duplicates),
 			FullNames:   make(map[string]*models.Duplicates),
 		},
@@ -102,7 +104,7 @@ func (s *ScraperResource) IsIndexInMetadata(index int64, metadataType MetadataTy
 func (s *ScraperResource) GetDesignatorFromIndex(index int64) string {
 	s.Mu.RLock()
 	defer s.Mu.RUnlock()
-	
+
 	if inDuplicates, designator := s.IsIndexInMetadata(index, DesignatorMetadata); inDuplicates {
 		return designator
 	}
@@ -113,7 +115,7 @@ func (s *ScraperResource) GetDesignatorFromIndex(index int64) string {
 func (s *ScraperResource) GetFullNameFromIndex(index int64) string {
 	s.Mu.RLock()
 	defer s.Mu.RUnlock()
-	
+
 	if inDuplicates, fullName := s.IsIndexInMetadata(index, FullNameMetadata); inDuplicates {
 		return fullName
 	}
@@ -390,7 +392,7 @@ func ScrapeDivisionsIndexes() ([]int64, error) {
 					return
 				}
 				endpoint := makeDivisionEndpoint(num)
-		
+
 				if !utils.CheckURL(Config.BaseUrl + endpoint) {
 					fmt.Printf("error opening division " + Config.BaseUrl + endpoint + "\n")
 					return
@@ -476,8 +478,8 @@ func Initialize() error {
 	Config = config.Global.Scraper
 
 	DivisionsScraperResource = NewScraperResource(DivisionIndexRegex, DivisionResource)
-	TeachersScraperResource  = NewScraperResource(TeacherIndexRegex, TeacherResource)
-	RoomsScraperResource     = NewScraperResource(RoomIndexRegex, RoomResource)
+	TeachersScraperResource = NewScraperResource(TeacherIndexRegex, TeacherResource)
+	RoomsScraperResource = NewScraperResource(RoomIndexRegex, RoomResource)
 
 	divisionsIndexes, err := ScrapeDivisionsIndexes()
 	if err != nil {
@@ -502,7 +504,7 @@ func Initialize() error {
 	roomsIndexesLength := int64(len(roomsIndexes))
 
 	fmt.Printf("starting with %d divisions, %d teachers, %d rooms\n", divisionsIndexesLength, teachersIndexesLength, roomsIndexesLength)
-	
+
 	if divisionsIndexesLength == 0 {
 		fmt.Printf("no divisions found despite %d workers\n", Config.Quantities.Workers.Division)
 	}

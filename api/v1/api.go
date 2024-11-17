@@ -6,9 +6,9 @@ import (
 	"os"
 	"strconv"
 
-	"smuggr.xyz/optivum-bsf/api/v1/routes"
-	"smuggr.xyz/optivum-bsf/common/config"
-	"smuggr.xyz/optivum-bsf/common/models"
+	"smuggr.xyz/goptivum/api/v1/routes"
+	"smuggr.xyz/goptivum/common/config"
+	"smuggr.xyz/goptivum/common/models"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/gzip"

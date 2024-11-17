@@ -2,8 +2,8 @@
 package routes
 
 import (
-	"smuggr.xyz/optivum-bsf/api/v1/handlers"
 	"github.com/gin-gonic/gin"
+	"smuggr.xyz/goptivum/api/v1/handlers"
 )
 
 func SetupWeatherRoutes(router *gin.Engine, rootGroup *gin.RouterGroup) {

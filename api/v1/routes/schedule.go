@@ -2,7 +2,7 @@
 package routes
 
 import (
-	"smuggr.xyz/optivum-bsf/api/v1/handlers"
+	"smuggr.xyz/goptivum/api/v1/handlers"
 
 	"github.com/gin-gonic/gin"
 )
@@ -32,6 +32,6 @@ func SetupScheduleRoutes(router *gin.Engine, rootGroup *gin.RouterGroup) {
 	}
 	roomsGroup := rootGroup.Group("/rooms")
 	{
-		roomsGroup.GET("/", handlers.GetRoomsHandler)	
+		roomsGroup.GET("/", handlers.GetRoomsHandler)
 	}
 }

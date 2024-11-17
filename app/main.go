@@ -7,11 +7,11 @@ import (
 	"os/signal"
 	"syscall"
 
-	"smuggr.xyz/optivum-bsf/api/v1"
-	"smuggr.xyz/optivum-bsf/common/config"
-	"smuggr.xyz/optivum-bsf/common/models"
-	"smuggr.xyz/optivum-bsf/core/datastore"
-	"smuggr.xyz/optivum-bsf/core/scraper"
+	v1 "smuggr.xyz/goptivum/api/v1"
+	"smuggr.xyz/goptivum/common/config"
+	"smuggr.xyz/goptivum/common/models"
+	"smuggr.xyz/goptivum/core/datastore"
+	"smuggr.xyz/goptivum/core/scraper"
 )
 
 func WaitForTermination() {
@@ -27,7 +27,7 @@ func Cleanup() {
 	fmt.Println("cleaning up...")
 
 	scraper.Cleanup()
-	datastore.Cleanup();
+	datastore.Cleanup()
 }
 
 func main() {
@@ -49,7 +49,7 @@ func main() {
 		Teachers: scraper.TeachersScraperResource.RefreshChan,
 		Rooms:    scraper.RoomsScraperResource.RefreshChan,
 	})
-	
+
 	defer Cleanup()
 
 	WaitForTermination()

@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"smuggr.xyz/optivum-bsf/core/observer"
+	"smuggr.xyz/goptivum/core/observer"
 )
 
 type Hub struct {
@@ -18,7 +18,7 @@ type Hub struct {
 	tasksCh     chan *observer.Observer
 	workerCount int64
 	wg          sync.WaitGroup
-	mu 		    sync.RWMutex
+	mu          sync.RWMutex
 	quitCh      chan struct{}
 	client      *http.Client
 }
@@ -73,24 +73,23 @@ func (h *Hub) RemoveObserver(index int64) {
 }
 
 func (h *Hub) GetObserver(index int64) *observer.Observer {
-    h.mu.RLock()
-    defer h.mu.RUnlock()
-    return h.observers[index]
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.observers[index]
 }
 
 func (h *Hub) GetAllObservers(ignoreFirst bool) map[int64]*observer.Observer {
-    h.mu.RLock()
-    defer h.mu.RUnlock()
-    copyMap := make(map[int64]*observer.Observer, len(h.observers))
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	copyMap := make(map[int64]*observer.Observer, len(h.observers))
 	if ignoreFirst {
 		delete(copyMap, 0)
 	}
-    for k, v := range h.observers {
-        copyMap[k] = v
-    }
-    return copyMap
+	for k, v := range h.observers {
+		copyMap[k] = v
+	}
+	return copyMap
 }
-
 
 func (h *Hub) worker(id int64) {
 	defer h.wg.Done()
@@ -100,7 +99,7 @@ func (h *Hub) worker(id int64) {
 		select {
 		case o := <-h.tasksCh:
 			fmt.Printf("worker %d: processing observer with URL: %s\n", id, o.URL)
-			ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 
 			// It's safe to defer cancel here because it's called before the next iteration
 			// However, to avoid multiple defers in a loop, I'll call cancel manually
@@ -114,7 +113,7 @@ func (h *Hub) worker(id int64) {
 					fmt.Printf("worker %d: no callback for observer with URL: %s\n", id, o.URL)
 				}
 			}
-			
+
 		case <-h.quitCh:
 			fmt.Printf("stopping worker of id %d\n", id)
 			return
@@ -123,64 +122,64 @@ func (h *Hub) worker(id int64) {
 }
 
 func (h *Hub) scheduler() {
-    defer h.wg.Done()
-    ticker := time.NewTicker(1 * time.Second)
-    defer ticker.Stop()
+	defer h.wg.Done()
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
 
-    for {
-        select {
-        case o := <-h.addCh:
-            h.mu.Lock()
-            if _, exists := h.observers[o.Index]; exists {
-                fmt.Printf("observer of index %d already exists\n", o.Index)
-            } else {
+	for {
+		select {
+		case o := <-h.addCh:
+			h.mu.Lock()
+			if _, exists := h.observers[o.Index]; exists {
+				fmt.Printf("observer of index %d already exists\n", o.Index)
+			} else {
 				o.Mu.Lock()
-                o.Hash = ""
+				o.Hash = ""
 				o.Mu.Unlock()
-                h.observers[o.Index] = o
-                fmt.Printf("added observer of index: %d\n", o.Index)
-            }
-            h.mu.Unlock()
+				h.observers[o.Index] = o
+				fmt.Printf("added observer of index: %d\n", o.Index)
+			}
+			h.mu.Unlock()
 
-        case _index := <-h.removeCh:
-            index, ok := _index.(int64)
-            if !ok {
-                fmt.Printf("invalid type for index: %T\n", _index)
-                continue
-            }
+		case _index := <-h.removeCh:
+			index, ok := _index.(int64)
+			if !ok {
+				fmt.Printf("invalid type for index: %T\n", _index)
+				continue
+			}
 
-            h.mu.Lock()
-            if o, exists := h.observers[index]; exists {
+			h.mu.Lock()
+			if o, exists := h.observers[index]; exists {
 				o.Mu.Lock()
-                delete(h.observers, index)
-                fmt.Printf("removed observer of index: %d\n", index)
-                o.Hash = ""
+				delete(h.observers, index)
+				fmt.Printf("removed observer of index: %d\n", index)
+				o.Hash = ""
 				o.Mu.Unlock()
-            } else {
-                fmt.Printf("observer of index %d does not exist\n", index)
-            }
-            h.mu.Unlock()
+			} else {
+				fmt.Printf("observer of index %d does not exist\n", index)
+			}
+			h.mu.Unlock()
 
-        case <-ticker.C:
-            now := time.Now()
-            h.mu.RLock()
-            for _, o := range h.observers {
+		case <-ticker.C:
+			now := time.Now()
+			h.mu.RLock()
+			for _, o := range h.observers {
 				o.Mu.Lock()
-                if o.NextRun.Before(now) || o.NextRun.Equal(now) {
-                    o.NextRun = now.Add(o.Interval)
+				if o.NextRun.Before(now) || o.NextRun.Equal(now) {
+					o.NextRun = now.Add(o.Interval)
 					select {
 					case h.tasksCh <- o:
 					case <-time.After(10 * time.Second):
 						fmt.Printf("timed out sending observer with URL: %s to tasksCh\n", o.URL)
 					}
-                }
+				}
 				o.Mu.Unlock()
-            }
-            h.mu.RUnlock()
+			}
+			h.mu.RUnlock()
 
-        case <-h.quitCh:
-            fmt.Println("stopping scheduler")
-            return
-        }
-    }
+		case <-h.quitCh:
+			fmt.Println("stopping scheduler")
+			return
+		}
+	}
 }

@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
-	"smuggr.xyz/optivum-bsf/common/models"
-	"smuggr.xyz/optivum-bsf/common/utils"
-	"smuggr.xyz/optivum-bsf/core/datastore"
-	"smuggr.xyz/optivum-bsf/core/observer"
+	"smuggr.xyz/goptivum/common/models"
+	"smuggr.xyz/goptivum/common/utils"
+	"smuggr.xyz/goptivum/core/datastore"
+	"smuggr.xyz/goptivum/core/observer"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -37,11 +37,11 @@ func waitForFirstRefresh() {
 	totalObservers := divisionObservers + teacherObservers + roomObservers
 
 	if totalObservers > 0 {
-        wg.Add(totalObservers)
-    } else {
-        fmt.Println("no observers to wait for")
-        return
-    }
+		wg.Add(totalObservers)
+	} else {
+		fmt.Println("no observers to wait for")
+		return
+	}
 
 	waitForRefresh := func(ch <-chan int64, count int) {
 		fmt.Println("waiting for refresh:", count)
@@ -148,49 +148,49 @@ func parseTimeRange(s string) (models.TimeRange, error) {
 }
 
 func parseLesson(rowElement *goquery.Selection, timeRange *models.TimeRange) ([]*models.Lesson, error) {
-    var lessons []*models.Lesson
+	var lessons []*models.Lesson
 
-    html, err := rowElement.Html()
-    if err != nil {
-        return nil, fmt.Errorf("error getting HTML content: %v", err)
-    }
+	html, err := rowElement.Html()
+	if err != nil {
+		return nil, fmt.Errorf("error getting HTML content: %v", err)
+	}
 
-    html = strings.ReplaceAll(html, "<br>", "<br/>")
-    segments := strings.Split(html, "<br/>")
+	html = strings.ReplaceAll(html, "<br>", "<br/>")
+	segments := strings.Split(html, "<br/>")
 
-    for _, segment := range segments {
-        segment = strings.TrimSpace(segment)
-        if segment == "" || segment == "&nbsp;" {
-            continue
-        }
+	for _, segment := range segments {
+		segment = strings.TrimSpace(segment)
+		if segment == "" || segment == "&nbsp;" {
+			continue
+		}
 
-        segmentHTML := "<div>" + segment + "</div>"
+		segmentHTML := "<div>" + segment + "</div>"
 
-        segmentDoc, err := goquery.NewDocumentFromReader(strings.NewReader(segmentHTML))
-        if err != nil {
-            fmt.Println("error parsing segment:", err)
-            continue
-        }
+		segmentDoc, err := goquery.NewDocumentFromReader(strings.NewReader(segmentHTML))
+		if err != nil {
+			fmt.Println("error parsing segment:", err)
+			continue
+		}
 
-        lessonName := strings.TrimSpace(segmentDoc.Find("span.p").First().Text())
-        if lessonName == "" {
-            lessonName = strings.TrimSpace(segmentDoc.Text())
-        }
-        teacher := strings.TrimSpace(segmentDoc.Find("a.n").First().Text())
-        division := strings.TrimSpace(segmentDoc.Find("a.o").First().Text())
-        room := strings.TrimSpace(segmentDoc.Find("a.s").First().Text())
+		lessonName := strings.TrimSpace(segmentDoc.Find("span.p").First().Text())
+		if lessonName == "" {
+			lessonName = strings.TrimSpace(segmentDoc.Text())
+		}
+		teacher := strings.TrimSpace(segmentDoc.Find("a.n").First().Text())
+		division := strings.TrimSpace(segmentDoc.Find("a.o").First().Text())
+		room := strings.TrimSpace(segmentDoc.Find("a.s").First().Text())
 
-        lesson := &models.Lesson{
-            TimeRange:          timeRange,
-            FullName:           lessonName,
-            TeacherDesignator:  teacher,
-            DivisionDesignator: division,
-            RoomDesignator:     room,
-        }
-        lessons = append(lessons, lesson)
-    }
+		lesson := &models.Lesson{
+			TimeRange:          timeRange,
+			FullName:           lessonName,
+			TeacherDesignator:  teacher,
+			DivisionDesignator: division,
+			RoomDesignator:     room,
+		}
+		lessons = append(lessons, lesson)
+	}
 
-    return lessons, nil
+	return lessons, nil
 }
 func scrapeTitle(doc *goquery.Document) (string, error) {
 	titleSelection := doc.Find("span.tytulnapis").First()
@@ -364,8 +364,8 @@ func newDivisionObserver(index int64, refreshChan *chan int64) *observer.Observe
 		}
 	}
 
-	url := fmt.Sprintf(Config.BaseUrl + Config.Endpoints.Division, index)
-	interval := time.Duration((index + 1) / 10 + 5) * time.Second
+	url := fmt.Sprintf(Config.BaseUrl+Config.Endpoints.Division, index)
+	interval := time.Duration((index+1)/10+5) * time.Second
 
 	return observer.NewObserver(index, url, interval, extractFunc, callbackFunc)
 }
@@ -401,8 +401,8 @@ func newTeacherObserver(index int64, refreshChan *chan int64) *observer.Observer
 		}
 	}
 
-	url := fmt.Sprintf(Config.BaseUrl + Config.Endpoints.Teacher, index)
-	interval := time.Duration((index + 1) / 10 + 5) * time.Second
+	url := fmt.Sprintf(Config.BaseUrl+Config.Endpoints.Teacher, index)
+	interval := time.Duration((index+1)/10+5) * time.Second
 
 	return observer.NewObserver(index, url, interval, extractFunc, callbackFunc)
 }
@@ -410,7 +410,7 @@ func newTeacherObserver(index int64, refreshChan *chan int64) *observer.Observer
 func newRoomObserver(index int64, refreshChan *chan int64) *observer.Observer {
 	extractFunc := func(doc *goquery.Document) string {
 		var content []string
-		
+
 		doc.Find("a").Each(func(i int, s *goquery.Selection) {
 			href, exists := s.Attr("href")
 			if exists {
@@ -440,8 +440,8 @@ func newRoomObserver(index int64, refreshChan *chan int64) *observer.Observer {
 		}
 	}
 
-	url := fmt.Sprintf(Config.BaseUrl + Config.Endpoints.Room, index)
-	interval := time.Duration((index + 1) / 10 + 5) * time.Second
+	url := fmt.Sprintf(Config.BaseUrl+Config.Endpoints.Room, index)
+	interval := time.Duration((index+1)/10+5) * time.Second
 
 	return observer.NewObserver(index, url, interval, extractFunc, callbackFunc)
 }

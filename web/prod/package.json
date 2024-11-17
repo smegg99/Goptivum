@@ -1,6 +1,6 @@
 {
-  "name": "optivum-better-schedule-frontend",
-  "version": "0.0.0",
+  "name": "goptivum",
+  "version": "1.0.3",
   "scripts": {
     "build": "vue-tsc --noEmit && vite build",
     "dev": "vite",
