@@ -28,6 +28,12 @@ const routes = [
     meta: { titleKey: 'page.rooms' } 
   },
   { 
+    path: '/map', 
+    component: MainPage, 
+    props: (route: RouteLocationNormalized) => ({ id: route.params.id as string }), 
+    meta: { titleKey: 'page.map' } 
+  },
+  { 
     path: '/division/:id', 
     component: ScheduleTable, 
     props: (route: RouteLocationNormalized) => ({ id: route.params.id as string, type: 'division' }), 

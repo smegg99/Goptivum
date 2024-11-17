@@ -1,13 +1,13 @@
 <!-- pages/ResourcePage.vue -->
 <template>
 	<div ref="rootElementRef" :key="route.path">
-		<v-slide-y-reverse-transition appear>
+		<v-slide-y-transition appear>
 			<v-card class="search-container pa-0" elevation="8" rounded="pill">
 				<v-text-field v-model="search" class="search" :label="t(`search.${type}`)"
 					prepend-inner-icon="mdi-magnify" variant="solo" rounded="pill" hide-details="auto"
 					@input="debouncedSearch" />
 			</v-card>
-		</v-slide-y-reverse-transition>
+		</v-slide-y-transition>
 
 		<component :is="gridWrapper">
 			<v-container class="scrollable-grid pa-0">

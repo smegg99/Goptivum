@@ -43,6 +43,15 @@ func Initialize() error {
 	viper.AddConfigPath(os.Getenv("CONFIG_PATH"))
 	viper.SetConfigType(os.Getenv("CONFIG_TYPE"))
 
+	configPurpose := os.Getenv("CONFIG_PURPOSE")
+	if configPurpose == "test" {
+		viper.SetConfigName("test_config")
+	} else if configPurpose == "prod" {
+		viper.SetConfigName("config")
+	} else {
+		return fmt.Errorf("invalid CONFIG_PURPOSE: %s", configPurpose)
+	}
+
 	if err := loadConfig(&Global); err != nil {
 		return err
 	}

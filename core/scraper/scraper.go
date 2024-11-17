@@ -376,6 +376,8 @@ func ScrapeDivisionsIndexes() ([]int64, error) {
 	}
 
 	indexes := []int64{}
+	indexes = append(indexes, Config.StaticIndexes.Divisions...)
+
 	doc.Find("a").Each(func(index int, element *goquery.Selection) {
 		href, exists := element.Attr("href")
 		if exists {
@@ -408,6 +410,7 @@ func ScrapeTeachersIndexes() ([]int64, error) {
 	}
 
 	indexes := []int64{}
+	indexes = append(indexes, Config.StaticIndexes.Teachers...)
 
 	doc.Find("a").Each(func(index int, element *goquery.Selection) {
 		href, exists := element.Attr("href")
@@ -441,6 +444,7 @@ func ScrapeRoomsIndexes() ([]int64, error) {
 	}
 
 	indexes := []int64{}
+	indexes = append(indexes, Config.StaticIndexes.Rooms...)
 
 	doc.Find("a").Each(func(index int, element *goquery.Selection) {
 		href, exists := element.Attr("href")

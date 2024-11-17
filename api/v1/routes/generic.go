@@ -4,8 +4,8 @@ package routes
 import (
 	"fmt"
 
-	"smuggr.xyz/optivum-bsf/common/models"
 	"smuggr.xyz/optivum-bsf/api/v1/handlers"
+	"smuggr.xyz/optivum-bsf/common/models"
 	"smuggr.xyz/optivum-bsf/core/sse"
 
 	"github.com/gin-gonic/gin"
@@ -17,9 +17,9 @@ func SetupGenericRoutes(router *gin.Engine, rootGroup *gin.RouterGroup, schedule
 		healthGroup.GET("/ping", handlers.PingHandler)
 	}
 
-	var DivisionsHub = sse.NewHub()
-	var TeachersHub = sse.NewHub()
-	var RoomsHub = sse.NewHub()
+	var DivisionsHub = sse.NewHub(Config.MaxSSEClients)
+	var TeachersHub = sse.NewHub(Config.MaxSSEClients)
+	var RoomsHub = sse.NewHub(Config.MaxSSEClients)
 
 	go DivisionsHub.Run()	
 	go TeachersHub.Run()

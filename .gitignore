@@ -27,3 +27,7 @@ go.work.sum
 app/db
 app/dist
 build
+web/prod/basement_floor.jpg
+web/prod/first_floor.jpg
+web/prod/ground_floor.jpg
+web/prod/second_floor.jpg

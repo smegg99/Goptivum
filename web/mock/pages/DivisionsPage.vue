@@ -30,7 +30,7 @@
 										7:00- 7:45
 									</td>
 									<td class="l">
-										Smoking Pot
+										Palenie zioła
 									</td>
 									<td class="l">
 										Zajęcia w ZPKZ

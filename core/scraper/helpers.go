@@ -35,13 +35,26 @@ func waitForFirstRefresh() {
 	roomObservers := len(RoomsScraperResource.Hub.GetAllObservers(true))
 
 	totalObservers := divisionObservers + teacherObservers + roomObservers
-	wg.Add(totalObservers)
+
+	if totalObservers > 0 {
+        wg.Add(totalObservers)
+    } else {
+        fmt.Println("no observers to wait for")
+        return
+    }
 
 	waitForRefresh := func(ch <-chan int64, count int) {
-		for i := 0; i <= count; i++ {
+		fmt.Println("waiting for refresh:", count)
+		for i := 0; i < count; i++ {
 			go func() {
 				<-ch
-				wg.Done()
+				select {
+				case <-ch:
+					wg.Done()
+				case <-time.After(20 * time.Second):
+					fmt.Println("timed out waiting for refresh")
+					wg.Done()
+				}
 			}()
 		}
 	}
@@ -56,7 +69,7 @@ func waitForFirstRefresh() {
 		close(done)
 	}()
 
-	// Some observers may not refresh so we
+	// Some observers might not refresh so we
 	// need to wait for a certain amount of time
 	select {
 	case <-done:
@@ -352,7 +365,7 @@ func newDivisionObserver(index int64, refreshChan *chan int64) *observer.Observe
 	}
 
 	url := fmt.Sprintf(Config.BaseUrl + Config.Endpoints.Division, index)
-	interval := time.Duration((index + 1) / 10 + 15) * time.Second
+	interval := time.Duration((index + 1) / 10 + 5) * time.Second
 
 	return observer.NewObserver(index, url, interval, extractFunc, callbackFunc)
 }
@@ -389,7 +402,7 @@ func newTeacherObserver(index int64, refreshChan *chan int64) *observer.Observer
 	}
 
 	url := fmt.Sprintf(Config.BaseUrl + Config.Endpoints.Teacher, index)
-	interval := time.Duration((index + 1) / 10 + 15) * time.Second
+	interval := time.Duration((index + 1) / 10 + 5) * time.Second
 
 	return observer.NewObserver(index, url, interval, extractFunc, callbackFunc)
 }
@@ -428,7 +441,7 @@ func newRoomObserver(index int64, refreshChan *chan int64) *observer.Observer {
 	}
 
 	url := fmt.Sprintf(Config.BaseUrl + Config.Endpoints.Room, index)
-	interval := time.Duration((index + 1) / 10 + 15) * time.Second
+	interval := time.Duration((index + 1) / 10 + 5) * time.Second
 
 	return observer.NewObserver(index, url, interval, extractFunc, callbackFunc)
 }

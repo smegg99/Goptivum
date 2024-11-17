@@ -25,7 +25,7 @@
 							<v-icon :class="textGradPrimaryAccent">mdi-cog-outline</v-icon>
 						</template>
 						<template #title>
-							<span :class="textGradPrimaryAccent">{{ t('page.settings') }}</span>
+							<span :class="[textGradPrimaryAccent, 'nav-item-title']">{{ t('page.settings') }}</span>
 						</template>
 					</v-list-item>
 				</v-list>
@@ -34,11 +34,10 @@
 	</v-navigation-drawer>
 
 	<v-slide-x-transition appear>
-		<v-card class=" menu-card rounded-pill" elevation="8" @click="drawer = !drawer">
+		<v-card class="menu-card rounded-pill" elevation="8" @click="drawer = !drawer">
 			<v-btn icon="mdi-menu" :ripple="true" />
 		</v-card>
 	</v-slide-x-transition>
-
 
 	<v-main>
 		<div class="background-container">
@@ -80,6 +79,11 @@ const items = computed(() => [
 		prependIcon: 'mdi-door',
 		route: '/rooms',
 	},
+	// {
+	// 	title: t('page.map'),
+	// 	prependIcon: 'mdi-map-outline',
+	// 	route: '/map',
+	// },
 ]);
 </script>
 

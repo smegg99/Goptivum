@@ -100,7 +100,7 @@ func (h *Hub) worker(id int64) {
 		select {
 		case o := <-h.tasksCh:
 			fmt.Printf("worker %d: processing observer with URL: %s\n", id, o.URL)
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
 
 			// It's safe to defer cancel here because it's called before the next iteration
 			// However, to avoid multiple defers in a loop, I'll call cancel manually
@@ -108,9 +108,13 @@ func (h *Hub) worker(id int64) {
 			cancel()
 
 			if changed {
-				go o.Callback()
+				if o.Callback != nil {
+					go o.Callback()
+				} else {
+					fmt.Printf("worker %d: no callback for observer with URL: %s\n", id, o.URL)
+				}
 			}
-
+			
 		case <-h.quitCh:
 			fmt.Printf("stopping worker of id %d\n", id)
 			return
@@ -164,7 +168,11 @@ func (h *Hub) scheduler() {
 				o.Mu.Lock()
                 if o.NextRun.Before(now) || o.NextRun.Equal(now) {
                     o.NextRun = now.Add(o.Interval)
-                    h.tasksCh <- o
+					select {
+					case h.tasksCh <- o:
+					case <-time.After(10 * time.Second):
+						fmt.Printf("timed out sending observer with URL: %s to tasksCh\n", o.URL)
+					}
                 }
 				o.Mu.Unlock()
             }

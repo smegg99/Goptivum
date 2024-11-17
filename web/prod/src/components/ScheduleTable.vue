@@ -31,8 +31,8 @@
 												? breakBackgroundClass
 												: '',
 									]" :style="!isCurrentLesson(lessonGroup, dayIndex) && !isNextLessonDuringBreak(day, groupIndex)
-										? { backgroundColor: getRowColor(groupIndex) }
-										: {}">
+												? { backgroundColor: getRowColor(groupIndex) }
+												: {}">
 										<td class="narrower-column">
 											<span class="schedule-no">{{ groupIndex + 1 }}.</span>
 										</td>
@@ -86,6 +86,24 @@
 
 				<!-- Desktop View -->
 				<template v-else-if="scheduleData && !notFound">
+					<v-slide-x-reverse-transition appear>
+						<div class="fabs-container">
+							<v-btn icon="mdi-qrcode" elevation="8" class="fab rounded-pill" color="primary"
+								@click="generateQR" />
+						</div>
+					</v-slide-x-reverse-transition>
+					<v-dialog v-model="qrDialog" max-width="400">
+						<v-card rounded="xl">
+							<v-card-text class="pa-0">
+								<canvas ref="qrCodeContainer" style="display: block; margin: auto;"></canvas>
+							</v-card-text>
+							<v-card-actions>
+								<v-btn color="primary" @click="qrDialog = false">
+									{{ t('page.close') }}
+								</v-btn>
+							</v-card-actions>
+						</v-card>
+					</v-dialog>
 					<v-table class="schedule-table">
 						<thead>
 							<tr>
@@ -180,11 +198,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, computed, watch, onUnmounted, nextTick } from 'vue';
 import axios from 'axios';
 import { useI18n } from 'vue-i18n';
 import { useTheme } from 'vuetify';
 import { useBackgroundGradientClass } from '@/composables/useThemeStyles';
+import QRCode from 'qrcode';
 
 const props = defineProps<{ id: string; type: 'teacher' | 'room' | 'division' }>();
 
@@ -230,11 +249,15 @@ interface IndexesResponse {
 
 const { t } = useI18n();
 const theme = useTheme();
+let eventSource: EventSource | null = null;
 
 const mobileViewBreakpoint = 895;
 
 const currentLessonBackgroundClass = useBackgroundGradientClass('schedule_current_lesson').value;
 const breakBackgroundClass = useBackgroundGradientClass('schedule_break').value;
+
+const qrDialog = ref(false);
+const qrCodeContainer = ref<HTMLDivElement | null>(null);
 
 const scheduleData = ref<DivisionData | null>(null);
 const title = computed(() => {
@@ -266,7 +289,39 @@ const activeTab = ref(0);
 
 window.addEventListener('resize', () => {
 	isMobileView.value = window.innerWidth < mobileViewBreakpoint;
+	if (isMobileView.value) {
+		qrCodeContainer.value = null;
+		qrDialog.value = false;
+	}
 });
+
+async function generateQR() {
+	const currentUrl = window.location.href;
+	try {
+		qrDialog.value = true;
+		await nextTick();
+
+		if (!qrCodeContainer.value) {
+			console.error('QR Code container (canvas) not found.');
+			return;
+		}
+
+		const colors = theme.current.value.colors;
+
+		await QRCode.toCanvas(qrCodeContainer.value, currentUrl, {
+			errorCorrectionLevel: 'L',
+			maskPattern: 0,
+			color: {
+				dark: colors.textPrimary,
+				light: colors.surface,
+			},
+			width: 400,
+			margin: 2,
+		});
+	} catch (error) {
+		console.error('Failed to generate QR code:', error);
+	}
+}
 
 const getRowColor = (rowIndex: number) => {
 	const colors = theme.current.value.colors;
@@ -337,15 +392,50 @@ const fetchData = async () => {
 	}
 };
 
-onMounted(fetchData);
+const setupSSE = () => {
+	cleanupSSE();
+
+	const endpoint = `/api/v1/events/${props.type}s`;
+	eventSource = new EventSource(endpoint);
+
+	eventSource.onmessage = (event) => {
+		const index = parseInt(event.data, 10);
+
+		if (index === parseInt(props.id, 10)) {
+			console.log(`Received update for ${props.type} with index ${index}, refreshing data...`);
+			fetchData();
+		}
+	};
+
+	eventSource.onerror = (error) => {
+		console.error(`SSE error on ${endpoint}:`, error);
+		eventSource?.close();
+	};
+};
+
+const cleanupSSE = () => {
+	if (eventSource) {
+		eventSource.close();
+		eventSource = null;
+	}
+};
+
+onMounted(() => {
+	fetchData();
+	setupSSE();
+});
+
+onUnmounted(() => {
+	cleanupSSE();
+});
 
 watch(
 	() => [props.id, props.type],
 	() => {
 		fetchData();
+		setupSSE();
 	}
 );
-
 
 const currentTime = ref(new Date());
 
@@ -552,12 +642,43 @@ function formatTime(time: TimeRange | undefined): string {
 	gap: 0;
 	padding: 0;
 	margin: 0;
-	margin-bottom: 4vh;
+	// margin-bottom: 4vh;
 }
 
 .grid-item {
 	max-width: 100%;
 	padding: 0;
+}
+
+.fabs-container {
+	display: flex;
+	flex-direction: row;
+	gap: 16px;
+	position: fixed;
+	top: 16px;
+	right: 16px;
+	z-index: 100;
+}
+
+.fab {
+	width: 56px;
+	height: 56px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.menu-card {
+	z-index: 999;
+	width: 32px;
+	aspect-ratio: 1 / 1;
+	display: inline-flex;
+	padding: 32px;
+	align-items: center;
+	justify-content: center;
+	position: fixed;
+	top: 16px;
+	left: 16px;
 }
 
 .schedule-container {
@@ -567,7 +688,7 @@ function formatTime(time: TimeRange | undefined): string {
 .schedule-table {
 	width: 100%;
 	table-layout: fixed;
-	border: 1px solid rgb(var(--v-theme-scheduleBorder));
+	border: 2px solid rgb(var(--v-theme-scheduleBorder));
 }
 
 .v-table td,
@@ -685,6 +806,13 @@ function formatTime(time: TimeRange | undefined): string {
 	background: transparent;
 }
 
+@media (max-width: 1279px) {
+	.fab {
+		width: 64px;
+		height: 64px;
+	}
+}
+
 @media (max-width: 894px) {
 	.current-lesson-row {
 		background-color: rgb(var(--v-theme-scheduleCurrentLessonBackground));
@@ -793,6 +921,7 @@ function formatTime(time: TimeRange | undefined): string {
 }
 
 @media (max-width: 545px) {
+
 	.schedule-table th.narrow-column,
 	.schedule-table td.narrow-column {
 		width: 10%;

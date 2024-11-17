@@ -132,6 +132,7 @@ onUnmounted(() => {
 
 .designator {
 	font-size: clamp(0.85rem, 1vw + 0.3rem, 1rem);
+	letter-spacing: 0.15rem;
 	font-weight: 600;
 	text-align: center;
 	white-space: nowrap;

@@ -1,3 +1,5 @@
+import { map } from "lodash";
+
 export default {
 	greeting: 'Привіт, світе',
 	language: {
@@ -117,6 +119,8 @@ export default {
 	},
 	page: {
 		title: 'GOptivum - Кращий Розклад',
+		qr_code: 'QR-код',
+		close: 'Закрити',
 		not_found: 'Сторінку не знайдено',
 		no_schedule: 'Розклад на цей день відсутній',
 		no_divisions: 'Класів не знайдено',
@@ -126,6 +130,7 @@ export default {
 		teachers_error: 'Помилка завантаження вчителів',
 		rooms_error: 'Помилка завантаження кімнат',
 		home: 'Головна',
+		map: 'Карта',
 		divisions: 'Класи',
 		division: 'Клас - {id}',
 		teachers: 'Вчителі',

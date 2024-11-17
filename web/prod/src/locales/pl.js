@@ -1,3 +1,5 @@
+import { map } from "lodash";
+
 export default {
 	greeting: 'Witaj świecie',
 	language: {
@@ -117,6 +119,8 @@ export default {
 	},
 	page: {
 		title: 'GOptivum - Lepszy Plan Lekcji',
+		qr_code: 'Kod QR',
+		close: 'Zamknij',
 		not_found: 'Nie znaleziono strony',
 		no_schedule: 'Brak planu na ten dzień',
 		no_divisions: 'Nie znaleziono klas',
@@ -126,6 +130,7 @@ export default {
 		teachers_error: 'Błąd podczas pobierania nauczycieli',
 		rooms_error: 'Błąd podczas pobierania sal',
 		home: 'Strona główna',
+		map: 'Mapa',
 		divisions: 'Klasy',
 		division: 'Klasa - {id}',
 		teachers: 'Nauczyciele',

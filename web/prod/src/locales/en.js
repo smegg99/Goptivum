@@ -117,6 +117,8 @@ export default {
 	},
 	page: {
 		title: 'GOptivum - A Better Timetable',
+		qr_code: 'QR Code',
+		close: 'Close',
 		not_found: 'Page not found',
 		no_schedule: 'No schedule for this day',
 		no_divisions: 'No classes found',
@@ -126,6 +128,7 @@ export default {
 		teachers_error: 'Error fetching teachers',
 		rooms_error: 'Error fetching rooms',
 		home: 'Home',
+		map: 'Map',
 		divisions: 'Classes',
 		division: 'Class - {id}',
 		teachers: 'Teachers',

@@ -20,10 +20,17 @@ type scraperQuantities struct {
 	Workers quantitiesWorkers `mapstructure:"workers"`
 }
 
+type scraperStaticIndexes struct {
+	Divisions []int64 `mapstructure:"divisions"`
+	Teachers  []int64 `mapstructure:"teachers"`
+	Rooms     []int64 `mapstructure:"rooms"`
+}
+
 type ScraperConfig struct {
-	BaseUrl    string            `mapstructure:"base_url"`
-	Endpoints  scraperEndpoints  `mapstructure:"endpoints"`
-	Quantities scraperQuantities `mapstructure:"quantities"`
+	BaseUrl       string               `mapstructure:"base_url"`
+	Endpoints     scraperEndpoints     `mapstructure:"endpoints"`
+	Quantities    scraperQuantities    `mapstructure:"quantities"`
+	StaticIndexes scraperStaticIndexes `mapstructure:"static_indexes"`
 }
 
 type openWeatherEndpoints struct {
@@ -40,8 +47,9 @@ type openWeatherConfig struct {
 }
 
 type APIConfig struct {
-	Port        int16            `mapstructure:"port"`
-	OpenWeather openWeatherConfig `mapstructure:"open_weather"`
+	Port          int16             `mapstructure:"port"`
+	OpenWeather   openWeatherConfig `mapstructure:"open_weather"`
+	MaxSSEClients int16             `mapstructure:"max_sse_clients"`
 }
 
 type GlobalConfig struct {
