@@ -292,7 +292,7 @@ function getConditionIcon(conditionName: string) {
   return conditionIcons[conditionName] || 'mdi-weather-sunny';
 }
 
-let intervalId: number | null = null;
+let intervalId: ReturnType<typeof setInterval> | null = null;
 
 onMounted(() => {
   fetchWeatherData();

@@ -38,7 +38,7 @@ func (h *Hub) Run() {
         select {
         case client := <-h.register:
             h.mu.Lock()
-            if int16(len(h.clients)) < h.maxClients {
+            if len(h.clients) < int(h.maxClients) {
                 h.clients[client] = true
                 fmt.Println("client registered, total:", len(h.clients))
             } else {
