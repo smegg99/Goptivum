@@ -7,10 +7,11 @@
 					<v-list-item v-for="item in items" :key="item.route" :to="item.route" nav link
 						class="ma-2 nav-item overflow-visible" rounded="xl">
 						<template #prepend>
-							<v-icon :class="textGradPrimaryAccent">{{ item.prependIcon }}</v-icon>
+							<v-icon>{{ item.prependIcon }}</v-icon>
 						</template>
 						<template #title>
-							<span :class="[textGradPrimaryAccent, 'nav-item-title']">{{ item.title }}</span>
+							<!-- <span :class="['nav-item-title', textGradPrimaryAccent]">{{ item.title }}</span> -->
+							<span class="nav-item-title">{{ item.title }}</span>
 						</template>
 					</v-list-item>
 				</v-list>
@@ -22,10 +23,10 @@
 				<v-list nav density="default">
 					<v-list-item class="ma-3 nav-item" nav link :to="'/settings'" rounded="xl">
 						<template #prepend>
-							<v-icon :class="textGradPrimaryAccent">mdi-cog-outline</v-icon>
+							<v-icon>mdi-cog-outline</v-icon>
 						</template>
 						<template #title>
-							<span :class="[textGradPrimaryAccent, 'nav-item-title']">{{ t('page.settings') }}</span>
+							<span class="nav-item-title">{{ t('page.settings') }}</span>
 						</template>
 					</v-list-item>
 				</v-list>
@@ -34,9 +35,7 @@
 	</v-navigation-drawer>
 
 	<v-slide-x-transition appear>
-		<v-card class="menu-card rounded-pill" elevation="8" @click="drawer = !drawer">
-			<v-btn icon="mdi-menu" :ripple="true" />
-		</v-card>
+		<v-btn icon="mdi-menu" elevation="8" class="fab rounded-pill" @click="drawer = !drawer" />
 	</v-slide-x-transition>
 
 	<v-main>
@@ -49,13 +48,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useTextGradientClass } from '@/composables/useThemeStyles';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-const textGradPrimaryAccent = useTextGradientClass('primary-accent');
 const { t } = useI18n();
-
 const drawer = ref(true);
 
 const items = computed(() => [
@@ -85,6 +81,42 @@ const items = computed(() => [
 	// 	route: '/map',
 	// },
 ]);
+
+let eventSource: EventSource | null = null;
+
+const setupSSE = () => {
+	cleanupSSE();
+
+	const endpoint = `/api/v1/events/clients`;
+	eventSource = new EventSource(endpoint);
+
+	eventSource.onmessage = (event) => {
+		const index = parseInt(event.data, 10);
+
+		console.log(`SSE message on ${endpoint}:`, index);
+	};
+
+	eventSource.onerror = (error) => {
+		console.error(`SSE error on ${endpoint}:`, error);
+		eventSource?.close();
+	};
+};
+
+const cleanupSSE = () => {
+	if (eventSource) {
+		eventSource.close();
+		eventSource = null;
+	}
+};
+
+onMounted(() => {
+	setupSSE();
+});
+
+onUnmounted(() => {
+	cleanupSSE();
+});
+
 </script>
 
 <style scoped>
@@ -108,6 +140,7 @@ const items = computed(() => [
 
 .nav-item :deep(.v-list-item-title) {
 	font-size: 1.25rem;
+	height: 1.5rem;
 }
 
 .nav-item :deep(.v-icon) {
@@ -116,6 +149,32 @@ const items = computed(() => [
 
 .nav-item-title {
 	user-select: none;
+	overflow: visible !important;
+	text-align: left;
+}
+
+.nav-item :deep(.v-list-item__content) {
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	flex-direction: row;
+	align-items: center;
+	text-align: left;
+	overflow: visible !important;
+}
+
+.nav-item :deep(.v-list-item-title) {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-direction: row;
+	text-align: center;
+	align-items: center;
+	overflow: visible;
+}
+
+.v-list-item--nav {
+	padding-inline: 16px;
 }
 
 .no-scroll {
@@ -130,17 +189,16 @@ const items = computed(() => [
 	max-height: 100%;
 }
 
-.menu-card {
-	z-index: 999;
-	width: 32px;
-	aspect-ratio: 1 / 1;
-	display: inline-flex;
-	padding: 32px;
+.fab {
+	width: 64px !important;
+	height: 64px !important;
+	top: 16px;
+	left: 16px;
+	display: flex;
 	align-items: center;
 	justify-content: center;
 	position: fixed;
-	top: 16px;
-	left: 16px;
+	z-index: 999;
 }
 
 .v-btn {
@@ -150,5 +208,15 @@ const items = computed(() => [
 
 .v-btn>.v-icon {
 	font-size: 24px;
+}
+
+@media screen and (max-width: 767px) {
+	.nav-item :deep(.v-list-item-title) {
+		font-size: 0.9rem;
+	}
+
+	.nav-item :deep(.v-icon) {
+		font-size: 1.25rem;
+	}
 }
 </style>

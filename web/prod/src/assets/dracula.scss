@@ -46,6 +46,14 @@
 	background: linear-gradient(45deg, #FF5555, #FF7070);
 }
 
+.gradient-dracula-bg-schedule_current_lesson {
+	background: linear-gradient(45deg, rgba(236, 81, 81, 0.75), rgba(219, 67, 67, 0.2));
+}
+
+.gradient-dracula-bg-schedule_break {
+	background: linear-gradient(45deg, rgba(79, 219, 113, 0.75), rgba(54, 208, 95, 0.2));
+}
+
 .gradient-dracula-text-primary,
 .gradient-dracula-text-secondary,
 .gradient-dracula-text-primary-accent,
@@ -61,4 +69,5 @@
 	-webkit-background-clip: text;
 	-webkit-text-fill-color: transparent;
 	color: transparent;
+	overflow: visible !important;
 }

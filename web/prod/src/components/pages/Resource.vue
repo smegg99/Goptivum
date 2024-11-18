@@ -3,9 +3,9 @@
 	<div ref="rootElementRef" :key="route.path">
 		<v-slide-y-transition appear>
 			<v-card class="search-container pa-0" elevation="8" rounded="pill">
-				<v-text-field v-model="search" class="search" :label="t(`search.${type}`)"
+				<v-text-field v-model="search" class="search" :label="t(`search.${type}`)" clearable
 					prepend-inner-icon="mdi-magnify" variant="solo" rounded="pill" hide-details="auto"
-					@input="debouncedSearch" />
+					@input="debouncedSearch" @click:clear="onClear"/>
 			</v-card>
 		</v-slide-y-transition>
 
@@ -103,6 +103,12 @@ const debouncedSearch = debounce(() => { }, 100);
 
 const searchKey = computed(() => search.value);
 const delayStyle = (index: number) => ({ animationDelay: `${index * 30}ms` });
+
+const onClear = () => {
+	search.value = '';
+	items.value = [];
+	fetchItems();
+};
 
 const filteredItems = computed(() => {
 	const searchValue = search.value.toLowerCase().trim();

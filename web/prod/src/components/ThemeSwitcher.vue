@@ -5,7 +5,7 @@
 			<span class="theme-title">{{ t('theme.name') }}</span>
 			<v-btn-toggle v-model="currentTheme" mandatory class="ma-4 elevation-8" color="tertiary" variant="outlined">
 				<v-btn value="dracula" icon="mdi-ghost" />
-				<v-btn value="auto" icon="mdi-auto-mode" />
+				<!-- <v-btn value="auto" icon="mdi-auto-mode" /> -->
 				<v-btn value="light" icon="mdi-weather-sunny" />
 			</v-btn-toggle>
 		</div>

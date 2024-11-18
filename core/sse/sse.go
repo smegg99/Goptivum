@@ -13,23 +13,27 @@ type Client struct {
 }
 
 type Hub struct {
-    clients    map[*Client]bool
-    mu         sync.RWMutex
-    maxClients int16
-    broadcast  chan interface{}
-    register   chan *Client
-    unregister chan *Client
-    retryDelay int
+    clients            map[*Client]bool
+    mu                 sync.RWMutex
+    maxClients         int16
+    broadcast          chan interface{}
+    register           chan *Client
+    unregister         chan *Client
+    retryDelay         int
+    unregisterCallback func()
+    registerCallback   func()
 }
 
-func NewHub(maxClients int16) *Hub {
+func NewHub(maxClients int16, unregisterCallback func(), registerCallback func()) *Hub {
     return &Hub{
-        clients:    make(map[*Client]bool),
-        maxClients: maxClients,
-        broadcast:  make(chan interface{}, 100),
-        register:   make(chan *Client),
-        unregister: make(chan *Client),
-        retryDelay: 3000,
+        clients:            make(map[*Client]bool),
+        maxClients:         maxClients,
+        broadcast:          make(chan interface{}, 100),
+        register:           make(chan *Client),
+        unregister:         make(chan *Client),
+        retryDelay:         3000,
+        unregisterCallback: unregisterCallback,
+        registerCallback:   registerCallback,
     }
 }
 
@@ -41,6 +45,7 @@ func (h *Hub) Run() {
             if len(h.clients) < int(h.maxClients) {
                 h.clients[client] = true
                 fmt.Println("client registered, total:", len(h.clients))
+                h.onRegisterCallback()
             } else {
                 fmt.Printf("max clients reached (%d), client rejected\n", h.maxClients)
                 close(client.MessageChan)
@@ -54,6 +59,7 @@ func (h *Hub) Run() {
                 delete(h.clients, client)
                 close(client.MessageChan)
                 close(client.Done)
+                h.onUnregisterCallback()
                 fmt.Println("client unregistered, total:", len(h.clients))
             }
             h.mu.Unlock()
@@ -67,6 +73,7 @@ func (h *Hub) Run() {
                     fmt.Println("client message timed out, removing client")
                     h.mu.RUnlock()
                     h.unregister <- client
+                    h.onUnregisterCallback()
                     h.mu.RLock()
                 }
             }
@@ -154,4 +161,22 @@ func (h *Hub) SendPeriodicMessages(interval time.Duration, messageFunc func() st
             }
         }
     }()
+}
+
+func (h *Hub) GetConnectedClients() int64 {
+    h.mu.RLock()
+    defer h.mu.RUnlock()
+    return int64(len(h.clients))
+}
+
+func (h *Hub) onRegisterCallback() {
+    if h.registerCallback != nil {
+        h.registerCallback()
+    }
+}
+
+func (h *Hub) onUnregisterCallback() {
+    if h.unregisterCallback != nil {
+        h.unregisterCallback()
+    }
 }

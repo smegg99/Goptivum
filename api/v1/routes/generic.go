@@ -11,22 +11,48 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupGenericRoutes(router *gin.Engine, rootGroup *gin.RouterGroup, scheduleChannels *models.ScheduleChannels) {
+func SetupGenericRoutes(router *gin.Engine, rootGroup *gin.RouterGroup, scheduleChannels *models.ScheduleChannels, otherChannels *models.OtherChannels) {
 	healthGroup := rootGroup.Group("/health")
 	{
 		healthGroup.GET("/ping", handlers.PingHandler)
+		healthGroup.GET("/scraper", handlers.ScraperHealthHandler)
 	}
 
-	var DivisionsHub = sse.NewHub(Config.MaxSSEClients)
-	var TeachersHub = sse.NewHub(Config.MaxSSEClients)
-	var RoomsHub = sse.NewHub(Config.MaxSSEClients)
+	clientUnregisterCallback := func() {
+		otherChannels.Clients <- -1
+	}
 
+	clientRegisterCallback := func() {
+		otherChannels.Clients <- 1
+	}
+
+	var ClientsHub = sse.NewHub(Config.MaxSSEClients, clientUnregisterCallback, clientRegisterCallback)
+	var DivisionsHub = sse.NewHub(Config.MaxSSEClients, nil, nil)
+	var TeachersHub = sse.NewHub(Config.MaxSSEClients, nil, nil)
+	var RoomsHub = sse.NewHub(Config.MaxSSEClients, nil, nil)
+
+	go ClientsHub.Run()
 	go DivisionsHub.Run()
 	go TeachersHub.Run()
 	go RoomsHub.Run()
 
+	analyticsGroup := rootGroup.Group("/analytics")
+	{
+		analyticsGroup.GET("/clients", func(c *gin.Context) {
+			clients := ClientsHub.GetConnectedClients()
+			handlers.Respond(c, 200, models.APIResponse{
+				Message: fmt.Sprintf("%d", clients),
+				Success: true,
+			})
+		})
+	}
+
 	sseGroup := rootGroup.Group("/events")
 	{
+		sseGroup.GET("/clients", func(c *gin.Context) {
+			ClientsHub.Handler()(c.Writer, c.Request)
+		})
+
 		sseGroup.GET("/divisions", func(c *gin.Context) {
 			DivisionsHub.Handler()(c.Writer, c.Request)
 		})
@@ -39,6 +65,13 @@ func SetupGenericRoutes(router *gin.Engine, rootGroup *gin.RouterGroup, schedule
 			RoomsHub.Handler()(c.Writer, c.Request)
 		})
 	}
+
+	go func() {
+		for message := range otherChannels.Clients {
+			fmt.Println("broadcasting refresh for clients hub:", message)
+			ClientsHub.Broadcast(message)
+		}
+	}()
 
 	go func() {
 		for message := range scheduleChannels.Divisons {

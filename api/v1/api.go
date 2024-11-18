@@ -35,7 +35,9 @@ func Initialize(scheduleChannels *models.ScheduleChannels) chan error {
 	}))
 
 	DefaultRouter.Use(gzip.Gzip(gzip.DefaultCompression))
-	routes.Initialize(DefaultRouter, scheduleChannels)
+	routes.Initialize(DefaultRouter, scheduleChannels, &models.OtherChannels{
+		Clients: make(chan int64),
+	})
 
 	errCh := make(chan error)
 	go func() {

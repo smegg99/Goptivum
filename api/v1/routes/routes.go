@@ -16,7 +16,7 @@ import (
 
 var Config config.APIConfig
 
-func Initialize(defaultRouter *gin.Engine, scheduleChannels *models.ScheduleChannels) {
+func Initialize(defaultRouter *gin.Engine, scheduleChannels *models.ScheduleChannels, otherChannels *models.OtherChannels) {
 	Config = config.Global.API
 
 	//defaultLimiter := tollbooth.NewLimiter(0.5, nil)
@@ -27,7 +27,7 @@ func Initialize(defaultRouter *gin.Engine, scheduleChannels *models.ScheduleChan
 
 	handlers.Initialize()
 
-	SetupGenericRoutes(defaultRouter, rootGroup, scheduleChannels)
+	SetupGenericRoutes(defaultRouter, rootGroup, scheduleChannels, otherChannels)
 	SetupScheduleRoutes(defaultRouter, rootGroup)
 	SetupWeatherRoutes(defaultRouter, rootGroup)
 

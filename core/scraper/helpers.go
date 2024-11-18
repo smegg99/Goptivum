@@ -363,7 +363,7 @@ func newDivisionObserver(index int64, refreshChan *chan int64) *observer.Observe
 			return
 		}
 	}
-
+	
 	url := fmt.Sprintf(Config.BaseUrl+Config.Endpoints.Division, index)
 	interval := time.Duration((index+1)/10+5) * time.Second
 

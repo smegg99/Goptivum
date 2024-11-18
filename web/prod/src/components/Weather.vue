@@ -202,6 +202,8 @@ const fetchAirQualityData = async () => {
     const components = response.data.components;
 
     const aqi = calculateAQI(components);
+    console.log('AQI:', aqi);
+
     const { text, className } = getAirQualityInfo(aqi);
 
     airQualityIndex.value = aqi;
@@ -213,30 +215,29 @@ const fetchAirQualityData = async () => {
 };
 
 function calculateAQI(components: Record<string, number>): number {
-  const aqiBreakpoints = {
-    pm2_5: [0, 12, 35.4, 55.4, 150.4, 250.4, 500],
-    pm10: [0, 54, 154, 254, 354, 424, 604],
-  };
+  const pmScale = [
+    { low: 0, high: 15, index: 25 },
+    { low: 15, high: 30, index: 50 },
+    { low: 30, high: 55, index: 75 },
+    { low: 55, high: 110, index: 100 },
+    { low: 110, high: Infinity, index: 200 },
+  ];
 
-  const calculateIndex = (concentration: number, breakpoints: number[]): number => {
-    const indexRange = [0, 50, 100, 150, 200, 300, 500];
-    for (let i = 1; i < breakpoints.length; i++) {
-      if (concentration <= breakpoints[i]) {
-        return (
-          ((indexRange[i] - indexRange[i - 1]) / (breakpoints[i] - breakpoints[i - 1])) *
-          (concentration - breakpoints[i - 1]) +
-          indexRange[i - 1]
-        );
+  const calculateSubIndex = (concentration: number): number => {
+    for (const level of pmScale) {
+      if (concentration >= level.low && concentration < level.high) {
+        return level.index;
       }
     }
-    return indexRange[indexRange.length - 1];
+    return 0;
   };
 
-  const pm25AQI = calculateIndex(components.pm2_5, aqiBreakpoints.pm2_5);
-  const pm10AQI = calculateIndex(components.pm10, aqiBreakpoints.pm10);
+  const pm25Index = calculateSubIndex(components.pm2_5 || 0);
+  const pm10Index = calculateSubIndex(components.pm10 || 0);
 
-  return Math.max(pm25AQI, pm10AQI);
+  return Math.max(pm25Index, pm10Index);
 }
+
 
 function getAirQualityInfo(aqi: number) {
   let name = '';
