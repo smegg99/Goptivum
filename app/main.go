@@ -10,6 +10,7 @@ import (
 	v1 "smuggr.xyz/goptivum/api/v1"
 	"smuggr.xyz/goptivum/common/config"
 	"smuggr.xyz/goptivum/common/models"
+	"smuggr.xyz/goptivum/common/utils"
 	"smuggr.xyz/goptivum/core/datastore"
 	"smuggr.xyz/goptivum/core/scraper"
 )
@@ -34,6 +35,8 @@ func main() {
 	if err := config.Initialize(); err != nil {
 		panic(err)
 	}
+
+	utils.Initialize()
 
 	if err := datastore.Initialize(); err != nil {
 		panic(err)

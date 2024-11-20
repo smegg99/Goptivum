@@ -6,13 +6,33 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"sort"
 	"time"
 
 	"smuggr.xyz/goptivum/common/models"
 
 	"github.com/gin-gonic/gin"
 )
+
+// Used to simplify getting the API response
+var openWeatherData struct {
+	List []struct {
+		Dt   int64 `json:"dt"`
+		Main struct {
+			Temp    float64 `json:"temp"`
+			TempMin float64 `json:"temp_min"`
+			TempMax float64 `json:"temp_max"`
+		} `json:"main"`
+		Weather []struct {
+			Main        string `json:"main"`
+			Description string `json:"description"`
+		} `json:"weather"`
+	} `json:"list"`
+	City struct {
+		Name    string  `json:"name"`
+		Sunrise float64 `json:"sunrise"`
+		Sunset  float64 `json:"sunset"`
+	} `json:"city"`
+}
 
 func WeatherForecastHandler(c *gin.Context) {
 	lang := c.DefaultQuery("lang", "en")
@@ -24,7 +44,7 @@ func WeatherForecastHandler(c *gin.Context) {
 		fmt.Sprintf(Config.OpenWeather.Endpoints.ForecastWeather, Config.OpenWeather.Lat, Config.OpenWeather.Lon, apiKey, lang, units, 40),
 	)
 
-	// #nosec G107
+	// Fetch data from the OpenWeather API
 	resp, err := http.Get(url)
 	if err != nil {
 		Respond(c, http.StatusInternalServerError, models.APIResponse{
@@ -43,7 +63,6 @@ func WeatherForecastHandler(c *gin.Context) {
 		return
 	}
 
-	var openWeatherData map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&openWeatherData); err != nil {
 		Respond(c, http.StatusInternalServerError, models.APIResponse{
 			Message: "failed to parse forecast data",
@@ -52,120 +71,43 @@ func WeatherForecastHandler(c *gin.Context) {
 		return
 	}
 
-	forecastList, ok := openWeatherData["list"].([]interface{})
-	if !ok {
-		Respond(c, http.StatusInternalServerError, models.APIResponse{
-			Message: "invalid forecast data format",
-			Success: false,
-		})
-		return
-	}
-
-	forecastResponse := &models.ForecastResponse{
-		Name: openWeatherData["city"].(map[string]interface{})["name"].(string),
-	}
-
-	forecastsByDate := make(map[string][]map[string]interface{})
-
-	for _, forecast := range forecastList {
-		forecastMap := forecast.(map[string]interface{})
-		dt := int64(forecastMap["dt"].(float64))
-		t := time.Unix(dt, 0).UTC()
-		dateStr := t.Format("2006-01-02")
-
-		forecastsByDate[dateStr] = append(forecastsByDate[dateStr], forecastMap)
-	}
-
-	var dates []string
-	for dateStr := range forecastsByDate {
-		dates = append(dates, dateStr)
-	}
-	sort.Strings(dates)
-
 	now := time.Now().UTC()
+	forecastResponse := &models.ForecastResponse{
+		Name: openWeatherData.City.Name,
+	}
 
-	datesProcessed := 0
-	for _, dateStr := range dates {
-		forecastDate, err := time.Parse("2006-01-02", dateStr)
-		if err != nil {
+	daysProcessed := 0
+	for _, entry := range openWeatherData.List {
+		entryTime := time.Unix(entry.Dt, 0).UTC()
+
+		// Skip if it's today or not close to 12:00 PM
+		if entryTime.Day() == now.Day() || entryTime.Hour() != 12 {
 			continue
 		}
 
-		if forecastDate.Before(now.Truncate(24 * time.Hour)) {
-			continue
-		}
+		// Create a forecast using your models
+		forecastResponse.Forecast = append(forecastResponse.Forecast, &models.Forecast{
+			Condition: &models.Condition{
+				Name:        entry.Weather[0].Main,
+				Description: entry.Weather[0].Description,
+			},
+			Temperature: &models.Temperature{
+				Current: entry.Main.Temp,
+				Min:     entry.Main.TempMin,
+				Max:     entry.Main.TempMax,
+			},
+			Sunrise:   int64(openWeatherData.City.Sunrise),
+			Sunset:    int64(openWeatherData.City.Sunset),
+			DayOfWeek: int64(entryTime.Weekday()),
+		})
 
-		forecasts := forecastsByDate[dateStr]
-
-		var closestForecast map[string]interface{}
-		minTimeDiff := int64(1<<63 - 1)
-
-		for _, fMap := range forecasts {
-			fDt := int64(fMap["dt"].(float64))
-			fTime := time.Unix(fDt, 0).UTC()
-
-			if fTime.Before(now) {
-				continue
-			}
-
-			timeDiff := fDt - now.Unix()
-
-			if timeDiff < minTimeDiff {
-				minTimeDiff = timeDiff
-				closestForecast = fMap
-			}
-		}
-
-		if closestForecast != nil {
-			conditionList, ok := closestForecast["weather"].([]interface{})
-			if !ok || len(conditionList) == 0 {
-				continue
-			}
-			conditionMap, ok := conditionList[0].(map[string]interface{})
-			if !ok {
-				continue
-			}
-
-			temperatureMap, ok := closestForecast["main"].(map[string]interface{})
-			if !ok {
-				continue
-			}
-
-			cityMap, ok := openWeatherData["city"].(map[string]interface{})
-			if !ok {
-				continue
-			}
-
-			sunrise := int64(cityMap["sunrise"].(float64))
-			sunset := int64(cityMap["sunset"].(float64))
-
-			dt := int64(closestForecast["dt"].(float64))
-			t := time.Unix(dt, 0).UTC()
-			dayOfWeek := int64(t.Weekday())
-
-			forecastResponse.Forecast = append(forecastResponse.Forecast, &models.Forecast{
-				Condition: &models.Condition{
-					Name:        conditionMap["main"].(string),
-					Description: conditionMap["description"].(string),
-				},
-				Temperature: &models.Temperature{
-					Current: temperatureMap["temp"].(float64),
-					Min:     temperatureMap["temp_min"].(float64),
-					Max:     temperatureMap["temp_max"].(float64),
-				},
-				Sunrise:   sunrise,
-				Sunset:    sunset,
-				DayOfWeek: dayOfWeek,
-			})
-
-			datesProcessed++
-
-			if datesProcessed >= 3 {
-				break
-			}
+		daysProcessed++
+		if daysProcessed == 3 {
+			break
 		}
 	}
 
+	// Respond with the forecast
 	Respond(c, http.StatusOK, forecastResponse)
 }
 

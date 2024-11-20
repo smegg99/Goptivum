@@ -4,20 +4,33 @@ package utils
 import (
 	"fmt"
 	"net/http"
+	"crypto/tls"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
+	"smuggr.xyz/goptivum/common/config"
 )
 
-var HttpClient = &http.Client{
-	Transport: &http.Transport{
-		MaxIdleConns:        2000,
-		MaxIdleConnsPerHost: 1000,
-		IdleConnTimeout:     90 * time.Second,
-	},
-	Timeout: 20 * time.Second,
+var ScraperConfig config.ScraperConfig
+var HttpClient *http.Client
+
+func Initialize() {
+	fmt.Println("initializing utils")
+	ScraperConfig = config.Global.Scraper
+
+	HttpClient = &http.Client{
+		Transport: &http.Transport{
+			MaxIdleConns:        2000,
+			MaxIdleConnsPerHost: 1000,
+			IdleConnTimeout:     90 * time.Second,
+			TLSClientConfig:    &tls.Config{
+				InsecureSkipVerify: ScraperConfig.IgnoreCertificates,
+			},
+		},
+		Timeout: 20 * time.Second,
+	}
 }
 
 func CheckURL(url string) bool {

@@ -27,10 +27,11 @@ type scraperStaticIndexes struct {
 }
 
 type ScraperConfig struct {
-	BaseUrl       string               `mapstructure:"base_url"`
-	Endpoints     scraperEndpoints     `mapstructure:"endpoints"`
-	Quantities    scraperQuantities    `mapstructure:"quantities"`
-	StaticIndexes scraperStaticIndexes `mapstructure:"static_indexes"`
+	BaseUrl            string               `mapstructure:"base_url"`
+	Endpoints          scraperEndpoints     `mapstructure:"endpoints"`
+	Quantities         scraperQuantities    `mapstructure:"quantities"`
+	StaticIndexes      scraperStaticIndexes `mapstructure:"static_indexes"`
+	IgnoreCertificates bool                 `mapstructure:"ignore_certificates"`
 }
 
 type openWeatherEndpoints struct {
@@ -47,9 +48,10 @@ type openWeatherConfig struct {
 }
 
 type APIConfig struct {
-	Port          int16             `mapstructure:"port"`
-	OpenWeather   openWeatherConfig `mapstructure:"open_weather"`
-	MaxSSEClients int16             `mapstructure:"max_sse_clients"`
+	Port                   int16             `mapstructure:"port"`
+	OpenWeather            openWeatherConfig `mapstructure:"open_weather"`
+	MaxSSEClients          int64             `mapstructure:"max_sse_clients"`
+	MaxSSEClientsAnalytics int64             `mapstructure:"max_sse_clients_analytics"`
 }
 
 type GlobalConfig struct {

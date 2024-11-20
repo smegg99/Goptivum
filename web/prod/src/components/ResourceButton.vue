@@ -5,8 +5,7 @@
 			:to="getLink" nav link>
 			<div class="button-content">
 				<span :class="['full-name', textGradPrimaryAccent, fontSizeClass]">{{ fullName }}</span>
-				<span v-if="showDesignator" :class="textGradSecondaryAccent" class="designator">{{ props.designator
-					}}</span>
+				<span v-if="showDesignator" :class="textGradSecondaryAccent" class="designator">{{ props.designator }}</span>
 			</div>
 		</v-btn>
 	</div>

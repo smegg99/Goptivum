@@ -138,6 +138,8 @@ export default {
 		rooms: 'Sale',
 		room: 'Sala - {id}',
 		settings: 'Ustawienia',
+		scraper_down_title: 'Scraper nie działa 🗿',
+		scraper_down_description: 'Przedstawione dane mogą być nieaktualne lub niedostępne',
 	},
 	search: {
 		division: 'Wyszukaj klase...',

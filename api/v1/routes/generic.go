@@ -15,7 +15,7 @@ func SetupGenericRoutes(router *gin.Engine, rootGroup *gin.RouterGroup, schedule
 	healthGroup := rootGroup.Group("/health")
 	{
 		healthGroup.GET("/ping", handlers.PingHandler)
-		healthGroup.GET("/scraper", handlers.ScraperHealthHandler)
+		healthGroup.GET("/", handlers.APIHealthHandler)
 	}
 
 	clientUnregisterCallback := func() {
@@ -26,7 +26,7 @@ func SetupGenericRoutes(router *gin.Engine, rootGroup *gin.RouterGroup, schedule
 		otherChannels.Clients <- 1
 	}
 
-	var ClientsHub = sse.NewHub(Config.MaxSSEClients, clientUnregisterCallback, clientRegisterCallback)
+	var ClientsHub = sse.NewHub(Config.MaxSSEClientsAnalytics, clientUnregisterCallback, clientRegisterCallback)
 	var DivisionsHub = sse.NewHub(Config.MaxSSEClients, nil, nil)
 	var TeachersHub = sse.NewHub(Config.MaxSSEClients, nil, nil)
 	var RoomsHub = sse.NewHub(Config.MaxSSEClients, nil, nil)
@@ -40,6 +40,14 @@ func SetupGenericRoutes(router *gin.Engine, rootGroup *gin.RouterGroup, schedule
 	{
 		analyticsGroup.GET("/clients", func(c *gin.Context) {
 			clients := ClientsHub.GetConnectedClients()
+			if clients >= Config.MaxSSEClientsAnalytics {
+				handlers.Respond(c, 200, models.APIResponse{
+					Message: fmt.Sprintf(">%d", clients),
+					Success: true,
+				})
+				return
+			}
+
 			handlers.Respond(c, 200, models.APIResponse{
 				Message: fmt.Sprintf("%d", clients),
 				Success: true,

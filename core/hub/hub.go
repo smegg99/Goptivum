@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"crypto/tls"
 	"sync"
 	"time"
 
@@ -23,11 +24,14 @@ type Hub struct {
 	client      *http.Client
 }
 
-func NewHub(workerCount int64) *Hub {
+func NewHub(workerCount int64, ignoreCertificates bool) *Hub {
 	transport := &http.Transport{
 		MaxIdleConns:        2000,
 		MaxIdleConnsPerHost: 1000,
 		IdleConnTimeout:     90 * time.Second,
+		TLSClientConfig:    &tls.Config{
+			InsecureSkipVerify: ignoreCertificates,
+		},
 	}
 
 	client := &http.Client{

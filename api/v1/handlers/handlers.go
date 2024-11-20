@@ -4,6 +4,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 
 	"smuggr.xyz/goptivum/common/config"
@@ -44,52 +45,47 @@ func PingHandler(c *gin.Context) {
 	})
 }
 
-func ScraperHealthHandler(c *gin.Context) {
+func APIHealthHandler(c *gin.Context) {
+	scraperHealthy := true
+	weatherHealthy := true
+
 	if !utils.CheckURL(ScraperConfig.BaseUrl) {
-		Respond(c, http.StatusInternalServerError, models.APIResponse{
-			Message: "scraper is not healthy",
-			Success: false,
-		})
-		return
+		scraperHealthy = false
 	}
 
 	url := fmt.Sprintf(ScraperConfig.BaseUrl + ScraperConfig.Endpoints.DivisionsList)
 	if !utils.CheckURL(url) {
-		Respond(c, http.StatusInternalServerError, models.APIResponse{
-			Message: "divisions list is not healthy",
-			Success: false,
-		})
-		return
+		scraperHealthy = false
 	}
 
 	url = fmt.Sprintf(ScraperConfig.BaseUrl + ScraperConfig.Endpoints.TeachersList)
 	if !utils.CheckURL(url) {
-		Respond(c, http.StatusInternalServerError, models.APIResponse{
-			Message: "teachers list is not healthy",
-			Success: false,
-		})
-		return
+		scraperHealthy = false
 	}
 
 	url = fmt.Sprintf(ScraperConfig.BaseUrl + ScraperConfig.Endpoints.RoomsList)
 	if !utils.CheckURL(url) {
-		Respond(c, http.StatusInternalServerError, models.APIResponse{
-			Message: "rooms list is not healthy",
-			Success: false,
-		})
-		return
+		scraperHealthy = false
 	}
 
-	Respond(c, http.StatusOK, models.APIResponse{
-		Message: "scraper is healthy",
-		Success: true,
-	})
-}
+	lang := c.DefaultQuery("lang", "en")
+	units := c.DefaultQuery("units", "metric")
+	apiKey := os.Getenv("OPENWEATHER_API_KEY")
+	url = fmt.Sprintf("%s%s",
+		Config.OpenWeather.BaseUrl,
+		fmt.Sprintf(Config.OpenWeather.Endpoints.ForecastWeather, Config.OpenWeather.Lat, Config.OpenWeather.Lon, apiKey, lang, units, 40),
+	)
 
-func ClientsAnalyticsHandler(c *gin.Context) {
-	Respond(c, http.StatusOK, models.APIResponse{
-		Message: "clients analytics",
-		Success: true,
+	if !utils.CheckURL(url) {
+		weatherHealthy = false
+	}
+
+	allHealthy := scraperHealthy && weatherHealthy
+
+	Respond(c, http.StatusOK, models.HealthResponse{
+		Scraper: scraperHealthy,	
+		Weather: weatherHealthy,
+		All:     allHealthy,
 	})
 }
 

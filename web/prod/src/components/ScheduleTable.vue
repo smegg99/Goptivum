@@ -3,10 +3,34 @@
 		<v-empty-state v-if="notFound" headline="404" :title="t('page.not_found')" :key="transitionKey" />
 	</v-slide-y-transition>
 
+	<v-dialog v-model="healthDialog" max-width="500">
+		<v-card rounded="xl">
+			<v-card-item>
+				<v-card-title>
+					{{ t('page.scraper_down_title') }}
+				</v-card-title>
+				<v-card-text class="pa-0">
+					{{ t('page.scraper_down_description') }}
+				</v-card-text>
+			</v-card-item>
+			<v-card-actions>
+				<v-btn color="primary" @click="healthDialog = false">
+					{{ t('page.close') }}
+				</v-btn>
+			</v-card-actions>
+		</v-card>
+	</v-dialog>
+
 	<v-row class="division-grid" align="center" justify="center">
 		<v-slide-x-reverse-transition appear mode="out-in">
-			<div class="schedule-title-container pa-0" :key="transitionKey">
-				<span class="schedule-title">{{ title }}</span>
+			<div class="schedule-title-container pa-0" :key="transitionKey" :class="{ 'clickable': isMobileView }"
+				@click="isMobileView ? healthDialog = true : null">
+				<span class="schedule-title">
+					{{ title }}
+					<v-icon v-if="!scraperHealthy && isMobileView" class="scraper-down-icon" color="error">
+						mdi-alert
+					</v-icon>
+				</span>
 			</div>
 		</v-slide-x-reverse-transition>
 		<v-fade-transition appear mode="out-in">
@@ -86,13 +110,7 @@
 
 				<!-- Desktop View -->
 				<template v-else-if="scheduleData && !notFound">
-					<v-slide-x-reverse-transition appear>
-						<div class="fabs-container">
-							<v-btn icon="mdi-qrcode" elevation="8" class="fab rounded-pill" color="primary"
-								@click="generateQR" />
-						</div>
-					</v-slide-x-reverse-transition>
-					<v-dialog v-model="qrDialog" max-width="400">
+					<v-dialog v-model="qrDialog" max-width="500">
 						<v-card rounded="xl">
 							<v-card-text class="pa-0">
 								<canvas ref="qrCodeContainer" style="display: block; margin: auto;"></canvas>
@@ -104,6 +122,16 @@
 							</v-card-actions>
 						</v-card>
 					</v-dialog>
+					<div class="fabs-container">
+						<v-slide-x-reverse-transition appear>
+							<v-btn v-if="!scraperHealthy" icon="mdi-alert" elevation="8" class="fab rounded-pill"
+								color="error" @click="healthDialog = true" />
+						</v-slide-x-reverse-transition>
+						<v-slide-x-reverse-transition appear>
+							<v-btn icon="mdi-qrcode" elevation="8" class="fab rounded-pill" color="primary"
+								@click="generateQR" />
+						</v-slide-x-reverse-transition>
+					</div>
 					<v-table class="schedule-table">
 						<thead>
 							<tr>
@@ -256,6 +284,7 @@ const mobileViewBreakpoint = 895;
 const currentLessonBackgroundClass = useBackgroundGradientClass('schedule_current_lesson').value;
 const breakBackgroundClass = useBackgroundGradientClass('schedule_break').value;
 
+const healthDialog = ref(false);
 const qrDialog = ref(false);
 const qrCodeContainer = ref<HTMLDivElement | null>(null);
 
@@ -292,10 +321,29 @@ window.addEventListener('resize', () => {
 	if (isMobileView.value) {
 		qrCodeContainer.value = null;
 		qrDialog.value = false;
+		// healthDialog.value = false;
 	}
 });
 
-async function generateQR() {
+const scraperHealthy = ref(true);
+let intervalId: ReturnType<typeof setInterval> | null = null;
+
+const fetchHealth = async () => {
+	try {
+		const response = await fetch('/api/v1/health/');
+		if (!response.ok) {
+			throw new Error(`Error: ${response.statusText}`);
+		}
+		const data = await response.json();
+		scraperHealthy.value = data.scraper;
+		console.log('Scraper is healthy:', scraperHealthy.value);
+	} catch (error) {
+		console.error('Error fetching data:', error);
+		scraperHealthy.value = false;
+	}
+};
+
+const generateQR = async () => {
 	const currentUrl = window.location.href;
 	try {
 		qrDialog.value = true;
@@ -315,7 +363,7 @@ async function generateQR() {
 				dark: colors.textPrimary,
 				light: colors.surface,
 			},
-			width: 400,
+			width: 500,
 			margin: 2,
 		});
 	} catch (error) {
@@ -423,10 +471,16 @@ const cleanupSSE = () => {
 onMounted(() => {
 	fetchData();
 	setupSSE();
+
+	fetchHealth();
+	intervalId = setInterval(fetchHealth, 120000);
 });
 
 onUnmounted(() => {
 	cleanupSSE();
+	if (intervalId) {
+		clearInterval(intervalId);
+	}
 });
 
 watch(
@@ -718,6 +772,8 @@ function formatTime(time: TimeRange | undefined): string {
 	align-items: center;
 	z-index: 10;
 	position: sticky;
+	flex-direction: row;
+	overflow: visible;
 }
 
 .schedule-title {
@@ -837,15 +893,23 @@ function formatTime(time: TimeRange | undefined): string {
 	}
 
 	.schedule-title {
-		font-size: clamp(0.8rem, 3vw, 3.5rem);
+		font-size: clamp(0.5rem, 3vw, 3.5rem);
 		font-weight: 800;
 		text-align: right;
 		max-width: 100%;
 		text-transform: uppercase;
 		letter-spacing: clamp(0.1em, 0.15em, 0.2em);
-		text-wrap: wrap;
-		overflow: hidden;
+		overflow: visible;
 		text-overflow: ellipsis;
+		user-select: none;
+		display: flex;
+		justify-content: flex-end;
+		align-items: center;
+	}
+
+	.scraper-down-icon {
+		font-size: clamp(1.5rem, 7vw, 5rem);
+		margin-left: 8px;
 	}
 
 	.schedule-container {

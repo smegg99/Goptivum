@@ -40,15 +40,17 @@
 
 	<v-main>
 		<div class="background-container">
-			<router-view v-slot="{ Component }">
-				<component :is="Component" />
+			<router-view>
+				<template v-slot="{ Component }">
+					<component :is="Component" />
+				</template>
 			</router-view>
 		</div>
 	</v-main>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
@@ -81,42 +83,6 @@ const items = computed(() => [
 	// 	route: '/map',
 	// },
 ]);
-
-let eventSource: EventSource | null = null;
-
-const setupSSE = () => {
-	cleanupSSE();
-
-	const endpoint = `/api/v1/events/clients`;
-	eventSource = new EventSource(endpoint);
-
-	eventSource.onmessage = (event) => {
-		const index = parseInt(event.data, 10);
-
-		console.log(`SSE message on ${endpoint}:`, index);
-	};
-
-	eventSource.onerror = (error) => {
-		console.error(`SSE error on ${endpoint}:`, error);
-		eventSource?.close();
-	};
-};
-
-const cleanupSSE = () => {
-	if (eventSource) {
-		eventSource.close();
-		eventSource = null;
-	}
-};
-
-onMounted(() => {
-	setupSSE();
-});
-
-onUnmounted(() => {
-	cleanupSSE();
-});
-
 </script>
 
 <style scoped>

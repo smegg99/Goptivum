@@ -515,9 +515,9 @@ func Initialize() error {
 		fmt.Printf("no rooms found despite %d workers\n", Config.Quantities.Workers.Room)
 	}
 
-	DivisionsScraperResource.Hub = hub.NewHub(Config.Quantities.Workers.Division)
-	RoomsScraperResource.Hub = hub.NewHub(Config.Quantities.Workers.Teacher)
-	TeachersScraperResource.Hub = hub.NewHub(Config.Quantities.Workers.Room)
+	DivisionsScraperResource.Hub = hub.NewHub(Config.Quantities.Workers.Division, Config.IgnoreCertificates)
+	RoomsScraperResource.Hub = hub.NewHub(Config.Quantities.Workers.Teacher, Config.IgnoreCertificates)
+	TeachersScraperResource.Hub = hub.NewHub(Config.Quantities.Workers.Room, Config.IgnoreCertificates)
 
 	ObserveDivisions(&DivisionsScraperResource.RefreshChan)
 	ObserveTeachers(&TeachersScraperResource.RefreshChan)

@@ -5,6 +5,12 @@ package data;
 
 option go_package = "./common/models";
 
+message HealthResponse {
+	bool all = 1;
+	bool scraper = 2;
+	bool weather = 3;
+}
+
 message APIResponse {
 	bool   success = 1;
 	string message = 2;

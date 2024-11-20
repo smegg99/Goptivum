@@ -15,7 +15,7 @@ type Client struct {
 type Hub struct {
     clients            map[*Client]bool
     mu                 sync.RWMutex
-    maxClients         int16
+    maxClients         int64
     broadcast          chan interface{}
     register           chan *Client
     unregister         chan *Client
@@ -24,7 +24,7 @@ type Hub struct {
     registerCallback   func()
 }
 
-func NewHub(maxClients int16, unregisterCallback func(), registerCallback func()) *Hub {
+func NewHub(maxClients int64, unregisterCallback func(), registerCallback func()) *Hub {
     return &Hub{
         clients:            make(map[*Client]bool),
         maxClients:         maxClients,
