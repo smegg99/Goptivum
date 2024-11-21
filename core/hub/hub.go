@@ -30,6 +30,7 @@ func NewHub(workerCount int64, ignoreCertificates bool) *Hub {
 		MaxIdleConnsPerHost: 1000,
 		IdleConnTimeout:     90 * time.Second,
 		TLSClientConfig:    &tls.Config{
+			// #nosec G402
 			InsecureSkipVerify: ignoreCertificates,
 		},
 	}

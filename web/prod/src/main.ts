@@ -11,7 +11,7 @@ import '@mdi/font/css/materialdesignicons.css';
 
 // Components
 import App from './App.vue'
-import Overlay from './components/Overlay.vue';
+import Overlay from './components/outputs/Overlay.vue';
 
 // Composables
 import { createApp, h } from 'vue'

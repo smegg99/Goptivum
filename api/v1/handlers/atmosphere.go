@@ -34,6 +34,76 @@ var openWeatherData struct {
 	} `json:"city"`
 }
 
+func fetchLocalAirPollutionData() (*models.AirPollutionResponse, error) {
+    url := fmt.Sprintf("%s%s",
+        Config.LocalWeatherStation.BaseUrl,
+        Config.LocalWeatherStation.Endpoints.CurrentAirPollution,
+    )
+
+    // #nosec G107
+    resp, err := http.Get(url)
+    if err != nil {
+        return nil, fmt.Errorf("error reaching local weather station: %w", err)
+    }
+    defer resp.Body.Close()
+
+    if resp.StatusCode != http.StatusOK {
+        return nil, fmt.Errorf("local weather station returned status: %d", resp.StatusCode)
+    }
+
+    var localData map[string]float64
+    if err := json.NewDecoder(resp.Body).Decode(&localData); err != nil {
+        return nil, fmt.Errorf("error parsing local weather station data: %w", err)
+    }
+
+    return &models.AirPollutionResponse{
+		// Basically only pm2_5 and pm10 are needed to calculate the AQI
+        Components: map[string]float64{
+            "pm2_5": localData["pm025"],
+            "pm10":  localData["pm010"],
+            "pm100": localData["pm100"],
+        },
+    }, nil
+}
+
+func fetchOpenWeatherAirPollutionData() (*models.AirPollutionResponse, error) {
+    apiKey := os.Getenv("OPENWEATHER_API_KEY")
+    url := fmt.Sprintf("%s%s",
+        Config.OpenWeather.BaseUrl,
+        fmt.Sprintf(Config.OpenWeather.Endpoints.CurrentAirPollution, Config.OpenWeather.Lat, Config.OpenWeather.Lon, apiKey),
+    )
+
+    // #nosec G107
+    resp, err := http.Get(url)
+    if err != nil {
+        return nil, fmt.Errorf("error reaching OpenWeather: %w", err)
+    }
+    defer resp.Body.Close()
+
+    if resp.StatusCode != http.StatusOK {
+        return nil, fmt.Errorf("OpenWeather returned status: %d", resp.StatusCode)
+    }
+
+    var openWeatherData map[string]interface{}
+    if err := json.NewDecoder(resp.Body).Decode(&openWeatherData); err != nil {
+        return nil, fmt.Errorf("error parsing OpenWeather data: %w", err)
+    }
+
+    components := openWeatherData["list"].([]interface{})[0].(map[string]interface{})["components"].(map[string]interface{})
+    return &models.AirPollutionResponse{
+        Components: map[string]float64{
+            "co":    components["co"].(float64),
+            "no":    components["no"].(float64),
+            "no2":   components["no2"].(float64),
+            "o3":    components["o3"].(float64),
+            "so2":   components["so2"].(float64),
+            "pm2_5": components["pm2_5"].(float64),
+            "pm10":  components["pm10"].(float64),
+            "nh3":   components["nh3"].(float64),
+        },
+    }, nil
+}
+
 func WeatherForecastHandler(c *gin.Context) {
 	lang := c.DefaultQuery("lang", "en")
 	units := c.DefaultQuery("units", "metric")
@@ -45,6 +115,7 @@ func WeatherForecastHandler(c *gin.Context) {
 	)
 
 	// Fetch data from the OpenWeather API
+	// #nosec G107
 	resp, err := http.Get(url)
 	if err != nil {
 		Respond(c, http.StatusInternalServerError, models.APIResponse{
@@ -173,55 +244,26 @@ func CurrentWeatherHandler(c *gin.Context) {
 }
 
 func CurrentAirPollutionHandler(c *gin.Context) {
-	apiKey := os.Getenv("OPENWEATHER_API_KEY")
+    var airPollutionResponse *models.AirPollutionResponse
+    var err error
 
-	url := fmt.Sprintf("%s%s",
-		Config.OpenWeather.BaseUrl,
-		fmt.Sprintf(Config.OpenWeather.Endpoints.CurrentAirPollution, Config.OpenWeather.Lat, Config.OpenWeather.Lon, apiKey),
-	)
+    if Config.UseLocalWeatherStation {
+        airPollutionResponse, err = fetchLocalAirPollutionData()
+        if err != nil {
+            fmt.Println("local weather station failed:", err)
+        }
+    }
 
-	// #nosec G107
-	resp, err := http.Get(url)
-	if err != nil {
-		Respond(c, http.StatusInternalServerError, models.APIResponse{
-			Message: "failed to fetch air pollution data",
-			Success: false,
-		})
-		return
-	}
-	defer resp.Body.Close()
+    if airPollutionResponse == nil {
+        airPollutionResponse, err = fetchOpenWeatherAirPollutionData()
+        if err != nil {
+            Respond(c, http.StatusInternalServerError, models.APIResponse{
+                Message: "failed to fetch air pollution data from all sources",
+                Success: false,
+            })
+            return
+        }
+    }
 
-	if resp.StatusCode != http.StatusOK {
-		Respond(c, http.StatusInternalServerError, models.APIResponse{
-			Message: "failed to fetch air pollution data",
-			Success: false,
-		})
-		return
-	}
-
-	var openWeatherData map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&openWeatherData); err != nil {
-		Respond(c, http.StatusInternalServerError, models.APIResponse{
-			Message: "failed to parse air pollution data",
-			Success: false,
-		})
-		return
-	}
-
-	components := openWeatherData["list"].([]interface{})[0].(map[string]interface{})["components"].(map[string]interface{})
-
-	airPollutionResponse := &models.AirPollutionResponse{
-		Components: map[string]float64{
-			"co":    components["co"].(float64),
-			"no":    components["no"].(float64),
-			"no2":   components["no2"].(float64),
-			"o3":    components["o3"].(float64),
-			"so2":   components["so2"].(float64),
-			"pm2_5": components["pm2_5"].(float64),
-			"pm10":  components["pm10"].(float64),
-			"nh3":   components["nh3"].(float64),
-		},
-	}
-
-	Respond(c, http.StatusOK, airPollutionResponse)
+    Respond(c, http.StatusOK, airPollutionResponse)
 }

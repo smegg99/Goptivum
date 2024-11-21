@@ -1,9 +1,9 @@
 import { createRouter, createWebHistory, RouteLocationNormalized } from 'vue-router'
-import MainPage from './components/pages/Home.vue'
-import SettingsPage from './components/pages/Settings.vue'
+import MainPage from './components/pages/HomePage.vue'
+import SettingsPage from './components/pages/SettingsPage.vue'
 
-import ResourcePage from './components/pages/Resource.vue'
-import ScheduleTable from './components/ScheduleTable.vue'
+import ResourcePage from './components/pages/ResourcePage.vue'
+import ScheduleTable from './components/outputs/ScheduleTable.vue'
 
 const routes = [
   { path: '/', component: MainPage, meta: { titleKey: 'page.home' } },

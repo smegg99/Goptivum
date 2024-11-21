@@ -13,7 +13,7 @@
 <script lang="ts" setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useTextGradientClass } from '@/composables/useThemeStyles';
-import DigitalClockDigit from './Digit.vue';
+import DigitalClockDigit from '@/components/outputs/Digit.vue';
 
 const textGradPrimaryAccent = useTextGradientClass('primary-accent');
 

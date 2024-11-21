@@ -71,3 +71,13 @@
 	color: transparent;
 	overflow: visible !important;
 }
+
+.gradient-dracula-bg-primary,
+.gradient-dracula-bg-secondary,
+.gradient-dracula-bg-schedule_current_lesson,
+.gradient-dracula-bg-schedule_break {
+	background-clip: border-box;
+	-webkit-background-clip: border-box;
+	will-change: background;
+	transform: translateZ(0);
+}

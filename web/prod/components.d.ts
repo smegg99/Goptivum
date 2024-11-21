@@ -7,19 +7,19 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    AnimationsSwitcher: typeof import('./src/components/AnimationsSwitcher.vue')['default']
-    Clock: typeof import('./src/components/clock/Clock.vue')['default']
-    Digit: typeof import('./src/components/clock/Digit.vue')['default']
-    Home: typeof import('./src/components/pages/Home.vue')['default']
-    LanguageSwitcher: typeof import('./src/components/LanguageSwitcher.vue')['default']
-    Overlay: typeof import('./src/components/Overlay.vue')['default']
-    Resource: typeof import('./src/components/pages/Resource.vue')['default']
-    ResourceButton: typeof import('./src/components/ResourceButton.vue')['default']
+    AnimationsSwitcher: typeof import('./src/components/inputs/AnimationsSwitcher.vue')['default']
+    Clock: typeof import('./src/components/outputs/Clock.vue')['default']
+    Digit: typeof import('./src/components/outputs/Digit.vue')['default']
+    HomePage: typeof import('./src/components/pages/HomePage.vue')['default']
+    LanguageSwitcher: typeof import('./src/components/inputs/LanguageSwitcher.vue')['default']
+    Overlay: typeof import('./src/components/outputs/Overlay.vue')['default']
+    ResourceButton: typeof import('./src/components/inputs/ResourceButton.vue')['default']
+    ResourcePage: typeof import('./src/components/pages/ResourcePage.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
-    ScheduleTable: typeof import('./src/components/ScheduleTable.vue')['default']
-    Settings: typeof import('./src/components/pages/Settings.vue')['default']
-    ThemeSwitcher: typeof import('./src/components/ThemeSwitcher.vue')['default']
-    Weather: typeof import('./src/components/Weather.vue')['default']
+    ScheduleTable: typeof import('./src/components/outputs/ScheduleTable.vue')['default']
+    SettingsPage: typeof import('./src/components/pages/SettingsPage.vue')['default']
+    ThemeSwitcher: typeof import('./src/components/inputs/ThemeSwitcher.vue')['default']
+    Weather: typeof import('./src/components/outputs/Weather.vue')['default']
   }
 }

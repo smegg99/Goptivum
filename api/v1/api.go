@@ -27,7 +27,7 @@ func Initialize(scheduleChannels *models.ScheduleChannels) chan error {
 	DefaultRouter = gin.Default()
 
 	DefaultRouter.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000, http://localhost:3002, https://zsem.smuggr.xyz/"},
+		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:3002", "https://zsem.smuggr.xyz"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "X-Auth-Token"},
 		ExposeHeaders:    []string{"Content-Length"},

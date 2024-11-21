@@ -19,13 +19,14 @@ var HttpClient *http.Client
 func Initialize() {
 	fmt.Println("initializing utils")
 	ScraperConfig = config.Global.Scraper
-
+	
 	HttpClient = &http.Client{
 		Transport: &http.Transport{
 			MaxIdleConns:        2000,
 			MaxIdleConnsPerHost: 1000,
 			IdleConnTimeout:     90 * time.Second,
 			TLSClientConfig:    &tls.Config{
+				// #nosec G402
 				InsecureSkipVerify: ScraperConfig.IgnoreCertificates,
 			},
 		},

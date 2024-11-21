@@ -14,7 +14,7 @@
 import { ref, computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ISO6391 from 'iso-639-1';
-import { useLocaleStore } from '../stores/localeStore';
+import { useLocaleStore } from '@/stores/localeStore';
 
 const { t } = useI18n();
 const localeStore = useLocaleStore();

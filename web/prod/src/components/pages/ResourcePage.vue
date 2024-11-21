@@ -42,7 +42,7 @@ import { useI18n } from 'vue-i18n';
 import { debounce } from 'lodash-es';
 import { useMiscStore } from '@/stores/miscStore';
 
-import ResourceButton from '../ResourceButton.vue';
+import ResourceButton from '@/components/inputs/ResourceButton.vue';
 
 interface ResourceItem {
 	designator: string;

@@ -99,7 +99,7 @@ func (h *Hub) Handler() http.HandlerFunc {
         w.Header().Set("Content-Type", "text/event-stream")
         w.Header().Set("Cache-Control", "no-cache")
         w.Header().Set("Connection", "keep-alive")
-        w.Header().Set("Access-Control-Allow-Origin", "*")
+        w.Header().Set("Access-Control-Allow-Origin", "https://zsem.smuggr.xyz")
 
         if h.retryDelay > 0 {
             fmt.Fprintf(w, "retry: %d\n\n", h.retryDelay)

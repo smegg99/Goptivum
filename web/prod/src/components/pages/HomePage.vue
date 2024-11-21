@@ -31,8 +31,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 
-import Clock from '../clock/Clock.vue';
-import Weather from '../Weather.vue';
+import Clock from '@/components/outputs/Clock.vue';
+import Weather from '@/components/outputs/Weather.vue';
 
 const goToGitHub = () => {
 	window.open('https://github.com/smugg99/Goptivum');

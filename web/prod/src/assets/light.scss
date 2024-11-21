@@ -70,3 +70,13 @@
 	color: transparent;
 	overflow: visible !important;
 }
+
+.gradient-light-bg-primary,
+.gradient-light-bg-secondary,
+.gradient-light-bg-schedule_current_lesson,
+.gradient-light-bg-schedule_break {
+	background-clip: border-box;
+	-webkit-background-clip: border-box;
+	will-change: background;
+	transform: translateZ(0);
+}

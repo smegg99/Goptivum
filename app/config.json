@@ -21,12 +21,12 @@
 			"teachers": [],
 			"rooms": [43]
 		},
-		"ignore_certificates": true
+		"ignore_certificates": false
 	},
 	"api": {
 		"port": 3001,
 		"max_sse_clients": 100,
-		"max_sse_clients_analytics": 3,
+		"max_sse_clients_analytics": 10,
 		"open_weather": {
 			"base_url": "https://api.openweathermap.org/data/2.5/",
 			"endpoints": {
@@ -36,6 +36,13 @@
 			},
 			"lat": 49.60982192707506,
 			"lon": 20.703821178832058
-		}
+		},
+		"local_weather_station": {
+			"base_url": "https://ke.zsem.edu.pl/temperatura/api/",
+			"endpoints": {
+				"current_air_pollution": "get-last-data-pm?sensor=3"
+			}
+		},
+		"use_local_weather_station": true
 	}
 }

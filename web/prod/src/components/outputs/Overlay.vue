@@ -5,7 +5,8 @@
 			<v-slide-x-transition appear>
 				<v-list nav density="default">
 					<v-list-item v-for="item in items" :key="item.route" :to="item.route" nav link
-						class="ma-2 nav-item overflow-visible" rounded="xl">
+						class="ma-2 nav-item overflow-visible" rounded="xl" @dragstart.prevent @mousedown.stop
+						draggable="false">
 						<template #prepend>
 							<v-icon>{{ item.prependIcon }}</v-icon>
 						</template>
@@ -21,7 +22,8 @@
 		<template #append>
 			<v-slide-y-reverse-transition appear>
 				<v-list nav density="default">
-					<v-list-item class="ma-3 nav-item" nav link :to="'/settings'" rounded="xl">
+					<v-list-item class="ma-3 nav-item" nav link :to="'/settings'" rounded="xl" @dragstart.prevent
+						@mousedown.stop draggable="false">
 						<template #prepend>
 							<v-icon>mdi-cog-outline</v-icon>
 						</template>
@@ -35,7 +37,8 @@
 	</v-navigation-drawer>
 
 	<v-slide-x-transition appear>
-		<v-btn icon="mdi-menu" elevation="8" class="fab rounded-pill" @click="drawer = !drawer" />
+		<v-btn icon="mdi-menu" elevation="8" class="fab rounded-pill" @click="drawer = !drawer" @dragstart.prevent
+			@mousedown.stop draggable="false" />
 	</v-slide-x-transition>
 
 	<v-main>

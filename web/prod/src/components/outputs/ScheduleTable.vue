@@ -39,7 +39,8 @@
 				<template v-if="isMobileView">
 					<v-card variant="flat">
 						<v-tabs v-model="activeTab" :style="{ backgroundColor: getRowColor(1) }" grow center-active>
-							<v-tab v-for="(day, index) in availableDayNames" :key="index" class="schedule-day-tab">
+							<v-tab v-for="(day, index) in availableDayNames" :key="index" class="schedule-day-tab"
+								@dragstart.prevent @mousedown.stop draggable="false">
 								{{ day }}
 							</v-tab>
 						</v-tabs>
@@ -836,6 +837,7 @@ function formatTime(time: TimeRange | undefined): string {
 	padding: 2px !important;
 	padding-left: 6px !important;
 	padding-right: 6px !important;
+    background-color: transparent;
 }
 
 .division-grid {
@@ -922,16 +924,19 @@ function formatTime(time: TimeRange | undefined): string {
 	.schedule-table td.narrow-column {
 		width: 5%;
 		padding: 6px;
+        background-color: transparent;
 	}
 
 	.schedule-table th.narrower-column,
 	.schedule-table td.narrower-column {
 		width: 5%;
 		padding: 6px;
+        background-color: transparent;
 	}
 
 	.schedule-table td.schedule-table-data {
 		padding: 6px !important;
+        background-color: transparent;
 	}
 
 	.schedule-table {

@@ -20,9 +20,9 @@
 </template>
 
 <script setup lang="ts">
-import ThemeSwitcher from '../ThemeSwitcher.vue';
-import LanguageSwitcher from '../LanguageSwitcher.vue';
-import AnimationsSwitcher from '../AnimationsSwitcher.vue';
+import ThemeSwitcher from '@/components/inputs/ThemeSwitcher.vue';
+import LanguageSwitcher from '@/components/inputs/LanguageSwitcher.vue';
+import AnimationsSwitcher from '@/components/inputs/AnimationsSwitcher.vue';
 </script>
 
 <style scoped>

@@ -1,11 +1,12 @@
-<!-- GenericButton.vue -->
+<!-- ResourceButton.vue -->
 <template>
 	<div ref="tilt" class="tilt-wrapper">
 		<v-btn :class="['button', getButtonClass(index)]" :ripple="true" elevation="8" variant="text" rounded="xl"
-			:to="getLink" nav link>
+			:to="getLink" nav link @dragstart.prevent @mousedown.stop draggable="false">
 			<div class="button-content">
 				<span :class="['full-name', textGradPrimaryAccent, fontSizeClass]">{{ fullName }}</span>
-				<span v-if="showDesignator" :class="textGradSecondaryAccent" class="designator">{{ props.designator }}</span>
+				<span v-if="showDesignator" :class="textGradSecondaryAccent" class="designator">{{ props.designator
+					}}</span>
 			</div>
 		</v-btn>
 	</div>
@@ -73,7 +74,7 @@ watchEffect(() => {
 });
 
 const resizeHandler = () => {
-	enableTilt.value = window.innerWidth > 700;
+	enableTilt.value = window.innerWidth > 700 && !reducedAnimationsEnabled.value;
 };
 
 window.addEventListener('resize', resizeHandler);
@@ -107,6 +108,8 @@ onUnmounted(() => {
 	padding: 1rem;
 	box-sizing: border-box;
 	border-radius: 24px !important;
+	-webkit-user-drag: none;
+	pointer-events: auto;
 }
 
 .button-content {

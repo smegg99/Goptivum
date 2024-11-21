@@ -47,11 +47,22 @@ type openWeatherConfig struct {
 	Lon       float64              `mapstructure:"lon"`
 }
 
+type localWeatherStationEndpoints struct {
+	CurrentAirPollution string `mapstructure:"current_air_pollution"`
+}
+
+type localWeatherStation struct {
+	BaseUrl   string                       `mapstructure:"base_url"`
+	Endpoints localWeatherStationEndpoints `mapstructure:"endpoints"`
+}
+
 type APIConfig struct {
-	Port                   int16             `mapstructure:"port"`
-	OpenWeather            openWeatherConfig `mapstructure:"open_weather"`
-	MaxSSEClients          int64             `mapstructure:"max_sse_clients"`
-	MaxSSEClientsAnalytics int64             `mapstructure:"max_sse_clients_analytics"`
+	Port                   int16               `mapstructure:"port"`
+	OpenWeather            openWeatherConfig   `mapstructure:"open_weather"`
+	LocalWeatherStation    localWeatherStation `mapstructure:"local_weather_station"`
+	UseLocalWeatherStation bool                `mapstructure:"use_local_weather_station"`
+	MaxSSEClients          int64               `mapstructure:"max_sse_clients"`
+	MaxSSEClientsAnalytics int64               `mapstructure:"max_sse_clients_analytics"`
 }
 
 type GlobalConfig struct {
