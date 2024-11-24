@@ -5,14 +5,14 @@
 			<v-card class="search-container pa-0" elevation="8" rounded="pill">
 				<v-text-field v-model="search" class="search" :label="t(`search.${type}`)" clearable
 					prepend-inner-icon="mdi-magnify" variant="solo" rounded="pill" hide-details="auto"
-					@input="debouncedSearch" @click:clear="onClear"/>
+					@input="debouncedSearch" @click:clear="onClear" />
 			</v-card>
 		</v-slide-y-transition>
 
 		<component :is="gridWrapper">
 			<v-container class="scrollable-grid pa-0">
 				<v-container :key="searchKey" class="scrollable-grid pa-0">
-					<v-container class="resource-grid pa-0">
+					<v-container class="resource-grid pa-0" :style="gridStyle">
 						<v-col v-for="(item, index) in filteredItems" :key="item.id" class="grid-item pa-0"
 							:class="{ 'animated-item': !reducedAnimationsEnabled }"
 							:style="!reducedAnimationsEnabled ? delayStyle(index) : {}">
@@ -73,12 +73,23 @@ const reducedAnimationsEnabled: ComputedRef<boolean> = computed(() => miscStore.
 
 const gridWrapper = computed(() => (reducedAnimationsEnabled.value ? 'div' : 'v-slide-y-reverse-transition'));
 
-// const scrollToTop = async () => {
-// 	await nextTick();
-// 	if (rootElementRef.value) {
-// 		window.scrollTo({ top: 0, behavior: 'auto' });
-// 	}
-// };
+const mobileViewBreakpoint = 432;
+const isMobileView = ref(window.innerWidth < mobileViewBreakpoint);
+
+window.addEventListener('resize', () => {
+	isMobileView.value = window.innerWidth < mobileViewBreakpoint;
+});
+
+const gridStyle = computed(() => {
+	const minWidth = props.type === 'teacher' ? '12rem' : '6rem';
+	return {
+		display: 'grid',
+		gridTemplateColumns: isMobileView.value
+			? `repeat(auto-fit, minmax(${props.type === 'teacher' ? '8rem' : '6rem'}, 1fr))`
+			: `repeat(auto-fit, minmax(${minWidth}, 1fr))`,
+		gap: '16px',
+	};
+});
 
 const fetchItems = async () => {
 	loading.value = true;
@@ -175,25 +186,22 @@ onMounted(fetchItems);
 }
 
 .resource-grid {
-	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
-	column-gap: clamp(0rem, 2vw, 1rem);
-	row-gap: 2rem;
-	justify-content: space-evenly;
-	margin: 1rem 1rem 1rem;
-	margin-top: 0;
-	width: auto;
-	height: auto;
-	overflow: visible;
+	width: calc(100% - 32px);
+	margin: 0 16px 16px 16px;
+	box-sizing: border-box;
+	grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+	gap: 16px;
+
+	@media (max-width: 450px) {
+		grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+	}
 }
 
 .grid-item {
-	width: 12rem;
-	height: 7rem;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	overflow: visible !important;
+	box-sizing: border-box;
 }
 
 .animated-item {
@@ -236,38 +244,6 @@ onMounted(fetchItems);
 
 	.scrollable-grid {
 		margin-top: calc(64px + 32px);
-	}
-
-	.resource-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(30%, 1fr));
-		row-gap: 16px;
-		column-gap: 16px;
-		justify-content: center;
-		width: auto;
-		max-width: 100%;
-	}
-
-	.grid-item {
-		width: 100%;
-		aspect-ratio: 2 / 1;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		overflow: hidden;
-		box-sizing: border-box;
-	}
-}
-
-@media (max-width: 767px) {
-	.resource-grid {
-		grid-template-columns: repeat(auto-fill, minmax(40%, 1fr));
-	}
-}
-
-@media (max-width: 367px) {
-	.resource-grid {
-		grid-template-columns: repeat(auto-fill, minmax(50%, 1fr));
 	}
 }
 </style>

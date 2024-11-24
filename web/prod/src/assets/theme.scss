@@ -1,41 +1,33 @@
-.font-larger {
-	font-size: 1.75rem;
-}
-
 .font-large {
-	font-size: 1.4rem;
+	font-size: clamp(1.7rem, 1rem, 2rem) !important;
 }
 
 .font-medium {
-	font-size: 1.1rem;
+	font-size: clamp(1.5rem, 1rem, 2rem) !important;
 }
 
 .font-small {
-	font-size: 1rem;
+	font-size: clamp(0.5rem, 1rem, 2rem) !important;
 }
 
-.font-smaller {
-	font-size: 0.7rem;
+.font-extra-small {
+	font-size: clamp(0.2rem, 1rem, 2rem) !important;
 }
 
 @media (max-width: 767px) {
-	.font-larger {
-		font-size: 1.5rem;
-	}
-
 	.font-large {
-		font-size: 1.2rem;
+		font-size: clamp(1.7rem, 1rem, 2rem) !important;
 	}
 
 	.font-medium {
-		font-size: 1rem;
+		font-size: clamp(1.5rem, 1rem, 2rem) !important;
 	}
 
 	.font-small {
-		font-size: 0.85rem;
+		font-size: clamp(0.5rem, 1rem, 2rem) !important;
 	}
 
-	.font-smaller {
-		font-size: 0.6rem;
+	.font-extra-small {
+		font-size: clamp(0.4rem, 0.9rem, 1rem) !important;
 	}
 }

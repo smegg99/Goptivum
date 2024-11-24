@@ -1,12 +1,20 @@
-<!-- ResourceButton.vue -->
 <template>
 	<div ref="tilt" class="tilt-wrapper">
-		<v-btn :class="['button', getButtonClass(index)]" :ripple="true" elevation="8" variant="text" rounded="xl"
-			:to="getLink" nav link @dragstart.prevent @mousedown.stop draggable="false">
+		<v-btn
+			:class="['button', getButtonClass(index), buttonSizeClass]"
+			:ripple="true"
+			elevation="8"
+			variant="text"
+			rounded="xl"
+			:to="getLink"
+			nav
+			link
+			@dragstart.prevent
+			@mousedown.stop
+			draggable="false"
+		>
 			<div class="button-content">
-				<span :class="['full-name', textGradPrimaryAccent, fontSizeClass]">{{ fullName }}</span>
-				<span v-if="showDesignator" :class="textGradSecondaryAccent" class="designator">{{ props.designator
-					}}</span>
+				<span :class="[fontSizeClass, 'content']">{{ displayText }}</span>
 			</div>
 		</v-btn>
 	</div>
@@ -16,7 +24,7 @@
 import { ref, onUnmounted, watchEffect, computed } from 'vue';
 import VanillaTilt from 'vanilla-tilt';
 import { useMiscStore } from '@/stores/miscStore';
-import { useBackgroundGradientClass, useTextGradientClass } from '@/composables/useThemeStyles';
+import { useBackgroundGradientClass } from '@/composables/useThemeStyles';
 import { useFontSizeClass } from '@/composables/useFontSizeClass';
 
 const props = defineProps<{
@@ -30,26 +38,26 @@ const props = defineProps<{
 const miscStore = useMiscStore();
 const bkGradPrimary = useBackgroundGradientClass('primary');
 const bkGradSecondary = useBackgroundGradientClass('secondary');
-const textGradPrimaryAccent = useTextGradientClass('primary-accent');
-const textGradSecondaryAccent = useTextGradientClass('secondary-accent');
-const { fontSizeClass } = useFontSizeClass(props.text)
 const reducedAnimationsEnabled = computed(() => miscStore.reducedAnimationsEnabled);
 
 const getLink = computed(() => {
 	return `/${props.type}/${props.id}`;
 });
 
-const showDesignator = computed(() => {
-	return props.text !== props.designator;
-});
-
 const getButtonClass = (index: number) => {
 	return index % 2 === 0 ? bkGradPrimary.value : bkGradSecondary.value;
 };
 
-const fullName = computed(() => {
-	return props.text;
+const displayText = computed(() => {
+	if (props.type === 'teacher') return props.text;
+	return props.designator;
 });
+
+const buttonSizeClass = computed(() => {
+	return props.type === 'teacher' ? 'size-teacher' : 'size-default';
+});
+
+const { fontSizeClass } = useFontSizeClass(displayText);
 
 interface VanillaTiltHTMLElement extends HTMLElement {
 	vanillaTilt: VanillaTilt;
@@ -98,65 +106,59 @@ onUnmounted(() => {
 }
 
 .button {
-	width: 100%;
-	height: 100%;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	text-align: center;
 	overflow: hidden;
-	padding: 1rem;
 	box-sizing: border-box;
 	border-radius: 24px !important;
 	-webkit-user-drag: none;
 	pointer-events: auto;
+	position: relative;
+}
+
+.size-default {
+	width: 100%;
+	height: 0;
+	padding-bottom: 100%;
+}
+
+.size-teacher {
+	width: 200%;
+	height: 0;
+	padding-bottom: 50%;
+
+	@media (max-width: 485px) {
+		width: 100%;
+	}
 }
 
 .button-content {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	width: 90%;
+	height: 90%;
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
 	align-items: center;
-	width: 100%;
-	height: 100%;
 	box-sizing: border-box;
-	overflow: visible
+	overflow: visible;
 }
 
-.full-name {
-	font-weight: 800;
-	text-align: center;
-	white-space: normal;
-	display: flex;
-	justify-content: center;
-	align-items: center;
-}
-
-.designator {
-	font-size: clamp(0.85rem, 1vw + 0.3rem, 1rem);
-	letter-spacing: 0.15rem;
-	font-weight: 600;
+.content {
+	font-weight: 900;
 	text-align: center;
 	white-space: nowrap;
+	display: block;
+	justify-content: center;
+	align-items: center;
+	word-wrap: normal;
 	overflow: hidden;
 	text-overflow: ellipsis;
-}
-
-.js-tilt-glare {
-	border-radius: 24px !important;
-}
-
-@media (max-width: 767px) {
-	.button {
-		padding: 0.8rem;
-	}
-
-	.button-content {
-		padding: 0.4rem;
-	}
-
-	.designator {
-		font-size: 1rem;
-	}
+	width: 100%;
 }
 </style>

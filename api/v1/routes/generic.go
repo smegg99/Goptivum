@@ -15,6 +15,7 @@ func SetupGenericRoutes(router *gin.Engine, rootGroup *gin.RouterGroup, schedule
 	healthGroup := rootGroup.Group("/health")
 	{
 		healthGroup.GET("/ping", handlers.PingHandler)
+		healthGroup.GET("", handlers.APIHealthHandler)
 		healthGroup.GET("/", handlers.APIHealthHandler)
 	}
 

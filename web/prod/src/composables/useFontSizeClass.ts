@@ -1,16 +1,21 @@
-import { computed } from 'vue'
+import { computed, Ref } from 'vue';
 
-export function useFontSizeClass(text: string) {
+export function useFontSizeClass(text: Ref<string> | string) {
 	const fontSizeClass = computed(() => {
-		if (text.length >= 20) return 'font-smaller'
-		if (text.length >= 15) return 'font-small'
-		if (text.length >= 10) return 'font-medium'
-		if (text.length >= 5) return 'font-large'
+		const textValue = typeof text === 'string' ? text : text.value;
 
-		return 'font-larger'
-	})
+		if (textValue.length <= 3) {
+			return 'font-large';
+		} else if (textValue.length <= 5) {
+			return 'font-medium';
+		} else if (textValue.length <= 7) {
+			return 'font-small';
+		} else {
+			return 'font-extra-small';
+		}
+	});
 
 	return {
 		fontSizeClass,
-	}
+	};
 }
