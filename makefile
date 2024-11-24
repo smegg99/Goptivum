@@ -21,6 +21,7 @@ OS := linux
 DOCKER_IMAGE_NAME := $(shell echo $(PROJECT_NAME) | tr '[:upper:]' '[:lower:]'):$(VERSION)
 DOCKER_COMPOSE := docker-compose
 DOCKER_COMPOSE_FILE := $(PROJECT_ROOT)/docker-compose.yml
+DOCKER_PACKAGE_NAME := goptivum
 
 DOCKERHUB_USERNAME ?= smeggmann99
 
@@ -52,13 +53,13 @@ build-web-install: | $(CURRENT_BUILD_DIR)
 package: all
 	@echo "Packaging tarballs for version $(VERSION)..."
 	@for arch in $(ARCHS); do \
-		BUILD_ARCHIVE=$(BUILD_DIR)/$(PROJECT_NAME)-$(VERSION)-$(OS)-static-$$arch.tar.gz; \
+		BUILD_ARCHIVE=$(BUILD_DIR)/$(shell echo $(PROJECT_NAME) | tr '[:upper:]' '[:lower:]')-$(VERSION)-$(OS)-static-$$arch.tar.gz; \
 		echo "Building for $$arch..."; \
 		TEMP_DIR=$(BUILD_DIR)/temp_$$arch; \
 		mkdir -p $$TEMP_DIR/Goptivum; \
 		GOOS=$(OS) GOARCH=$$arch CGO_ENABLED=0 go build -a -installsuffix cgo -o $$TEMP_DIR/Goptivum/$(BINARY_NAME) $(BACKEND_SOURCE_DIR); \
 		cp -r $(CURRENT_BUILD_DIR)/config.json $$TEMP_DIR/Goptivum/config.json; \
-		cp -r $(CURRENT_BUILD_DIR)/.env $$TEMP_DIR/Goptivum/.env; \
+		sed 's/^OPENWEATHER_API_KEY=.*/OPENWEATHER_API_KEY=""/' $(CURRENT_BUILD_DIR)/.env > $$TEMP_DIR/Goptivum/.env; \
 		cp -r $(DIST_DIR) $$TEMP_DIR/Goptivum/dist; \
 		echo "Creating archive $$BUILD_ARCHIVE..."; \
 		tar -czvf $$BUILD_ARCHIVE -C $$TEMP_DIR Goptivum; \
@@ -89,11 +90,23 @@ docker-clean:
 .PHONY: docker-publish
 docker-publish: docker-build
 	@echo "Tagging Docker image for publishing..."
-	@docker tag goptivum:$(VERSION) $(DOCKERHUB_USERNAME)/goptivum:$(VERSION)
-	@docker tag goptivum:$(VERSION) $(DOCKERHUB_USERNAME)/goptivum:latest
+	@docker tag $(DOCKERHUB_USERNAME)/$(DOCKER_PACKAGE_NAME):$(VERSION) $(DOCKERHUB_USERNAME)/$(DOCKER_PACKAGE_NAME):$(VERSION)
+	@docker tag $(DOCKERHUB_USERNAME)/$(DOCKER_PACKAGE_NAME):$(VERSION) $(DOCKERHUB_USERNAME)/$(DOCKER_PACKAGE_NAME):latest
 	@echo "Pushing Docker image to Docker Hub..."
-	@docker push $(DOCKERHUB_USERNAME)/goptivum:$(VERSION)
-	@docker push $(DOCKERHUB_USERNAME)/goptivum:latest
+	@docker push $(DOCKERHUB_USERNAME)/$(DOCKER_PACKAGE_NAME):$(VERSION)
+	@docker push $(DOCKERHUB_USERNAME)/$(DOCKER_PACKAGE_NAME):latest
+
+.PHONY: docker-build-publish
+docker-build-publish:
+	@echo "Building and publishing multi-architecture Docker images..."
+	@docker buildx build \
+		--platform linux/amd64,linux/arm64,linux/arm \
+		--build-arg VERSION=$(VERSION) \
+		--tag $(DOCKERHUB_USERNAME)/$(DOCKER_PACKAGE_NAME):$(VERSION) \
+		--tag $(DOCKERHUB_USERNAME)/$(DOCKER_PACKAGE_NAME):latest \
+		--push \
+		-f $(PROJECT_ROOT)/dockerfile $(PROJECT_ROOT)
+	@echo "Docker images built and published for architectures: amd64, arm64, arm."
 
 .PHONY: clean
 clean:
