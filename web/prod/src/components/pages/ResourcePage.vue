@@ -11,16 +11,15 @@
 
 		<component :is="gridWrapper">
 			<v-container class="scrollable-grid pa-0">
-				<v-container :key="searchKey" class="scrollable-grid pa-0">
-					<v-container class="resource-grid pa-0" :style="gridStyle">
-						<v-col v-for="(item, index) in filteredItems" :key="item.id" class="grid-item pa-0"
-							:class="{ 'animated-item': !reducedAnimationsEnabled }"
-							:style="!reducedAnimationsEnabled ? delayStyle(index) : {}">
-							<ResourceButton :text="item.full_name" :designator="item.designator" :index="index"
-								:id="item.id" :type="type" />
-						</v-col>
-					</v-container>
+				<v-container :key="searchKey" class="resource-grid pa-0" :style="gridStyle">
+					<v-col v-for="(item, index) in filteredItems" :key="item.id" class="grid-item pa-0"
+						:class="{ 'animated-item': !reducedAnimationsEnabled }"
+						:style="!reducedAnimationsEnabled ? delayStyle(index) : {}">
+						<ResourceButton :text="item.full_name" :designator="item.designator" :index="index"
+							:id="item.id" :type="type" />
+					</v-col>
 				</v-container>
+
 				<v-empty-state v-if="!loading && !error && filteredItems.length === 0"
 					:icon="`mdi-magnify-remove-outline`" class="no-resources" :title="t(`page.no_${type}s`)" />
 				<v-empty-state v-if="error" icon="mdi-alert-circle" color="error" class="no-resources"
@@ -81,13 +80,12 @@ window.addEventListener('resize', () => {
 });
 
 const gridStyle = computed(() => {
-	const minWidth = props.type === 'teacher' ? '12rem' : '6rem';
+	const minWidth = props.type === 'teacher' ? '10rem' : '6rem';
 	return {
 		display: 'grid',
-		gridTemplateColumns: isMobileView.value
-			? `repeat(auto-fit, minmax(${props.type === 'teacher' ? '8rem' : '6rem'}, 1fr))`
-			: `repeat(auto-fit, minmax(${minWidth}, 1fr))`,
+		gridTemplateColumns: `repeat(auto-fill, minmax(${minWidth}, 1fr))`,
 		gap: '16px',
+		justifyItems: 'center',
 	};
 });
 
@@ -136,6 +134,7 @@ watch(
 		search.value = '';
 		items.value = [];
 		error.value = null;
+		onClear();
 		fetchItems();
 	}
 );
@@ -185,15 +184,19 @@ onMounted(fetchItems);
 	align-items: center;
 }
 
+.scrollable-grid {
+	margin-bottom: 16px;
+}
+
 .resource-grid {
 	width: calc(100% - 32px);
-	margin: 0 16px 16px 16px;
+	margin: 0 auto;
 	box-sizing: border-box;
-	grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+	grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
 	gap: 16px;
 
 	@media (max-width: 450px) {
-		grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
 	}
 }
 

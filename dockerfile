@@ -5,8 +5,7 @@ RUN apt-get update && apt-get install -y \
     git \
     make \
     nodejs \
-    npm \
-    ca-certificates
+    npm
 
 WORKDIR /app
 
@@ -23,7 +22,6 @@ WORKDIR /app
 
 COPY --from=builder /app/build/Goptivum/dist /app/dist
 COPY --from=builder /app/build/Goptivum/config.json /app/config.json
-COPY --from=builder /app/build/Goptivum/.env /app/.env
 COPY --from=builder /app/build/Goptivum/Goptivum /app/Goptivum
 
 RUN chmod +x /app/Goptivum

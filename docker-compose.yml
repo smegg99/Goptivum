@@ -32,9 +32,8 @@ services:
     networks:
       - app-network
     volumes:
-      - ./build/Goptivum/dist:/app/dist
-      - ./build/Goptivum/config.json:/app/config.json
-      - ./build/Goptivum/.env:/app/.env  
+      - ./build/Goptivum/.env:/app/.env
+      - goptivum_db:/app/db
 
   certbot:
     image: certbot/certbot
@@ -67,3 +66,4 @@ networks:
 volumes:
   certbot_etc:
   certbot_var:
+  goptivum_db:
