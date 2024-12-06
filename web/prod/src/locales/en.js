@@ -136,6 +136,8 @@ export default {
 		rooms: 'Rooms',
 		room: 'Room - {id}',
 		settings: 'Settings',
+		practices: 'Practices',
+		duties: 'Duties',
 		scraper_down_title: 'Scraper is down 💀',
 		scraper_down_description: 'Data may be outdated or unavailable',
 	},

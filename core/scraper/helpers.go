@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"smuggr.xyz/goptivum/common/models"
@@ -25,56 +24,6 @@ func makeTeacherEndpoint(index int64) string {
 
 func makeRoomEndpoint(index int64) string {
 	return fmt.Sprintf(Config.Endpoints.Room, index)
-}
-
-func waitForFirstRefresh() {
-	var wg sync.WaitGroup
-
-	divisionObservers := len(DivisionsScraperResource.Hub.GetAllObservers(true))
-	teacherObservers := len(TeachersScraperResource.Hub.GetAllObservers(true))
-	roomObservers := len(RoomsScraperResource.Hub.GetAllObservers(true))
-
-	totalObservers := divisionObservers + teacherObservers + roomObservers
-
-	if totalObservers > 0 {
-		wg.Add(totalObservers)
-	} else {
-		fmt.Println("no observers to wait for")
-		return
-	}
-
-	waitForRefresh := func(ch <-chan int64, count int) {
-		fmt.Println("waiting for refresh:", count)
-		for i := 0; i < count; i++ {
-			go func() {
-				<-ch
-				select {
-				case <-ch:
-					wg.Done()
-				case <-time.After(20 * time.Second):
-					fmt.Println("timed out waiting for refresh")
-					wg.Done()
-				}
-			}()
-		}
-	}
-
-	waitForRefresh(DivisionsScraperResource.RefreshChan, divisionObservers)
-	waitForRefresh(TeachersScraperResource.RefreshChan, teacherObservers)
-	waitForRefresh(RoomsScraperResource.RefreshChan, roomObservers)
-
-	done := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(done)
-	}()
-
-	// Some observers might not refresh so we
-	// need to wait for a certain amount of time
-	select {
-	case <-done:
-	case <-time.After(15 * time.Second):
-	}
 }
 
 func splitDivisionTitle(s string) (string, string) {
@@ -311,8 +260,7 @@ func scrapeSchedule(doc *goquery.Document) (*models.Schedule, error) {
 				fmt.Println("error parsing lessons", err)
 				return
 			}
-			//fmt.Println("dayOfWeek:", dayOfWeek, "lessons:", lessons, workDays)
-
+			
 			lessonGroup := &models.LessonGroup{
 				Lessons: lessons,
 			}
@@ -327,8 +275,212 @@ func scrapeSchedule(doc *goquery.Document) (*models.Schedule, error) {
 	return schedule, nil
 }
 
+func parseDutyTimestamp(s string) (models.TimeRange, error) {
+    s = strings.TrimSpace(s)
+
+    // Remove the leading index and dot (e.g., "0. ", "1. ")
+    if idx := strings.Index(s, " "); idx != -1 {
+        s = s[idx+1:]
+    }
+
+    parts := strings.Split(s, "-")
+    if len(parts) != 2 {
+        return models.TimeRange{}, fmt.Errorf("invalid time range: %s", s)
+    }
+
+    _start := strings.TrimSpace(parts[0])
+    _end := strings.TrimSpace(parts[1])
+
+    startParts := strings.Split(_start, ":")
+    if len(startParts) != 2 {
+        return models.TimeRange{}, fmt.Errorf("invalid start time: %s", _start)
+    }
+    startHour, err := strconv.ParseInt(startParts[0], 10, 32)
+    if err != nil {
+        return models.TimeRange{}, fmt.Errorf("invalid start hour: %s %v", startParts[0], err)
+    }
+    startMinute, err := strconv.ParseInt(startParts[1], 10, 32)
+    if err != nil {
+        return models.TimeRange{}, fmt.Errorf("invalid start minute: %s %v", startParts[1], err)
+    }
+
+    endParts := strings.Split(_end, ":")
+    if len(endParts) != 2 {
+        return models.TimeRange{}, fmt.Errorf("invalid end time: %s", _end)
+    }
+    endHour, err := strconv.ParseInt(endParts[0], 10, 32)
+    if err != nil {
+        return models.TimeRange{}, fmt.Errorf("invalid end hour: %s %v", endParts[0], err)
+    }
+    endMinute, err := strconv.ParseInt(endParts[1], 10, 32)
+    if err != nil {
+        return models.TimeRange{}, fmt.Errorf("invalid end minute: %s %v", endParts[1], err)
+    }
+
+    start := models.Timestamp{
+        Hour:   startHour,
+        Minute: startMinute,
+    }
+
+    end := models.Timestamp{
+        Hour:   endHour,
+        Minute: endMinute,
+    }
+
+    return models.TimeRange{Start: &start, End: &end}, nil
+}
+
+func scrapeTeachersOnDuty(doc *goquery.Document) ([]*models.TeachersOnDuty, error) {
+	var teachersOnDutyList []*models.TeachersOnDuty
+
+	doc.Find("body h2").Each(func(i int, dayHeader *goquery.Selection) {
+		dayName := strings.TrimSpace(dayHeader.Text())
+		dayTable := dayHeader.NextFiltered("table")
+
+		if dayTable.Length() == 0 {
+			fmt.Printf("No table found for day: %s\n", dayName)
+			return
+		}
+
+		var dutyGroups []*models.DutyGroup
+
+		dayTable.Find("tbody > tr").Each(func(j int, row *goquery.Selection) {
+			if j == 0 {
+				return
+			}
+
+			columns := row.Find("th, td")
+			if columns.Length() < 2 {
+				return
+			}
+
+			timeRangeText := strings.TrimSpace(columns.First().Text())
+			timeRange, err := parseDutyTimestamp(timeRangeText)
+			if err != nil {
+				fmt.Printf("Error parsing time range '%s': %v\n", timeRangeText, err)
+				return
+			}
+
+			var duties []*models.Duty
+			columns.NextAll().Each(func(k int, dutyCell *goquery.Selection) {
+				placeFullName := dayTable.Find("tr").First().Find("th").Eq(k + 1).Text()
+				teacherFullName := strings.TrimSpace(dutyCell.Text())
+
+				if teacherFullName != "" {
+					duties = append(duties, &models.Duty{
+						TeacherFullName: teacherFullName,
+						PlaceFullName:   placeFullName,
+					})
+				}
+			})
+
+			dutyGroups = append(dutyGroups, &models.DutyGroup{
+				TimeRange: &timeRange,
+				Duties:    duties,
+			})
+		})
+
+		// Add to the result list
+		teachersOnDutyList = append(teachersOnDutyList, &models.TeachersOnDuty{
+			DayOfWeek:  dayName,
+			DutyGroups: dutyGroups,
+		})
+	})
+
+	return teachersOnDutyList, nil
+}
+
+func parseDateRange(s string) (models.TimeRange, error) {
+    parts := strings.Split(s, " - ")
+    if len(parts) != 2 {
+        return models.TimeRange{}, fmt.Errorf("invalid date range: %s", s)
+    }
+
+    startStr := strings.TrimSpace(parts[0])
+    endStr := strings.TrimSpace(parts[1])
+
+    startTimestamp, err := parseDateToTimestamp(startStr)
+    if err != nil {
+        return models.TimeRange{}, fmt.Errorf("error parsing start date '%s': %v", startStr, err)
+    }
+
+    endTimestamp, err := parseDateToTimestamp(endStr)
+    if err != nil {
+        return models.TimeRange{}, fmt.Errorf("error parsing end date '%s': %v", endStr, err)
+    }
+
+    return models.TimeRange{
+        Start: &startTimestamp,
+        End:   &endTimestamp,
+    }, nil
+}
+
+func parseDateToTimestamp(dateStr string) (models.Timestamp, error) {
+	t, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		return models.Timestamp{}, fmt.Errorf("invalid date format: %s", dateStr)
+	}
+
+	return models.Timestamp{
+		Year:   int64(t.Year()),
+		Month:  int64(t.Month()),
+		Day:    int64(t.Day()),
+		Hour:   0,
+		Minute: 0,
+		Second: 0,
+	}, nil
+}
+
+func parseDivisionDesignators(text string) []string {
+	designators := strings.Split(text, ",")
+	for i, d := range designators {
+		designators[i] = strings.TrimSpace(d)
+	}
+	return designators
+}
+
+func scrapePractices(doc *goquery.Document) (*models.Practices, error) {
+	var practices models.Practices
+
+	tableSelection := doc.Find("body h2 table")
+	if tableSelection.Length() == 0 {
+		return nil, fmt.Errorf("no table found in the document")
+	}
+
+	tableSelection.Find("tbody > tr").Each(func(i int, row *goquery.Selection) {
+		if i == 0 {
+			return
+		}
+
+		columns := row.Find("th, td")
+		if columns.Length() < 2 {
+			fmt.Println("not enough columns in row")
+			return
+		}
+
+		divisionText := strings.TrimSpace(columns.Eq(0).Text())
+		divisionDesignators := parseDivisionDesignators(divisionText)
+
+		timeRangeText := strings.TrimSpace(columns.Eq(1).Text())
+		timeRange, err := parseDateRange(timeRangeText)
+		if err != nil {
+			fmt.Printf("error parsing time range '%s': %v\n", timeRangeText, err)
+			return
+		}
+
+		practicesGroup := &models.PracticesGroup{
+			DivisionDesignators: divisionDesignators,
+			TimeRange:           &timeRange,
+		}
+
+		practices.PracticesGroups = append(practices.PracticesGroups, practicesGroup)
+	})
+
+	return &practices, nil
+}
+
 func newDivisionObserver(index int64, refreshChan *chan int64) *observer.Observer {
-	extractFunc := func(doc *goquery.Document) string {
+	extractFunc := func(o *observer.Observer, doc *goquery.Document) string {
 		var content []string
 		doc.Find("table.tabela").Each(func(i int, table *goquery.Selection) {
 			table.Find("td, th").Each(func(i int, s *goquery.Selection) {
@@ -349,18 +501,20 @@ func newDivisionObserver(index int64, refreshChan *chan int64) *observer.Observe
 		return strings.Join(content, " ")
 	}
 
-	callbackFunc := func() {
+	callbackFunc := func(o *observer.Observer) {
 		division, err := ScrapeDivision(index)
 		if err != nil {
 			fmt.Printf("error scraping division: %v\n", err)
 			return
 		}
 
-		*refreshChan <- index
-
 		if err := datastore.SetDivision(division); err != nil {
 			fmt.Printf("error saving division: %v\n", err)
 			return
+		}
+
+		if !o.FirstRun {
+			*refreshChan <- index
 		}
 	}
 	
@@ -371,7 +525,7 @@ func newDivisionObserver(index int64, refreshChan *chan int64) *observer.Observe
 }
 
 func newTeacherObserver(index int64, refreshChan *chan int64) *observer.Observer {
-	extractFunc := func(doc *goquery.Document) string {
+	extractFunc := func(o *observer.Observer, doc *goquery.Document) string {
 		var content []string
 		doc.Find("table").Each(func(i int, table *goquery.Selection) {
 			table.Find("td, th").Each(func(i int, s *goquery.Selection) {
@@ -386,18 +540,20 @@ func newTeacherObserver(index int64, refreshChan *chan int64) *observer.Observer
 		return strings.Join(content, " ")
 	}
 
-	callbackFunc := func() {
+	callbackFunc := func(o *observer.Observer) {
 		teacher, err := ScrapeTeacher(index)
 		if err != nil {
 			fmt.Printf("error scraping teacher: %v\n", err)
 			return
 		}
 
-		*refreshChan <- index
-
 		if err := datastore.SetTeacher(teacher); err != nil {
 			fmt.Printf("error saving teacher: %v\n", err)
 			return
+		}
+
+		if !o.FirstRun {
+			*refreshChan <- index
 		}
 	}
 
@@ -408,7 +564,7 @@ func newTeacherObserver(index int64, refreshChan *chan int64) *observer.Observer
 }
 
 func newRoomObserver(index int64, refreshChan *chan int64) *observer.Observer {
-	extractFunc := func(doc *goquery.Document) string {
+	extractFunc := func(o *observer.Observer, doc *goquery.Document) string {
 		var content []string
 
 		doc.Find("a").Each(func(i int, s *goquery.Selection) {
@@ -425,18 +581,20 @@ func newRoomObserver(index int64, refreshChan *chan int64) *observer.Observer {
 		return strings.Join(content, " ")
 	}
 
-	callbackFunc := func() {
+	callbackFunc := func(o *observer.Observer) {
 		room, err := ScrapeRoom(index)
 		if err != nil {
 			fmt.Printf("error scraping room: %v\n", err)
 			return
 		}
 
-		*refreshChan <- index
-
 		if err := datastore.SetRoom(room); err != nil {
 			fmt.Printf("error saving room: %v\n", err)
 			return
+		}
+
+		if !o.FirstRun {
+			*refreshChan <- index
 		}
 	}
 
@@ -444,4 +602,68 @@ func newRoomObserver(index int64, refreshChan *chan int64) *observer.Observer {
 	interval := time.Duration((index+1)/10+5) * time.Second
 
 	return observer.NewObserver(index, url, interval, extractFunc, callbackFunc)
+}
+
+func newTeachersOnDutyObserver(refreshChan *chan int64) *observer.Observer {
+	extractFunc := func(o *observer.Observer, doc *goquery.Document) string {
+		var tds []string
+		doc.Find("td").Each(func(i int, s *goquery.Selection) {
+			tds = append(tds, s.Text())
+		})
+		return strings.Join(tds, " ")
+	}
+
+	callbackFunc := func(o *observer.Observer) {
+		teachersOnDutyWeek, err := ScrapeTeachersOnDuty()
+		if err != nil {
+			fmt.Printf("error scraping teachers on duty: %v\n", err)
+			return
+		}
+
+		if err := datastore.SetTeachersOnDutyWeek(teachersOnDutyWeek); err != nil {
+			fmt.Printf("error saving teachers on duty: %v\n", err)
+			return
+		}
+
+		if !o.FirstRun {
+			*refreshChan <- 0
+		}
+	}
+
+	url := Config.BaseUrl + Config.Endpoints.TeachersOnDuty
+	interval := 5 * time.Minute
+
+	return observer.NewObserver(0, url, interval, extractFunc, callbackFunc)
+}
+
+func newPracticesObserver(refreshChan *chan int64) *observer.Observer {
+	extractFunc := func(o *observer.Observer, doc *goquery.Document) string {
+		var ths []string
+		doc.Find("th").Each(func(i int, s *goquery.Selection) {
+			ths = append(ths, s.Text())
+		})
+		return strings.Join(ths, " ")
+	}
+
+	callbackFunc := func(o *observer.Observer) {
+		practices, err := ScrapePractices()
+		if err != nil {
+			fmt.Printf("error scraping practices: %v\n", err)
+			return
+		}
+
+		if err := datastore.SetPractices(practices); err != nil {
+			fmt.Printf("error saving practices: %v\n", err)
+			return
+		}
+
+		if !o.FirstRun {
+			*refreshChan <- 0
+		}
+	}
+
+	url := Config.BaseUrl + Config.Endpoints.Practices
+	interval := 5 * time.Second
+
+	return observer.NewObserver(0, url, interval, extractFunc, callbackFunc)
 }

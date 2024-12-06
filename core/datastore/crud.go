@@ -47,77 +47,152 @@ func deleteItem(key []byte) error {
 	})
 }
 
+func SetEntity[T proto.Message](prefix string, index int64, entity T) error {
+	key := []byte(fmt.Sprintf("%s:%d", prefix, index))
+	return setItem(key, entity)
+}
+
+func GetEntity[T proto.Message](prefix string, index int64, newEntity func() T) (T, error) {
+	key := []byte(fmt.Sprintf("%s:%d", prefix, index))
+	entity := newEntity()
+	err := getItem(key, entity)
+	if err != nil {
+		var zero T
+		return zero, err
+	}
+	return entity, nil
+}
+
+func DeleteEntity(prefix string, index int64) error {
+	key := []byte(fmt.Sprintf("%s:%d", prefix, index))
+	return deleteItem(key)
+}
+
+func SetFixedItem[T proto.Message](key []byte, item T) error {
+	return setItem(key, item)
+}
+
+func GetFixedItem[T proto.Message](key []byte, newItem func() T) (T, error) {
+	item := newItem()
+	err := getItem(key, item)
+	if err != nil {
+		var zero T
+		return zero, err
+	}
+	return item, nil
+}
+
+func DeleteFixedItem(key []byte) error {
+	return deleteItem(key)
+}
+
 func SetDivision(division *models.Division) error {
-	key := []byte(fmt.Sprintf("division:%d", division.Index))
-	return setItem(key, division)
+	return SetEntity("division", division.Index, division)
 }
 
 func GetDivision(index int64) (*models.Division, error) {
-	key := []byte(fmt.Sprintf("division:%d", index))
-	division := &models.Division{}
-	err := getItem(key, division)
-	if err != nil {
-		return nil, err
-	}
-	return division, nil
+	return GetEntity("division", index, func() *models.Division { return &models.Division{} })
 }
 
 func DeleteDivision(index int64) error {
-	key := []byte(fmt.Sprintf("division:%d", index))
-	return deleteItem(key)
+	return DeleteEntity("division", index)
 }
 
 func SetTeacher(teacher *models.Teacher) error {
-	key := []byte(fmt.Sprintf("teacher:%d", teacher.Index))
-	return setItem(key, teacher)
+	return SetEntity("teacher", teacher.Index, teacher)
 }
 
 func GetTeacher(index int64) (*models.Teacher, error) {
-	key := []byte(fmt.Sprintf("teacher:%d", index))
-	teacher := &models.Teacher{}
-	err := getItem(key, teacher)
-	if err != nil {
-		return nil, err
-	}
-	return teacher, nil
+	return GetEntity("teacher", index, func() *models.Teacher { return &models.Teacher{} })
 }
 
 func DeleteTeacher(index int64) error {
-	key := []byte(fmt.Sprintf("teacher:%d", index))
-	return deleteItem(key)
+	return DeleteEntity("teacher", index)
 }
 
 func SetRoom(room *models.Room) error {
-	key := []byte(fmt.Sprintf("room:%d", room.Index))
-	return setItem(key, room)
+	return SetEntity("room", room.Index, room)
 }
 
 func GetRoom(index int64) (*models.Room, error) {
-	key := []byte(fmt.Sprintf("room:%d", index))
-	room := &models.Room{}
-	err := getItem(key, room)
-	if err != nil {
-		return nil, err
-	}
-	return room, nil
+	return GetEntity("room", index, func() *models.Room { return &models.Room{} })
 }
 
 func DeleteRoom(index int64) error {
-	key := []byte(fmt.Sprintf("room:%d", index))
-	return deleteItem(key)
+	return DeleteEntity("room", index)
 }
 
-func SetMetadata(metadata *models.Metadata) error {
-	key := []byte("metadata")
-	return setItem(key, metadata)
+func SetDivisionsMeta(metadata *models.Metadata) error {
+	key := []byte("divisions_meta")
+	return SetFixedItem(key, metadata)
 }
 
-func GetMetadata() (*models.Metadata, error) {
-	key := []byte("metadata")
-	metadata := &models.Metadata{}
-	err := getItem(key, metadata)
-	if err != nil {
-		return nil, err
-	}
-	return metadata, nil
+func GetDivisionsMeta() (*models.Metadata, error) {
+	key := []byte("divisions_meta")
+	return GetFixedItem(key, func() *models.Metadata { return &models.Metadata{} })
+}
+
+func DeleteDivisionsMeta() error {
+	key := []byte("divisions_meta")
+	return DeleteFixedItem(key)
+}
+
+func SetTeachersMeta(metadata *models.Metadata) error {
+	key := []byte("teachers_meta")
+	return SetFixedItem(key, metadata)
+}
+
+func GetTeachersMeta() (*models.Metadata, error) {
+	key := []byte("teachers_meta")
+	return GetFixedItem(key, func() *models.Metadata { return &models.Metadata{} })
+}
+
+func DeleteTeachersMeta() error {
+	key := []byte("teachers_meta")
+	return DeleteFixedItem(key)
+}
+
+func SetRoomsMeta(metadata *models.Metadata) error {
+	key := []byte("rooms_meta")
+	return SetFixedItem(key, metadata)
+}
+
+func GetRoomsMeta() (*models.Metadata, error) {
+	key := []byte("rooms_meta")
+	return GetFixedItem(key, func() *models.Metadata { return &models.Metadata{} })
+}
+
+func DeleteRoomsMeta() error {
+	key := []byte("rooms_meta")
+	return DeleteFixedItem(key)
+}
+
+func SetTeachersOnDutyWeek(teachersOnDuty *models.TeachersOnDutyWeek) error {
+	key := []byte("teachers_on_duty_week")
+	return SetFixedItem(key, teachersOnDuty)
+}
+
+func GetTeachersOnDutyWeek() (*models.TeachersOnDutyWeek, error) {
+	key := []byte("teachers_on_duty_week")
+	return GetFixedItem(key, func() *models.TeachersOnDutyWeek { return &models.TeachersOnDutyWeek{} })
+}
+
+func DeleteTeachersOnDutyWeek() error {
+	key := []byte("teachers_on_duty_week")
+	return DeleteFixedItem(key)
+}
+
+func SetPractices(practices *models.Practices) error {
+	key := []byte("practices")
+	return SetFixedItem(key, practices)
+}
+
+func GetPractices() (*models.Practices, error) {
+	key := []byte("practices")
+	return GetFixedItem(key, func() *models.Practices { return &models.Practices{} })
+}
+
+func DeletePractices() error {
+	key := []byte("practices")
+	return DeleteFixedItem(key)
 }

@@ -17,16 +17,16 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-// TODO: Add the ability to add more resource indexes to the scraper, (SKat)
-
 var Config config.ScraperConfig
 
 type ResourceType string
 
 const (
-	DivisionResource ResourceType = "division"
-	TeacherResource  ResourceType = "teacher"
-	RoomResource     ResourceType = "room"
+	DivisionResource       ResourceType = "division"
+	TeacherResource        ResourceType = "teacher"
+	RoomResource           ResourceType = "room"
+	TeachersOnDutyResource ResourceType = "teachers_on_duty"
+	PracticesResource      ResourceType = "practices"
 )
 
 func (t ResourceType) String() string {
@@ -170,6 +170,15 @@ func (s *ScraperResource) UpdateMetadata(newDesignator, newFullName string, inde
 		s.Metadata.FullNames[newFullName] = &models.Duplicates{}
 	}
 	s.Metadata.FullNames[newFullName].Values = append(s.Metadata.FullNames[newFullName].Values, index)
+
+	switch s.Type {
+	case DivisionResource:
+		datastore.SetDivisionsMeta(s.Metadata)
+	case TeacherResource:
+		datastore.SetTeachersMeta(s.Metadata)
+	case RoomResource:
+		datastore.SetRoomsMeta(s.Metadata)
+	}
 }
 
 func (s *ScraperResource) RemoveMetadata(index int64) {
@@ -218,6 +227,10 @@ func (s *ScraperResource) newObserver(index int64) *observer.Observer {
 		return newTeacherObserver(index, &s.RefreshChan)
 	case RoomResource:
 		return newRoomObserver(index, &s.RefreshChan)
+	case TeachersOnDutyResource:
+		return newTeachersOnDutyObserver(&s.RefreshChan)
+	case PracticesResource:
+		return newPracticesObserver(&s.RefreshChan)
 	}
 
 	return nil
@@ -241,7 +254,6 @@ func (s *ScraperResource) RefreshObservers() {
 	for _, index := range s.Indexes {
 		existingIndexes[index] = true
 		if s.Hub.GetObserver(index) == nil {
-			fmt.Printf("adding observer for resource (%s) %d\n", s.Type, index)
 			observer := s.newObserver(index)
 			s.Hub.AddObserver(observer)
 		}
@@ -270,9 +282,11 @@ var (
 )
 
 var (
-	DivisionsScraperResource *ScraperResource
-	TeachersScraperResource  *ScraperResource
-	RoomsScraperResource     *ScraperResource
+	DivisionsScraperResource      *ScraperResource
+	TeachersScraperResource       *ScraperResource
+	RoomsScraperResource          *ScraperResource
+	TeachersOnDutyScraperResource *ScraperResource
+	PracticesScraperResource      *ScraperResource
 )
 
 func ScrapeDivision(index int64) (*models.Division, error) {
@@ -369,6 +383,36 @@ func ScrapeRoom(index int64) (*models.Room, error) {
 	room.Schedule = schedule
 
 	return &room, nil
+}
+
+func ScrapeTeachersOnDuty() (*models.TeachersOnDutyWeek, error) {
+	doc, err := utils.OpenDoc(Config.BaseUrl, Config.Endpoints.TeachersOnDuty)
+	if err != nil {
+		return nil, fmt.Errorf("error opening document: %w", err)
+	}
+
+	dutiesWeek, err := scrapeTeachersOnDuty(doc)
+	if err != nil {
+		return nil, fmt.Errorf("error scraping teachers on duty: %w", err)
+	}
+
+	return &models.TeachersOnDutyWeek{
+		TeachersOnDuty: dutiesWeek,
+	}, nil
+}
+
+func ScrapePractices() (*models.Practices, error) {
+	doc, err := utils.OpenDoc(Config.BaseUrl, Config.Endpoints.Practices)
+	if err != nil {
+		return nil, fmt.Errorf("error opening document: %w", err)
+	}
+
+	practices, err := scrapePractices(doc)
+	if err != nil {
+		return nil, fmt.Errorf("error scraping practices: %w", err)
+	}
+
+	return practices, nil
 }
 
 func ScrapeDivisionsIndexes() ([]int64, error) {
@@ -480,6 +524,8 @@ func Initialize() error {
 	DivisionsScraperResource = NewScraperResource(DivisionIndexRegex, DivisionResource)
 	TeachersScraperResource = NewScraperResource(TeacherIndexRegex, TeacherResource)
 	RoomsScraperResource = NewScraperResource(RoomIndexRegex, RoomResource)
+	TeachersOnDutyScraperResource = NewScraperResource(nil, TeachersOnDutyResource)
+	PracticesScraperResource = NewScraperResource(nil, PracticesResource)
 
 	divisionsIndexes, err := ScrapeDivisionsIndexes()
 	if err != nil {
@@ -518,12 +564,14 @@ func Initialize() error {
 	DivisionsScraperResource.Hub = hub.NewHub(Config.Quantities.Workers.Division, Config.IgnoreCertificates)
 	RoomsScraperResource.Hub = hub.NewHub(Config.Quantities.Workers.Teacher, Config.IgnoreCertificates)
 	TeachersScraperResource.Hub = hub.NewHub(Config.Quantities.Workers.Room, Config.IgnoreCertificates)
+	TeachersOnDutyScraperResource.Hub = hub.NewHub(1, Config.IgnoreCertificates)
+	PracticesScraperResource.Hub = hub.NewHub(1, Config.IgnoreCertificates)
 
-	ObserveDivisions(&DivisionsScraperResource.RefreshChan)
-	ObserveTeachers(&TeachersScraperResource.RefreshChan)
-	ObserveRooms(&RoomsScraperResource.RefreshChan)
-
-	waitForFirstRefresh()
+	ObserveDivisions()
+	ObserveTeachers()
+	ObserveRooms()
+	ObserveTeachersOnDuty()
+	ObservePractices()
 
 	return nil
 }
@@ -533,4 +581,5 @@ func Cleanup() {
 	DivisionsScraperResource.StopHub()
 	TeachersScraperResource.StopHub()
 	RoomsScraperResource.StopHub()
+	TeachersOnDutyScraperResource.StopHub()
 }

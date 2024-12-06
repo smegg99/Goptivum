@@ -72,7 +72,7 @@ const reducedAnimationsEnabled: ComputedRef<boolean> = computed(() => miscStore.
 
 const gridWrapper = computed(() => (reducedAnimationsEnabled.value ? 'div' : 'v-slide-y-reverse-transition'));
 
-const mobileViewBreakpoint = 432;
+const mobileViewBreakpoint = 532;
 const isMobileView = ref(window.innerWidth < mobileViewBreakpoint);
 
 window.addEventListener('resize', () => {
@@ -80,11 +80,12 @@ window.addEventListener('resize', () => {
 });
 
 const gridStyle = computed(() => {
-	const minWidth = props.type === 'teacher' ? '10rem' : '6rem';
+	const minWidth = isMobileView.value ? (props.type === 'teacher' ? '7rem' : '4rem') : (props.type === 'teacher' ? '9rem' : '5rem');
+	const gap = isMobileView.value ? '8px' : '16px';
 	return {
 		display: 'grid',
 		gridTemplateColumns: `repeat(auto-fill, minmax(${minWidth}, 1fr))`,
-		gap: '16px',
+		gap,
 		justifyItems: 'center',
 	};
 });
@@ -194,10 +195,6 @@ onMounted(fetchItems);
 	box-sizing: border-box;
 	grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
 	gap: 16px;
-
-	@media (max-width: 450px) {
-		grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
-	}
 }
 
 .grid-item {

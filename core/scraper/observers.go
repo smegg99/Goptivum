@@ -11,14 +11,14 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-func ObserveDivisions(refreshChan *chan int64) {
+func ObserveDivisions() {
 	fmt.Println("observing divisions")
 
 	refreshDivisionsObservers := func() {
 		DivisionsScraperResource.RefreshObservers()
 	}
 
-	extractFunc := func(doc *goquery.Document) string {
+	extractFunc := func(o *observer.Observer, doc *goquery.Document) string {
 		var hrefs []string
 		doc.Find("table a").Each(func(i int, s *goquery.Selection) {
 			href, exists := s.Attr("href")
@@ -29,7 +29,7 @@ func ObserveDivisions(refreshChan *chan int64) {
 		return strings.Join(hrefs, " ")
 	}
 
-	callbackFunc := func() {
+	callbackFunc := func(o *observer.Observer) {
 		fmt.Println("divisions list changed!")
 		divisionsIndexes, err := ScrapeDivisionsIndexes()
 		if err != nil {
@@ -47,14 +47,14 @@ func ObserveDivisions(refreshChan *chan int64) {
 	refreshDivisionsObservers()
 }
 
-func ObserveTeachers(refreshChan *chan int64) {
+func ObserveTeachers() {
 	fmt.Println("observing teachers")
 
 	refreshTeachersObservers := func() {
 		TeachersScraperResource.RefreshObservers()
 	}
 
-	extractFunc := func(doc *goquery.Document) string {
+	extractFunc := func(o *observer.Observer, doc *goquery.Document) string {
 		var hrefs []string
 		doc.Find("table a").Each(func(i int, s *goquery.Selection) {
 			href, exists := s.Attr("href")
@@ -65,7 +65,7 @@ func ObserveTeachers(refreshChan *chan int64) {
 		return strings.Join(hrefs, " ")
 	}
 
-	callbackFunc := func() {
+	callbackFunc := func(o *observer.Observer) {
 		fmt.Println("teachers list changed!")
 		teachersIndexes, err := ScrapeTeachersIndexes()
 		if err != nil {
@@ -83,14 +83,14 @@ func ObserveTeachers(refreshChan *chan int64) {
 	refreshTeachersObservers()
 }
 
-func ObserveRooms(refreshChan *chan int64) {
+func ObserveRooms() {
 	fmt.Println("observing rooms")
 
 	refreshRoomsObservers := func() {
 		RoomsScraperResource.RefreshObservers()
 	}
 
-	extractFunc := func(doc *goquery.Document) string {
+	extractFunc := func(o *observer.Observer, doc *goquery.Document) string {
 		var hrefs []string
 		doc.Find("a").Each(func(i int, s *goquery.Selection) {
 			href, exists := s.Attr("href")
@@ -101,7 +101,7 @@ func ObserveRooms(refreshChan *chan int64) {
 		return strings.Join(hrefs, " ")
 	}
 
-	callbackFunc := func() {
+	callbackFunc := func(o *observer.Observer) {
 		fmt.Println("rooms list changed!")
 		roomsIndexes, err := ScrapeRoomsIndexes()
 		if err != nil {
@@ -117,4 +117,22 @@ func ObserveRooms(refreshChan *chan int64) {
 	RoomsScraperResource.Observer = observer.NewObserver(0, Config.BaseUrl+Config.Endpoints.RoomsList, 1*time.Second, extractFunc, callbackFunc)
 	RoomsScraperResource.Hub.AddObserver(RoomsScraperResource.Observer)
 	refreshRoomsObservers()
+}
+
+func ObserveTeachersOnDuty() {
+	fmt.Println("observing teachers on duty")
+
+	TeachersOnDutyScraperResource.StartHub()
+
+	TeachersOnDutyScraperResource.Observer = TeachersOnDutyScraperResource.newObserver(0)
+	TeachersOnDutyScraperResource.Hub.AddObserver(TeachersOnDutyScraperResource.Observer)
+}
+
+func ObservePractices() {
+	fmt.Println("observing practices")
+
+	PracticesScraperResource.StartHub()
+
+	PracticesScraperResource.Observer = PracticesScraperResource.newObserver(0)
+	PracticesScraperResource.Hub.AddObserver(PracticesScraperResource.Observer)
 }

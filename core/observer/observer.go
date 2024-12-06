@@ -16,11 +16,12 @@ import (
 type Observer struct {
 	Index 		   int64
 	URL            string
-	ExtractContent func(*goquery.Document) string
+	ExtractContent func(*Observer, *goquery.Document) string
 	Hash           string
 	Interval       time.Duration
-	Callback       func()
+	Callback       func(*Observer)
 	NextRun        time.Time
+	FirstRun       bool
 	Mu 		       sync.RWMutex
 }
 
@@ -30,7 +31,7 @@ func hashContent(content string) string {
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
-func NewObserver(index int64, url string, interval time.Duration, extractFunc func(*goquery.Document) string, callbackFunc func()) *Observer {
+func NewObserver(index int64, url string, interval time.Duration, extractFunc func(*Observer, *goquery.Document) string, callbackFunc func(*Observer)) *Observer {
 	return &Observer{
 		URL:            url,
 		Index:          index,
@@ -38,6 +39,8 @@ func NewObserver(index int64, url string, interval time.Duration, extractFunc fu
 		Callback: 	    callbackFunc,
 		Interval:       interval,
 		NextRun:        time.Now(),
+		FirstRun:       true,
+		Mu: 		    sync.RWMutex{},
 	}
 }
 
@@ -73,18 +76,18 @@ func (o *Observer) compareHash(ctx context.Context, client *http.Client) (bool, 
 		if err == nil {
 			break
 		}
+
+		// TODO: Cancel that on signal received
 		fmt.Printf("error fetching content from %s, retrying... (%d/3)\n", o.URL, i+1)
-		time.Sleep(1 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
 
 	if err != nil {
 		return false, fmt.Errorf("error fetching content from %s: %v", o.URL, err)
 	}
 
-	content := o.ExtractContent(doc)
+	content := o.ExtractContent(o, doc)
 	hash := hashContent(content)
-
-	fmt.Printf("checking hash for %s\n", o.URL)
 
 	if hash != o.Hash {
 		o.Hash = hash

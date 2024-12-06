@@ -64,6 +64,10 @@ message AirPollutionResponse {
 message Timestamp {
 	int64 hour = 1;
 	int64 minute = 2;
+	int64 second = 3;
+	int64 year = 4;
+	int64 month = 5;
+	int64 day = 6;
 }
 
 message TimeRange {
@@ -113,6 +117,33 @@ message Division {
 	string   designator = 2;
 	string   full_name = 3;
 	Schedule schedule = 4;
+}
+
+message Duty {
+	string teacher_full_name = 1;
+	string place_full_name = 2;
+	TimeRange time_range = 3;
+}
+
+message DutyGroup {
+	repeated Duty duties = 1;
+}
+
+message TeachersOnDuty {
+	repeated DutyGroup duty_groups = 1;
+}
+
+message TeachersOnDutyWeek {
+	repeated TeachersOnDuty teachers_on_duty = 1;
+}
+
+message PracticesGroup {
+	repeated string division_designators = 1;
+	TimeRange time_range = 2;
+}
+
+message Practices {
+	repeated PracticesGroup practices_groups = 1;
 }
 
 message School {

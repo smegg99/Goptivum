@@ -113,7 +113,7 @@ func (h *Hub) worker(id int64) {
 
 			if changed {
 				if o.Callback != nil {
-					go o.Callback()
+					go o.Callback(o)
 				} else {
 					fmt.Printf("worker %d: no callback for observer with URL: %s\n", id, o.URL)
 				}
@@ -172,6 +172,7 @@ func (h *Hub) scheduler() {
 				o.Mu.Lock()
 				if o.NextRun.Before(now) || o.NextRun.Equal(now) {
 					o.NextRun = now.Add(o.Interval)
+					o.FirstRun = false
 					select {
 					case h.tasksCh <- o:
 					case <-time.After(10 * time.Second):

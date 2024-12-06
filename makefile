@@ -121,7 +121,7 @@ clean-tarballs:
 .PHONY: deploy
 deploy: all
 	@echo "Deploying to $(DEPLOY_HOST)..."
-	@rsync -avz --delete $(BUILD_DIR)/ $(DEPLOY_USER)@$(DEPLOY_HOST):$(DEPLOY_DIR)
+	@rsync -avz --delete $(BUILD_DIR)/$(PROJECT_NAME) $(DEPLOY_USER)@$(DEPLOY_HOST):$(DEPLOY_DIR)
 	@ssh -t $(DEPLOY_USER)@$(DEPLOY_HOST) 'sudo systemctl restart $(DEPLOY_SERVICE_NAME) && sudo systemctl reload nginx'
 	@echo "Deployment complete."
 

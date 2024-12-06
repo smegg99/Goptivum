@@ -16,6 +16,7 @@ func SetupScheduleRoutes(router *gin.Engine, rootGroup *gin.RouterGroup) {
 	{
 		divisionsGroup.GET("", handlers.GetDivisionsHandler)
 		divisionsGroup.GET("/", handlers.GetDivisionsHandler)
+		divisionsGroup.GET("/practices", handlers.GetPracticesHandler)
 	}
 
 	teacherGroup := rootGroup.Group("/teacher")
@@ -26,6 +27,7 @@ func SetupScheduleRoutes(router *gin.Engine, rootGroup *gin.RouterGroup) {
 	{
 		teachersGroup.GET("", handlers.GetTeachersHandler)
 		teachersGroup.GET("/", handlers.GetTeachersHandler)
+		teachersGroup.GET("/duties", handlers.GetTeachersOnDutyWeekHandler)
 	}
 
 	roomGroup := rootGroup.Group("/room")

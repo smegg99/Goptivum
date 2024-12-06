@@ -2,12 +2,14 @@
 package config
 
 type scraperEndpoints struct {
-	Division      string `mapstructure:"division"`
-	Teacher       string `mapstructure:"teacher"`
-	Room          string `mapstructure:"room"`
-	DivisionsList string `mapstructure:"divisions_list"`
-	TeachersList  string `mapstructure:"teachers_list"`
-	RoomsList     string `mapstructure:"rooms_list"`
+	Division       string `mapstructure:"division"`
+	Teacher        string `mapstructure:"teacher"`
+	Room           string `mapstructure:"room"`
+	DivisionsList  string `mapstructure:"divisions_list"`
+	TeachersList   string `mapstructure:"teachers_list"`
+	RoomsList      string `mapstructure:"rooms_list"`
+	TeachersOnDuty string `mapstructure:"teachers_on_duty"`
+	Practices	   string `mapstructure:"practices"`
 }
 
 type quantitiesWorkers struct {

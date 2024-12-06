@@ -35,8 +35,6 @@ func Initialize() {
 }
 
 func CheckURL(url string) bool {
-	fmt.Println("checking URL:", url)
-
 	// #nosec G107
 	resp, err := HttpClient.Get(url)
 	if err != nil {
@@ -58,7 +56,6 @@ func IsEmptyOrInvisible(text string) bool {
 
 func OpenDoc(baseUrl, endpoint string) (*goquery.Document, error) {
 	url := fmt.Sprintf("%s%s", baseUrl, endpoint)
-	fmt.Printf("fetching URL: %s\n", url)
 
 	var res *http.Response
 	var err error

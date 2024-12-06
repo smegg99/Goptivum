@@ -7,7 +7,6 @@ import (
 
 	"smuggr.xyz/goptivum/common/models"
 	"smuggr.xyz/goptivum/core/datastore"
-	"smuggr.xyz/goptivum/core/scraper"
 
 	"github.com/gin-gonic/gin"
 )
@@ -44,7 +43,16 @@ func GetDivisionHandler(c *gin.Context) {
 }
 
 func GetDivisionsHandler(c *gin.Context) {
-	Respond(c, http.StatusOK, scraper.DivisionsScraperResource.Metadata)
+	divisions, err := datastore.GetDivisionsMeta()
+	if err != nil {
+		Respond(c, http.StatusInternalServerError, models.APIResponse{
+			Message: err.Error(),
+			Success: false,
+		})
+		return
+	}
+
+	Respond(c, http.StatusOK, divisions)
 }
 
 func GetTeacherHandler(c *gin.Context) {
@@ -78,7 +86,16 @@ func GetTeacherHandler(c *gin.Context) {
 }
 
 func GetTeachersHandler(c *gin.Context) {
-	Respond(c, http.StatusOK, scraper.TeachersScraperResource.Metadata)
+	teachers, err := datastore.GetTeachersMeta()
+	if err != nil {
+		Respond(c, http.StatusInternalServerError, models.APIResponse{
+			Message: err.Error(),
+			Success: false,
+		})
+		return
+	}
+
+	Respond(c, http.StatusOK, teachers)
 }
 
 func GetRoomHandler(c *gin.Context) {
@@ -112,5 +129,40 @@ func GetRoomHandler(c *gin.Context) {
 }
 
 func GetRoomsHandler(c *gin.Context) {
-	Respond(c, http.StatusOK, scraper.RoomsScraperResource.Metadata)
+	rooms, err := datastore.GetRoomsMeta()
+	if err != nil {
+		Respond(c, http.StatusInternalServerError, models.APIResponse{
+			Message: err.Error(),
+			Success: false,
+		})
+		return
+	}
+
+	Respond(c, http.StatusOK, rooms)
+}
+
+func GetTeachersOnDutyWeekHandler(c *gin.Context) {
+	teachers, err := datastore.GetTeachersOnDutyWeek()
+	if err != nil {
+		Respond(c, http.StatusInternalServerError, models.APIResponse{
+			Message: err.Error(),
+			Success: false,
+		})
+		return
+	}
+
+	Respond(c, http.StatusOK, teachers)
+}
+
+func GetPracticesHandler(c *gin.Context) {
+	practices, err := datastore.GetPractices()
+	if err != nil {
+		Respond(c, http.StatusInternalServerError, models.APIResponse{
+			Message: err.Error(),
+			Success: false,
+		})
+		return
+	}
+
+	Respond(c, http.StatusOK, practices)
 }

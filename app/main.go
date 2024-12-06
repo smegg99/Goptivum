@@ -51,6 +51,7 @@ func main() {
 		Divisons: scraper.DivisionsScraperResource.RefreshChan,
 		Teachers: scraper.TeachersScraperResource.RefreshChan,
 		Rooms:    scraper.RoomsScraperResource.RefreshChan,
+		Duties:   scraper.TeachersOnDutyScraperResource.RefreshChan,
 	})
 
 	defer Cleanup()

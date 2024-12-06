@@ -28,11 +28,13 @@ func SetupGenericRoutes(router *gin.Engine, rootGroup *gin.RouterGroup, schedule
 	}
 
 	var ClientsHub = sse.NewHub(Config.MaxSSEClientsAnalytics, clientUnregisterCallback, clientRegisterCallback)
+	var DutiesHub = sse.NewHub(Config.MaxSSEClients, nil, nil)
 	var DivisionsHub = sse.NewHub(Config.MaxSSEClients, nil, nil)
 	var TeachersHub = sse.NewHub(Config.MaxSSEClients, nil, nil)
 	var RoomsHub = sse.NewHub(Config.MaxSSEClients, nil, nil)
 
 	go ClientsHub.Run()
+	go DutiesHub.Run()
 	go DivisionsHub.Run()
 	go TeachersHub.Run()
 	go RoomsHub.Run()
@@ -62,6 +64,10 @@ func SetupGenericRoutes(router *gin.Engine, rootGroup *gin.RouterGroup, schedule
 			ClientsHub.Handler()(c.Writer, c.Request)
 		})
 
+		sseGroup.GET("/duties", func(c *gin.Context) {
+			DutiesHub.Handler()(c.Writer, c.Request)
+		})
+
 		sseGroup.GET("/divisions", func(c *gin.Context) {
 			DivisionsHub.Handler()(c.Writer, c.Request)
 		})
@@ -79,6 +85,13 @@ func SetupGenericRoutes(router *gin.Engine, rootGroup *gin.RouterGroup, schedule
 		for message := range otherChannels.Clients {
 			fmt.Println("broadcasting refresh for clients hub:", message)
 			ClientsHub.Broadcast(message)
+		}
+	}()
+
+	go func() {
+		for message := range scheduleChannels.Duties {
+			fmt.Println("broadcasting refresh for duties hub:", message)
+			DutiesHub.Broadcast(message)
 		}
 	}()
 

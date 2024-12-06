@@ -7,7 +7,9 @@
 			"room": "plany/s%d.html",
 			"divisions_list": "lll.php",
 			"teachers_list": "nnn.php",
-			"rooms_list": "sss.php"
+			"rooms_list": "sss.php",
+			"teachers_on_duty": "dyzury.php",
+			"practices": "praktyki_lista.php"
 		},
 		"quantities": {
 			"workers": {

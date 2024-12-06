@@ -4,6 +4,7 @@ import SettingsPage from './components/pages/SettingsPage.vue'
 
 import ResourcePage from './components/pages/ResourcePage.vue'
 import ScheduleTable from './components/outputs/ScheduleTable.vue'
+import DutiesTable from './components/outputs/DutiesTable.vue'
 
 const routes = [
   { path: '/', component: MainPage, meta: { titleKey: 'page.home' } },
@@ -32,6 +33,18 @@ const routes = [
     component: MainPage, 
     props: (route: RouteLocationNormalized) => ({ id: route.params.id as string }), 
     meta: { titleKey: 'page.map' } 
+  },
+  {
+    path: '/duties',
+    component: ScheduleTable, 
+    props: (route: RouteLocationNormalized) => ({ id: route.params.id as string, type: 'duty' }), 
+    meta: { titleKey: 'page.duties' } 
+  },
+  {
+    path: '/practices',
+    component: MainPage, 
+    props: (route: RouteLocationNormalized) => ({ id: route.params.id as string, type: 'practices' }),
+    meta: { titleKey: 'page.practices' } 
   },
   { 
     path: '/division/:id', 

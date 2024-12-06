@@ -1,33 +1,33 @@
 .font-large {
-	font-size: clamp(1.7rem, 1rem, 2rem) !important;
+	font-size: clamp(1.3rem, 1rem, 2rem) !important;
 }
 
 .font-medium {
-	font-size: clamp(1.5rem, 1rem, 2rem) !important;
+	font-size: clamp(1rem, 1rem, 2rem) !important;
 }
 
 .font-small {
-	font-size: clamp(0.5rem, 1rem, 2rem) !important;
+	font-size: clamp(0.8rem, 0.8rem, 2rem) !important;
 }
 
 .font-extra-small {
-	font-size: clamp(0.2rem, 1rem, 2rem) !important;
+	font-size: clamp(0.2rem, 0.8rem, 2rem) !important;
 }
 
 @media (max-width: 767px) {
 	.font-large {
-		font-size: clamp(1.7rem, 1rem, 2rem) !important;
+		font-size: clamp(0.85rem, 1.3rem, 2rem) !important;
 	}
 
 	.font-medium {
-		font-size: clamp(1.5rem, 1rem, 2rem) !important;
+		font-size: clamp(0.75rem, 1rem, 2rem) !important;
 	}
 
 	.font-small {
-		font-size: clamp(0.5rem, 1rem, 2rem) !important;
+		font-size: clamp(0.6rem, 0.6rem, 1rem) !important;
 	}
 
 	.font-extra-small {
-		font-size: clamp(0.4rem, 0.9rem, 1rem) !important;
+		font-size: clamp(0.2rem, 0.65rem, 2rem) !important;
 	}
 }
