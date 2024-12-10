@@ -116,7 +116,7 @@ export default {
 		},
 	},
 	page: {
-		title: 'GOptivum - A Better Timetable',
+		title: 'Goptivum - A Better Timetable',
 		qr_code: 'QR Code',
 		close: 'Close',
 		not_found: 'Page not found',

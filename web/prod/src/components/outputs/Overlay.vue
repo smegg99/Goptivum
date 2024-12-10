@@ -80,16 +80,16 @@ const items = computed(() => [
 		prependIcon: 'mdi-door',
 		route: '/rooms',
 	},
-	{
-		title: t('page.duties'),
-		prependIcon: 'mdi-shield-star-outline',
-		route: '/duties',
-	},
-	{
-		title: t('page.practices'),
-		prependIcon: 'mdi-hammer-wrench',
-		route: '/practices',
-	},
+	// {
+	// 	title: t('page.duties'),
+	// 	prependIcon: 'mdi-shield-star-outline',
+	// 	route: '/duties',
+	// },
+	// {
+	// 	title: t('page.practices'),
+	// 	prependIcon: 'mdi-hammer-wrench',
+	// 	route: '/practices',
+	// },
 	// {
 	// 	title: t('page.map'),
 	// 	prependIcon: 'mdi-map-outline',

@@ -118,7 +118,7 @@ export default {
 		},
 	},
 	page: {
-		title: 'GOptivum - Кращий Розклад',
+		title: 'Goptivum - Кращий Розклад',
 		qr_code: 'QR-код',
 		close: 'Закрити',
 		not_found: 'Сторінку не знайдено',

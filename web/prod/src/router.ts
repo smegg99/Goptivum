@@ -4,7 +4,6 @@ import SettingsPage from './components/pages/SettingsPage.vue'
 
 import ResourcePage from './components/pages/ResourcePage.vue'
 import ScheduleTable from './components/outputs/ScheduleTable.vue'
-import DutiesTable from './components/outputs/DutiesTable.vue'
 
 const routes = [
   { path: '/', component: MainPage, meta: { titleKey: 'page.home' } },

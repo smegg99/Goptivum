@@ -118,7 +118,7 @@ export default {
 		},
 	},
 	page: {
-		title: 'GOptivum - Lepszy Plan Lekcji',
+		title: 'Goptivum - Lepszy Plan Lekcji',
 		qr_code: 'Kod QR',
 		close: 'Zamknij',
 		not_found: 'Nie znaleziono strony',
