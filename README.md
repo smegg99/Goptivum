@@ -1,9 +1,9 @@
 <!-- markdownlint-disable MD033 -->
-# GOptivum
+# Goptivum
 
 ## Overview
 
-**GOptivum** is a modern replacement for the legacy schedule generator program from Vulcan, named Optivum. It is designed to scrape schedule data from [zsem.edu.pl/plany](https://zsem.edu.pl/plany) and provide data persistence, an improved (definitely) UI/UX, and a publicly available API with Server-Sent Events (SSE). This project is intended to be used as a replacement for my school's version of the software, but can easily (the scraper package) be modified to work with other school's versions of that software.
+**Goptivum** is a modern replacement for the legacy schedule generator program from Vulcan, named Optivum. It is designed to scrape schedule data from [zsem.edu.pl/plany](https://zsem.edu.pl/plany) and provide data persistence, an improved (definitely) UI/UX, and a publicly available API with Server-Sent Events (SSE). This project is intended to be used as a replacement for my school's version of the software, but can easily (the scraper package) be modified to work with other school's versions of that software.
 
 > **Note**: Vulcan *(hawk-tuah)* is a **very evil** and **greedy** corporation and actively blocks open-source projects, making it difficult for developers to create alternatives to their poorly made software. For more information on this situation I suggest you visit this site [czyvulcanapojebalo.pl](https://czyvulcanapojebalo.pl/)
 
