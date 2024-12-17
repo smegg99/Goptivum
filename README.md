@@ -109,11 +109,11 @@ Provides real-time updates using **Server-Sent Events (SSE)**.
 
 ## TODO for V1.1.0
 
-- [ ] Enhance error handling and logging (including analytics) throughout the application.
-- [ ] Optimize the deployment process and documentation.
+- [x] Enhance error handling and logging (including analytics) throughout the application.
+- [x] Optimize the deployment process and documentation.
 - [ ] Implement user authentication and authorization for the API.
 - [ ] Add more detailed API documentation and examples.
-- [ ] Create a Dockerfile for easier deployment.
+- [x] Create a Dockerfile for easier deployment.
 
 ## Contributions
 
