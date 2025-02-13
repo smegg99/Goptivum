@@ -65,6 +65,7 @@ type APIConfig struct {
 	UseLocalWeatherStation bool                `mapstructure:"use_local_weather_station"`
 	MaxSSEClients          int64               `mapstructure:"max_sse_clients"`
 	MaxSSEClientsAnalytics int64               `mapstructure:"max_sse_clients_analytics"`
+	AllowOrigins		   []string            `mapstructure:"allow_origins"`
 }
 
 type GlobalConfig struct {

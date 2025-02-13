@@ -1,7 +1,7 @@
 {
 	"scraper": {
 		"base_url": "https://zsem.edu.pl/plany/",
-		"endpoints" : {
+		"endpoints": {
 			"division": "plany/o%d.html",
 			"teacher": "plany/n%d.html",
 			"room": "plany/s%d.html",
@@ -21,12 +21,14 @@
 		"static_indexes": {
 			"divisions": [],
 			"teachers": [],
-			"rooms": [43]
+			"rooms": [
+				43
+			]
 		},
 		"ignore_certificates": false
 	},
 	"api": {
-		"port": 3001,
+		"port": 443,
 		"max_sse_clients": 100,
 		"max_sse_clients_analytics": 10,
 		"open_weather": {
@@ -45,6 +47,13 @@
 				"current_air_pollution": "get-last-data-pm?sensor=3"
 			}
 		},
-		"use_local_weather_station": true
+		"use_local_weather_station": true,
+		"allow_origins": [
+			"http://localhost:3000",
+			"http://localhost:3002",
+			"http://localhost:3001",
+			"https://zsem.smuggr.xyz",
+			"https://plany.zsem.edu.pl"
+		]
 	}
 }

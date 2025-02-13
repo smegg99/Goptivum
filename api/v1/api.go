@@ -6,8 +6,8 @@ import (
 	"os"
 	"strconv"
 
-	"smuggr.xyz/goptivum/api/v1/routes"
 	"smuggr.xyz/goptivum/api/v1/middleware"
+	"smuggr.xyz/goptivum/api/v1/routes"
 	"smuggr.xyz/goptivum/common/config"
 	"smuggr.xyz/goptivum/common/models"
 
@@ -31,7 +31,7 @@ func Initialize(scheduleChannels *models.ScheduleChannels) chan error {
 	// DefaultRouter.RedirectTrailingSlash = false
 
 	DefaultRouter.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:3002", "http://localhost:3001", "https://zsem.smuggr.xyz"},
+		AllowOrigins:     config.Global.API.AllowOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "X-Auth-Token"},
 		ExposeHeaders:    []string{"Content-Length"},
