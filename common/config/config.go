@@ -1,9 +1,10 @@
-// config/config.go
+// common/config/config.go
 package config
 
 import (
 	"fmt"
-	"os"
+
+	"smegg.me/goptivum/common/logger"
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
@@ -11,52 +12,77 @@ import (
 
 var Global GlobalConfig
 
-func loadEnv() error {
-	err := godotenv.Load()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func loadConfig(config *GlobalConfig) error {
 	if err := viper.ReadInConfig(); err != nil {
-		return err
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			logger.Warnf("config file not found, using defaults and environment")
+			if err := viper.Unmarshal(config); err != nil {
+				return fmt.Errorf("failed to unmarshal default config: %w", err)
+			}
+			if err := writeDefaultConfigFile(*config); err != nil {
+				logger.Warnf("failed to create config file: %v", err)
+			}
+			return nil
+		}
+		return fmt.Errorf("error reading config file: %w", err)
 	}
 
-	err := viper.Unmarshal(config)
-	if err != nil {
-		return err
+	logger.Infof("loaded config file: %s", viper.ConfigFileUsed())
+
+	if err := viper.Unmarshal(config); err != nil {
+		return fmt.Errorf("failed to unmarshal config: %w", err)
 	}
+
+	logger.Debugf("all settings snapshot: %#v", viper.AllSettings())
 
 	return nil
 }
 
 func Initialize() error {
-	fmt.Println("initializing config")
-
-	if err := loadEnv(); err != nil {
-		return err
+	if err := godotenv.Load(); err != nil {
+		logger.Infof(".env file not found or failed to load: %v", err)
+	} else {
+		logger.Debug(".env loaded successfully")
 	}
 
-	viper.AddConfigPath(os.Getenv("CONFIG_PATH"))
-	viper.SetConfigType(os.Getenv("CONFIG_TYPE"))
+	setEnvDefaultsCore()
+	setConfigDefaults()
+	bindEnvVars()
 
-	configPurpose := os.Getenv("CONFIG_PURPOSE")
-	if configPurpose == "test" {
-		viper.SetConfigName("test_config")
-	} else if configPurpose == "prod" {
-		viper.SetConfigName("config")
+	logger.Configure(logger.Config{
+		Dir:         viper.GetString("LOGS_DIR"),
+		EnableFiles: viper.GetBool("ENABLE_LOG_FILES"),
+		NoColor:     viper.GetBool("NO_COLOR"),
+		Prefix:      viper.GetString("LOG_PREFIX"),
+		Level:       viper.GetString("LOG_LEVEL"),
+	})
+
+	viper.AddConfigPath(viper.GetString("CONFIG_PATH"))
+	viper.SetConfigType(viper.GetString("CONFIG_TYPE"))
+
+	if viper.GetBool("USE_DEBUG_CONFIG") {
+		viper.SetConfigName("debug_config")
 	} else {
-		return fmt.Errorf("invalid CONFIG_PURPOSE: %s", configPurpose)
+		viper.SetConfigName("config")
 	}
 
 	if err := loadConfig(&Global); err != nil {
-		return err
+		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	fmt.Println("env and config loaded")
+	if err := validateConfig(&Global); err != nil {
+		return fmt.Errorf("configuration validation failed: %w", err)
+	}
+
+	if err := validateEnv(); err != nil {
+		return fmt.Errorf("environment validation failed: %w", err)
+	}
+
+	logger.Info("configuration loaded and validated successfully")
 
 	return nil
+}
+
+func GetConfig() *GlobalConfig {
+	return &Global
 }
