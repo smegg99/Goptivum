@@ -1,3 +1,17 @@
-*.env
-resources
-badger
+backend/services/solver/README.md
+backend/services/solver/docs
+backend/services/solver/data
+backend/services/solver/build
+backend/services/solver/solver/README.md
+docs/docs.go
+docs/swagger.json
+docs/swagger.yaml
+
+# Frontend junk (any frontend in the repo)
+node_modules/
+.nuxt/
+.output/
+dist/
+.nitro/
+.cache/
+*.log

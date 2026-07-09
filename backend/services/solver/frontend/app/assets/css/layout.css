@@ -1,0 +1,99 @@
+html,
+body,
+#__nuxt {
+  min-height: 100%;
+  margin: 0;
+  scrollbar-gutter: stable;
+}
+
+body {
+  overflow-y: auto;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(80, 86, 112, 0.28) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(80, 86, 112, 0.28);
+  border-radius: 999px;
+}
+
+.app-main {
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.app-main__content {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 24px 28px 40px;
+}
+
+.page-shell {
+  width: 100%;
+  min-width: 0;
+}
+
+.page-shell__main {
+  width: 100%;
+  min-width: 0;
+}
+
+.page-shell__content {
+  width: 100%;
+  min-width: 0;
+}
+
+.page-shell__content--padded {
+  padding: 0;
+}
+
+.page-header {
+  margin-bottom: 24px;
+}
+
+.page-section {
+  margin-bottom: 32px;
+}
+
+.page-section:last-child {
+  margin-bottom: 0;
+}
+
+.page-section__header {
+  margin-bottom: 8px;
+}
+
+.page-section__divider {
+  margin-bottom: 16px;
+}
+
+.app-bar-border {
+  border-bottom: thin solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+
+@media (max-width: 760px) {
+  .app-main__content {
+    padding: 18px 16px 32px;
+  }
+
+  .page-header {
+    margin-bottom: 18px;
+  }
+
+  .page-section {
+    margin-bottom: 24px;
+  }
+}
