@@ -1,0 +1,193 @@
+# Show help
+default:
+	@just --list --unsorted
+
+# Paths — every generated artifact lands under the gitignored build/
+solver_build := "build/solver"
+solver_dev_build := "build/solver-dev"
+backend_bin := "build/arrango-backend"
+
+# Addresses
+solver_addr := "127.0.0.1:50061"
+backend_addr := "127.0.0.1:18080"
+
+# Protobuf config
+go_module := "github.com/smegg99/arrango/backend"
+protoc := env("HOME") + "/.local/opt/or-tools/bin/protoc"
+proto_files := "proto/arrango/v1/school.proto proto/arrango/v1/schedule.proto proto/arrango/v1/service.proto"
+
+# Show commands
+help:
+	@just --list --unsorted
+
+# Check tools
+doctor:
+	cmake --version
+	ninja --version
+	go version
+	node --version
+	npm --version
+	{{protoc}} --version
+
+# Generate Go protobuf files
+proto-go:
+	PATH="{{env("HOME")}}/go/bin:$PATH" {{protoc}} -I proto \
+		--go_out=backend --go_opt=module={{go_module}} \
+		--go-grpc_out=backend --go-grpc_opt=module={{go_module}} \
+		{{proto_files}}
+
+# Build release solver and backend
+build: solver-build backend-build
+
+# Run all tests
+test: solver-test backend-test
+
+# Generate, build, and test
+check: proto-go build test
+
+# Clean everything
+clean: solver-clean solver-dev-clean backend-clean frontend-clean
+
+# Configure release solver
+solver-configure:
+	cmake -S solver -B {{solver_build}} -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+# Build release solver
+solver-build: solver-configure
+	cmake --build {{solver_build}}
+
+# Configure dev solver
+solver-configure-dev:
+	cmake -S solver -B {{solver_dev_build}} -G Ninja -DCMAKE_BUILD_TYPE=Debug
+
+# Build dev solver
+solver-build-dev: solver-configure-dev
+	cmake --build {{solver_dev_build}}
+
+# Run solver tests
+solver-test: solver-build
+	ctest --test-dir {{solver_build}} --output-on-failure
+
+# Clean release solver
+solver-clean:
+	rm -rf {{solver_build}}
+
+# Clean dev solver
+solver-dev-clean:
+	rm -rf {{solver_dev_build}}
+
+# Reconfigure release solver
+solver-reconfigure: solver-clean solver-configure
+
+# Reconfigure dev solver
+solver-reconfigure-dev: solver-dev-clean solver-configure-dev
+
+# Build backend binary
+backend-build: proto-go
+	mkdir -p build
+	cd backend && go build -o ../{{backend_bin}} .
+
+# Run backend tests
+backend-test: proto-go
+	cd backend && go test ./...
+
+# Format backend
+backend-fmt:
+	cd backend && go fmt ./...
+
+# Tidy backend dependencies
+backend-tidy:
+	cd backend && go mod tidy
+
+# Clean backend
+backend-clean:
+	rm -f {{backend_bin}}
+	cd backend && go clean -cache -testcache
+
+# Install frontend dependencies
+frontend-install:
+	cd frontend && npm install
+
+# Clean frontend output
+frontend-clean:
+	rm -rf frontend/dist frontend/build
+
+# Run release solver
+run-solver: solver-build
+	./{{solver_build}}/arrango-solverd --listen={{solver_addr}}
+
+# Run built backend
+run-backend: backend-build
+	ARRANGO_HTTP_ADDR="{{backend_addr}}" ./{{backend_bin}}
+
+# Run frontend dev server
+run-frontend:
+	cd frontend && npm run dev
+
+# Build solver/backend, then run solver, backend, and frontend dev server
+run: build
+	#!/usr/bin/env bash
+	set -euo pipefail
+
+	./{{solver_build}}/arrango-solverd --listen={{solver_addr}} &
+	solver_pid=$!
+
+	ARRANGO_HTTP_ADDR="{{backend_addr}}" ./{{backend_bin}} &
+	backend_pid=$!
+
+	(cd frontend && npm run dev) &
+	frontend_pid=$!
+
+	cleanup() {
+		echo
+		echo "Stopping services..."
+		kill "$solver_pid" "$backend_pid" "$frontend_pid" 2>/dev/null || true
+		wait "$solver_pid" "$backend_pid" "$frontend_pid" 2>/dev/null || true
+	}
+
+	trap cleanup INT TERM EXIT
+
+	echo "Running services:"
+	echo "  solver:  {{solver_addr}}"
+	echo "  backend: http://{{backend_addr}}"
+	echo "  frontend: npm run dev"
+	echo
+	echo "Press Ctrl-C to stop."
+
+	wait -n "$solver_pid" "$backend_pid" "$frontend_pid"
+
+# Run dev solver
+dev-solver: solver-build-dev
+	./{{solver_dev_build}}/arrango-solverd --listen={{solver_addr}}
+
+# Run backend with go run
+dev-backend: proto-go
+	cd backend && ARRANGO_HTTP_ADDR="{{backend_addr}}" go run .
+
+# Run frontend dev server
+dev-frontend:
+	cd frontend && npm run dev
+
+# Run solver (with logs), backend, and frontend in dev mode, all logs prefixed.
+# Uses the RELEASE solver: the OR-Tools bundle is release, and a Debug-built
+# solver crashes in abseil flat_hash_map when linked against it (see CMakeLists).
+# "dev" here means go-run backend + live frontend + solver logs.
+dev: proto-go solver-build
+	#!/usr/bin/env bash
+	set -uo pipefail
+	trap 'kill 0' EXIT  # Ctrl-C stops every service (whole process group)
+
+	echo "dev: solver {{solver_addr}} | backend http://{{backend_addr}} | frontend :3000"
+	echo "Ctrl-C to stop. ARRANGO_LOG is on, so the solver narrates each solve."
+	echo
+
+	# 2>&1 merges each service's stderr (solver trace, Gin logs) into the
+	# prefixed stream; sed -u keeps it line-buffered so logs appear live.
+	ARRANGO_LOG=1 ./{{solver_build}}/arrango-solverd --listen={{solver_addr}} 2>&1 \
+		| sed -u 's/^/[solver]  /' &
+	(cd backend && ARRANGO_HTTP_ADDR="{{backend_addr}}" go run .) 2>&1 \
+		| sed -u 's/^/[backend] /' &
+	(cd frontend && npm run dev) 2>&1 \
+		| sed -u 's/^/[web]     /' &
+
+	wait

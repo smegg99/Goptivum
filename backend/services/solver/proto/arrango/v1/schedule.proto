@@ -1,0 +1,186 @@
+syntax = "proto3";
+
+package arrango.v1;
+
+import "arrango/v1/school.proto";
+
+option go_package = "github.com/smegg99/arrango/backend/gen/arrangov1";
+
+message ScheduledLesson {
+  uint32 lesson_id = 1;
+  Placement placement = 2;
+}
+
+message ScheduleSnapshot {
+  repeated ScheduledLesson lessons = 1;
+}
+
+// Structured, language-agnostic localization shared by hard conflicts and
+// soft issues. The kind/category enum plus these refs fully describe an issue
+// so any UI can render and highlight it without parsing prose.
+
+enum EntityKind {
+  ENTITY_KIND_UNSPECIFIED = 0;
+  ENTITY_KIND_DIVISION = 1;
+  ENTITY_KIND_GROUP = 2;
+  ENTITY_KIND_TEACHER = 3;
+  ENTITY_KIND_ROOM = 4;
+  ENTITY_KIND_SUBJECT = 5;
+  ENTITY_KIND_YEAR = 6;
+  ENTITY_KIND_EXTERNAL_BLOCK = 7;
+}
+
+// A typed reference to a model entity involved in an issue.
+message EntityRef {
+  EntityKind kind = 1;
+  uint32 id = 2;
+}
+
+// An affected lesson block and where it sits in the schedule being reported
+// on. day_id/start_period/room_id are 0 when the lesson is unplaced.
+message LessonRef {
+  uint32 lesson_id = 1;
+  uint32 day_id = 2;
+  uint32 start_period = 3;
+  uint32 duration = 4;
+  uint32 room_id = 5;
+}
+
+// An affected run of periods on one day. period_span is the number of
+// consecutive periods (>= 1); a point locus uses span 1.
+message TimeSpan {
+  uint32 day_id = 1;
+  uint32 start_period = 2;
+  uint32 period_span = 3;
+}
+
+message Conflict {
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    KIND_TEACHER_CONFLICT = 1;
+    reserved 2, 3, 8;  // division_conflict, group_conflict, wrong_room_type
+    KIND_ROOM_CONFLICT = 4;
+    KIND_MISSING_LESSON = 5;
+    KIND_DUPLICATE_LESSON = 6;
+    KIND_INVALID_ROOM = 7;
+    KIND_PARALLEL_BLOCK_BROKEN = 9;
+    KIND_LOCKED_MOVED = 10;
+    KIND_EXTERNAL_BLOCK_OVERLAP = 11;
+    KIND_OUT_OF_BOUNDS = 12;
+    KIND_INVALID_REFERENCE = 13;
+    KIND_INVALID_DURATION = 14;
+    KIND_STUDENT_OVERLAP = 20;       // two lessons share students at one time
+    KIND_ROOM_TOO_SMALL = 21;        // known capacity < participant count
+    KIND_DAILY_LOAD_VIOLATION = 22;  // day under min / over max
+    KIND_DUPLICATE_DESIGNATOR = 23;  // two rooms share a designator
+    // Preflight findings: input impossibilities caught before solving.
+    KIND_TEACHER_OVERLOADED = 24;    // weekly demand > available slots
+    KIND_ROOM_POOL_OVERLOADED = 25;  // pool demand > capacity x week slots
+    KIND_LOCKED_COLLISION = 26;      // two locked lessons collide
+    KIND_AVAILABILITY_HOLE = 27;     // blocked slot inside a free day
+    KIND_STREAM_EXPLOSION = 28;      // fixed splits pass the stream cap
+    KIND_GROUP_SIZE_MISMATCH = 29;   // group sizes exceed the division
+    KIND_INVALID_RULE_CONFIG = 30;   // bad rule/profile/scope in RuleConfig
+    KIND_LINK_SAME_DAY = 31;         // SAME_DAY link members on two days
+    KIND_LINK_DIFFERENT_DAY = 32;    // DIFFERENT_DAY link members share a day
+    KIND_LINK_CONSECUTIVE = 33;      // CONSECUTIVE link members not adjacent
+    KIND_EDGE_PLACEMENT = 34;        // edge lesson has same-stream lesson on the wrong side
+  }
+  Kind kind = 1;
+  // Optional human-readable hint (debug only); the UI localizes from `kind`
+  // and the structured refs below, never from this string.
+  string message = 2;
+  repeated uint32 lesson_ids = 3;   // kept; same ids as `lessons`
+  uint32 entity_id = 4;             // kept; primary entity (see `entities`)
+  uint32 day_id = 5;
+  uint32 period = 6;
+  // Structured localization:
+  repeated EntityRef entities = 7;  // typed entities involved
+  repeated LessonRef lessons = 8;   // affected lesson blocks with positions
+  repeated TimeSpan spans = 9;      // affected period ranges
+}
+
+message ValidationReport {
+  bool valid = 1;
+  repeated Conflict conflicts = 2;
+}
+
+message PenaltyItem {
+  string category = 1;
+  int64 penalty = 2;
+  uint32 count = 3;
+}
+
+message EntityScore {
+  uint32 entity_id = 1;
+  string name = 2;
+  double quality = 3;
+  int64 penalty = 4;
+  repeated PenaltyItem items = 5;
+}
+
+// One located soft-preference violation (a gap run, a day of late
+// lessons, a split subject, ...).
+message SoftIssue {
+  string category = 1;   // student_gap, teacher_gap, late_student, ...
+  string entity = 2;     // display label kept for compatibility
+  uint32 entity_id = 3;  // primary entity id (see `entities`)
+  bool teacher = 4;      // kept; entities carries the typed reference
+  uint32 day_id = 5;
+  uint32 period = 6;     // first affected 0-based period
+  uint32 count = 7;      // e.g. gap length, late periods, extra runs
+  int64 penalty = 8;
+  // Structured localization:
+  repeated EntityRef entities = 9;  // typed entities involved
+  repeated LessonRef lessons = 10;  // affected lesson blocks with positions
+  repeated TimeSpan spans = 11;     // affected period ranges
+  // True when this violates a rule the school set to HARD: counted as a
+  // config-hard ERROR in the verdict, never as a warning.
+  bool config_hard = 12;
+}
+
+// One natural-unit rating metric at school level. subscore = 100 *
+// 2^(-rate/half_life): absolute scale, 100 == pristine (zero violations).
+message MetricScore {
+  string key = 1;        // stable API name, e.g. "gaps", "t_late"
+  bool teachers = 2;     // composite group
+  bool applicable = 3;   // false: no rule/pref/denominator -> not rated
+  double rate = 4;       // count / denominator (unit documented per key)
+  double subscore = 5;   // 0..100
+  int64 count = 6;
+}
+
+message ScoreReport {
+  // Absolute metric-based qualities (100 == pristine). total_penalty stays
+  // the raw SEARCH objective for solver debugging — a different animal.
+  double overall_quality = 1;
+  double all_students_quality = 2;
+  double all_teachers_quality = 3;
+  int64 total_penalty = 4;
+  repeated EntityScore division_scores = 5;
+  repeated EntityScore year_scores = 6;
+  repeated EntityScore teacher_scores = 7;
+  repeated PenaltyItem global_items = 8;
+  repeated SoftIssue soft_issues = 9;
+  repeated MetricScore metric_scores = 10;
+  // Hygiene findings (INFO tier): reported, never scored, never blocking.
+  repeated SoftIssue info_issues = 11;
+}
+
+// The generic, format-agnostic school document — the canonical unit of
+// import, editing, persistence, and future standalone file formats.
+// Importers populate it; format-specific knowledge never leaves them.
+message SchoolDocument {
+  uint32 format_version = 1;  // currently 1
+  SchoolModel model = 2;
+  // Optional: imported timetable used for diffs and previous placements.
+  ScheduleSnapshot schedule_hint = 3;
+  ImportMeta import_meta = 4;
+}
+
+message ImportMeta {
+  string format = 1;       // e.g. "OPTIVUM_HTML_ARCHIVE"; "" = built by hand
+  string source_name = 2;  // archive/file name
+  string imported_at = 3;  // RFC 3339
+  repeated string warnings = 4;
+}

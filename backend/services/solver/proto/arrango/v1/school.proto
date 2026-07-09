@@ -1,0 +1,306 @@
+syntax = "proto3";
+
+package arrango.v1;
+
+option go_package = "github.com/smegg99/arrango/backend/gen/arrangov1";
+
+// All entities are flat and ID-based. Id 0 means "none/invalid".
+
+message Day {
+  uint32 id = 1;
+  string name = 2;
+  // Number of schedulable periods on this day; indexes 0..period_count-1.
+  uint32 period_count = 3;
+}
+
+// Period order in SchoolModel.periods defines the global period index.
+message Period {
+  uint32 id = 1;
+  string name = 2;
+}
+
+message Year {
+  uint32 id = 1;
+  string name = 2;
+  uint32 level = 3;
+  // Student-facing penalty multiplier, percent (100 = neutral).
+  uint32 priority = 4;
+}
+
+// Where a stored count (division/group size, room capacity) came from.
+// UNKNOWN means "no usable value" — the count field must be ignored.
+enum CountSource {
+  COUNT_SOURCE_UNKNOWN = 0;
+  COUNT_SOURCE_IMPORTED = 1;
+  COUNT_SOURCE_MANUAL = 2;
+  COUNT_SOURCE_DEFAULT = 3;
+}
+
+message Division {
+  uint32 id = 1;
+  string name = 2;
+  uint32 year_id = 3;
+  // Meaningful only when count_source != COUNT_SOURCE_UNKNOWN.
+  uint32 student_count = 4;
+  CountSource count_source = 5;
+  // Opaque importer-defined provenance (Optivum: "o20"). Never interpreted.
+  string source_ref = 6;
+}
+
+// One physical way of cutting a division into groups ("languages", "PE",
+// "workshop"). Split membership is the ONLY source of student-disjointness
+// knowledge: two groups may run in parallel iff they are different groups of
+// one split, or both belong to open splits.
+enum SplitKind {
+  // Membership is decided by the school around the plan (numbered subject
+  // splits); open groups never constrain each other across splits.
+  SPLIT_KIND_OPEN = 0;
+  // Membership is a fact of the world (gender, religion choice, trade):
+  // overlaps everything outside its own split.
+  SPLIT_KIND_FIXED = 1;
+}
+
+message Split {
+  uint32 id = 1;
+  string name = 2;
+  uint32 division_id = 3;
+  SplitKind kind = 4;
+}
+
+message Group {
+  uint32 id = 1;
+  string name = 2;
+  uint32 division_id = 3;
+  reserved 4;             // was: string partition (replaced by split_id)
+  reserved "partition";
+  uint32 student_count = 5;
+  CountSource count_source = 6;
+  string source_ref = 7;
+  // Owning split; 0 = none, meaning an implicit private OPEN split (today's
+  // permissive behavior).
+  uint32 split_id = 8;
+}
+
+message Teacher {
+  uint32 id = 1;
+  string name = 2;
+  string source_ref = 3;
+}
+
+message Subject {
+  uint32 id = 1;
+  string name = 2;
+  bool prefers_blocks = 3;
+  string source_ref = 4;
+}
+
+message Room {
+  uint32 id = 1;
+  string name = 2;  // full display title
+  reserved 3;       // was room_type_id
+  // Canonical short room code ("106", "pe3", "SKat"); exact-match semantics.
+  string designator = 4;
+  // Meaningful only when capacity_source != COUNT_SOURCE_UNKNOWN.
+  uint32 capacity = 5;
+  CountSource capacity_source = 6;
+  string source_ref = 7;
+}
+
+// One student-set taking part in a lesson. group_id 0 = whole division.
+message Participant {
+  uint32 division_id = 1;
+  uint32 group_id = 2;
+}
+
+message Placement {
+  uint32 day_id = 1;
+  uint32 start_period = 2;
+  // 0 when the lesson has no room.
+  uint32 room_id = 3;
+}
+
+// One concrete schedulable unit (not a weekly subject count).
+message LessonInstance {
+  uint32 id = 1;
+  reserved 2, 3, 4, 8, 9;  // division_id, group_id, year_id,
+                           // allowed_room_ids, allowed_room_type_ids
+  uint32 subject_id = 5;
+  // May be 0 only when requires_teacher is false.
+  uint32 teacher_id = 6;
+  // Consecutive periods, >= 1.
+  uint32 duration = 7;
+  // 0 = not part of a parallel block.
+  uint32 parallel_block_id = 10;
+  bool requires_teacher = 11;
+  bool requires_room = 12;
+  bool locked = 13;
+  Placement locked_placement = 14;
+  bool has_previous = 15;
+  // Stored separately from room eligibility: the previous room is a
+  // stability hint, never an implicit "only this room is allowed".
+  Placement previous_placement = 16;
+  // At least one; all participants attend together (merged groups allowed).
+  repeated Participant participants = 17;
+  // Empty = unrestricted (any room). Rooms whose designator is listed.
+  repeated string allowed_room_designators = 18;
+  // Always wins over allowed.
+  repeated string disallowed_room_designators = 19;
+  // Informational: designators seen for this lesson's subject in imports.
+  repeated string observed_room_designators = 20;
+  // 0 = none. Explicit exact-room lock (still must be eligible).
+  uint32 fixed_room_id = 21;
+  // The lesson must be its STUDENTS' first and/or last lesson of the day
+  // (religion at the edges, off-site vocational with travel).
+  EdgePlacement edge = 22;
+}
+
+// Per-day lesson-load rule. division_id 0 = school default;
+// group_id != 0 scopes to one group. Most specific rule wins.
+message DailyLoadRule {
+  uint32 division_id = 1;
+  uint32 group_id = 2;
+  // Hard minimum occupied periods per active day; auto-relaxed to
+  // floor(weekly_periods / days) when smaller. Built-in default is 3.
+  uint32 min_per_day = 3;
+  uint32 max_per_day = 4;     // 0 = no maximum
+  uint32 target_per_day = 5;  // 0 = auto: ceil(weekly_periods / days)
+  // Soft daily-load penalties, applied per student stream against the
+  // division's effective target. A day's load counts occupied periods
+  // including external blocks (the same occupancy gap detection uses);
+  // weights <= 0 disable a term; penalties scale with year priority.
+  uint32 allowed_deviation = 6;  // tolerated |load - target| before penalties
+  int64 deviation_weight = 7;    // per period beyond target +/- allowed
+  int64 imbalance_weight = 8;    // per period of (max - min) load across days
+  int64 overload_weight = 9;     // per period above target + allowed
+  int64 underload_weight = 10;   // per period below target - allowed
+}
+
+// Fixed occupied/unavailable time for exactly one target entity.
+message ExternalBlock {
+  enum Target {
+    TARGET_UNSPECIFIED = 0;
+    TARGET_DIVISION = 1;
+    TARGET_GROUP = 2;
+    TARGET_TEACHER = 3;
+    TARGET_ROOM = 4;
+  }
+  uint32 id = 1;
+  string name = 2;
+  Target target = 3;
+  uint32 target_id = 4;
+  uint32 day_id = 5;
+  uint32 start_period = 6;
+  uint32 duration = 7;
+}
+
+// A zero field means "use the built-in default".
+message Weights {
+  int64 student_gap_base = 1;         // default 10000 (near-hard)
+  int64 teacher_gap_base = 2;         // default 45
+  int64 late_student_lesson_base = 3; // default 40
+  int64 late_teacher_finish_base = 4; // default 20
+  int64 subject_split_base = 5;       // default 70
+  int64 block_break_base = 6;         // default 90
+  int64 room_change_base = 7;         // default 10
+  int64 stability_move_base = 8;      // default 15
+  int64 expected_bad_per_lesson = 9;  // default 60
+  uint32 late_threshold_period = 10;  // default 7 (0-based period index)
+  uint32 gap_cap_per_day = 11;        // default 3, teacher gaps only
+  int64 gap_window_base = 12;         // default 100000: per adjacent gap pair
+  int64 early_start_base = 13;        // 0 = off: per-period late-start cost
+  int64 single_lesson_day_base = 14;  // 0 = off: per lonely teacher-day
+}
+
+message Preference {
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    KIND_PREFER_EARLY = 1;
+    KIND_MAX_LESSONS_PER_DAY = 2;
+  }
+  Kind kind = 1;
+  // Target filters; 0 = matches any.
+  uint32 year_id = 2;
+  uint32 division_id = 3;
+  uint32 subject_id = 4;
+  int64 weight = 5;
+  // Kind-specific parameter (e.g. max lessons per day).
+  uint32 param = 6;
+}
+
+message SchoolModel {
+  string name = 1;
+  repeated Day days = 2;
+  repeated Period periods = 3;
+  repeated Year years = 4;
+  repeated Division divisions = 5;
+  repeated Group groups = 6;
+  repeated Teacher teachers = 7;
+  repeated Subject subjects = 8;
+  reserved 9;  // was room_types
+  repeated Room rooms = 10;
+  repeated LessonInstance lessons = 11;
+  repeated ExternalBlock external_blocks = 12;
+  Weights weights = 13;
+  repeated Preference preferences = 14;
+  repeated DailyLoadRule daily_load_rules = 15;
+  repeated Split splits = 16;
+  RuleConfig rule_config = 17;  // the school's rule philosophy
+  repeated LessonLink lesson_links = 18;
+}
+
+// Relative-placement constraint between 2+ lessons. HARD — a link you want
+// soft is a preference, and none of these has a sensible soft meaning.
+enum LessonLinkKind {
+  LESSON_LINK_UNSPECIFIED = 0;
+  LESSON_LINK_SAME_DAY = 1;       // all members on one day
+  LESSON_LINK_DIFFERENT_DAY = 2;  // pairwise distinct days
+  LESSON_LINK_CONSECUTIVE = 3;    // same day, adjacent in time
+}
+
+message LessonLink {
+  uint32 id = 1;
+  LessonLinkKind kind = 2;
+  repeated uint32 lesson_ids = 3;  // 2+ members, no duplicates
+  // CONSECUTIVE only: members must follow list order in time; false =
+  // adjacency in any order.
+  bool ordered = 4;
+}
+
+// Edge-of-day placement for one lesson, relative to every student stream
+// that contains it (the teacher is irrelevant).
+enum EdgePlacement {
+  EDGE_NONE = 0;
+  EDGE_FIRST = 1;   // nothing of the same stream earlier that day
+  EDGE_LAST = 2;    // nothing of the same stream later that day
+  EDGE_EITHER = 3;  // first OR last, per stream
+}
+
+// Rule modes: every comfort rule has a three-position switch. DEFAULT in an
+// override means "keep whatever the earlier layer decided".
+enum RuleMode {
+  RULE_MODE_DEFAULT = 0;
+  RULE_MODE_HARD = 1;   // solver never violates; violations = ERROR tier
+  RULE_MODE_SOFT = 2;   // weighted penalty (today's behavior)
+  RULE_MODE_OFF = 3;    // rule does not exist for this school
+}
+
+// One override on top of the built-in defaults and the profile. Empty scope
+// fields = school-wide; within one list the LAST matching override wins —
+// there is no implicit specificity ranking, so put specific ones later.
+message RuleOverride {
+  string rule = 1;    // key from the rule table (see solver README)
+  RuleMode mode = 2;
+  int64 weight = 3;   // soft weight; 0 = keep the built-in formula
+  uint32 param = 4;   // rule-specific (anti_split_shift edge periods)
+  uint32 year_id = 5;
+  uint32 division_id = 6;
+  uint32 subject_id = 7;
+  uint32 teacher_id = 8;
+}
+
+// A named profile applied first ("", "default", "dobry_plan", "relaxed"),
+// then the overrides in order.
+message RuleConfig {
+  string profile = 1;
+  repeated RuleOverride overrides = 2;
+}

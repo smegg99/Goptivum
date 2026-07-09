@@ -1,0 +1,266 @@
+syntax = "proto3";
+
+package arrango.v1;
+
+import "arrango/v1/school.proto";
+import "arrango/v1/schedule.proto";
+
+option go_package = "github.com/smegg99/arrango/backend/gen/arrangov1";
+
+enum DemoPreset {
+  DEMO_PRESET_UNSPECIFIED = 0;
+  reserved 1 to 4;  // tiny/small/medium/full removed 2026-07-09
+  DEMO_PRESET_PRODUCTION = 5;  // ~34 divisions, prod-scale raw data (no schedule)
+  // Production +35% with EVERY solver capability layered in: splits,
+  // locks, links, edge lessons, load bands, rule overrides.
+  DEMO_PRESET_MEGA = 6;
+}
+
+message DemoRequest {
+  DemoPreset preset = 1;
+  uint64 seed = 2;
+}
+
+message ValidateRequest {
+  SchoolModel model = 1;
+  ScheduleSnapshot snapshot = 2;
+}
+
+// Rating (REPORTING) configuration — curves and composite weights for the
+// absolute 0-100 quality. Fully independent of the search Weights; absent
+// entries and zero values mean "built-in default" (see score/metrics.h).
+message ReportingWeights {
+  map<string, double> half_life = 1;      // metric key -> curve half-life
+  map<string, double> metric_weight = 2;  // metric key -> composite weight
+  double students_share = 3;              // 0 = default 0.70
+}
+
+message ScoreRequest {
+  SchoolModel model = 1;
+  ScheduleSnapshot snapshot = 2;
+  ReportingWeights reporting = 3;
+}
+
+message SolveParams {
+  double max_time_seconds = 1;
+  // 0 = use all available cores.
+  uint32 num_workers = 2;
+  int64 random_seed = 3;
+  // Ignore previous placements: no hints, no baseline — design freely.
+  bool from_scratch = 4;
+}
+
+// Which stage(s) of the pipeline to run. UNSPECIFIED == FULL_PIPELINE.
+// Only the full pipeline is implemented; asking for an individual stage
+// returns a clear error.
+enum SolveMode {
+  SOLVE_MODE_UNSPECIFIED = 0;
+  SOLVE_MODE_VIABILITY_CHECK = 1;
+  SOLVE_MODE_CONSTRUCT_FAST = 2;
+  SOLVE_MODE_CONSTRUCT_CLEAN = 3;
+  SOLVE_MODE_ASSIGN_ROOMS = 4;
+  SOLVE_MODE_REPAIR = 5;
+  SOLVE_MODE_POLISH = 6;
+  SOLVE_MODE_FULL_PIPELINE = 7;
+}
+
+enum UnknownCapacityPolicy {
+  UNKNOWN_CAPACITY_ALLOW = 0;  // default
+  UNKNOWN_CAPACITY_FORBID = 1;
+  UNKNOWN_CAPACITY_ALLOW_PENALIZED = 2;
+}
+
+enum UnplacedPolicy {
+  UNPLACED_FORBID = 0;  // default: infeasible instead of partial
+  UNPLACED_ALLOW_PENALIZED = 1;
+}
+
+enum PoolStrategy {
+  POOL_STRATEGY_AUTO = 0;
+  POOL_STRATEGY_EXACT_ONLY = 1;
+  POOL_STRATEGY_POOL_LARGE = 2;
+}
+
+enum PoolSafety {
+  POOL_SAFETY_STRICT = 0;
+  POOL_SAFETY_MATCHING_CUTS = 1;
+  POOL_SAFETY_REPORT_REPAIR = 2;
+}
+
+message PhaseLimits {
+  double construct_fast_seconds = 1;
+  double construct_clean_seconds = 2;
+  double assign_rooms_seconds = 3;
+  double repair_seconds = 4;
+  double polish_seconds = 5;
+}
+
+// Runtime solver configuration. Zero values mean "server default".
+// Booleans are phrased disable_* so the zero value enables the feature.
+// The server echoes the fully-resolved config in every SolveUpdate — that
+// echo is the config snapshot results are compared by.
+message SolverConfig {
+  SolveMode mode = 1;
+  double total_time_seconds = 2;      // default 180
+  PhaseLimits phase_limits = 3;
+  uint32 num_workers = 4;             // 0 = all cores
+  int64 random_seed = 5;
+  uint32 exact_room_threshold = 6;    // default 3
+  uint32 max_candidates_per_lesson = 7;  // 0 = unlimited
+  bool disable_warm_start = 8;
+  uint32 portfolio_seeds = 9;         // 0 or 1 = off
+  bool disable_lns = 10;
+  uint32 lns_iterations = 11;         // default 30
+  double lns_seconds_per_neighborhood = 12;  // 0 = auto (~4% of budget, 3-15s)
+  PoolStrategy pool_strategy = 13;
+  PoolSafety pool_safety = 14;
+  UnknownCapacityPolicy unknown_capacity_policy = 15;
+  UnplacedPolicy unplaced_policy = 16;
+  bool ignore_previous_placements = 17;  // legacy from_scratch
+  bool ignore_viability_block = 18;
+  // Effective soft weights; when unset the server copies model.weights here
+  // so every echoed config records what was actually used.
+  Weights weights = 19;
+  int64 unplaced_penalty = 20;  // default 1000000
+  // Refuse models whose fixed splits multiply into more student streams than
+  // this per division. 0 = built-in default (64).
+  uint32 max_streams_per_division = 21;
+  // Echo of the effective rule configuration (model + request merged) so
+  // every stored result records the philosophy that produced it.
+  RuleConfig rule_config = 22;
+  // The infeasibility explainer runs after an INFEASIBLE result by default;
+  // it costs extra solve time (bounded by explain_budget_seconds).
+  bool disable_infeasibility_explainer = 23;
+  // 0 = auto: 25% of the original budget, clamped to [5s, 30s].
+  double explain_budget_seconds = 24;
+}
+
+// One member of an infeasibility explanation. kind is one of:
+// teacher_availability, division_availability, group_availability,
+// locked_lesson, hard_rule, daily_bounds, placement_completeness, hint.
+message InfeasibleCoreItem {
+  string kind = 1;
+  string rule = 2;           // rule key when kind == "hard_rule"
+  uint32 entity_id = 3;
+  string entity_name = 4;
+  repeated uint32 lesson_ids = 5;
+  string message = 6;        // human fragment, e.g. "teacher Kowalski's availability"
+}
+
+// "These inputs cannot be satisfied together." Produced by re-solving with
+// assumption switches; items name model inputs, never solver internals.
+message InfeasibleCore {
+  repeated InfeasibleCoreItem items = 1;
+  bool minimal = 2;          // false when the budget ran out mid-shrink
+  string message = 3;        // one human sentence over all items
+  // Heuristic suspects after a no-solution TIMEOUT (not a proof).
+  repeated InfeasibleCoreItem hints = 4;
+}
+
+message SolveRequest {
+  SchoolModel model = 1;
+  SolveParams params = 2;  // legacy; mapped into config when config unset
+  SolverConfig config = 3;
+  ReportingWeights reporting = 4;  // rating curves for every emitted score
+  // Request-level rule overrides, layered over the model's rule_config
+  // (its profile first, then overrides; last match wins).
+  RuleConfig rule_config = 5;
+}
+
+enum SolvePhase {
+  SOLVE_PHASE_UNSPECIFIED = 0;
+  SOLVE_PHASE_STARTED = 1;
+  SOLVE_PHASE_SOLUTION = 2;
+  SOLVE_PHASE_DONE = 3;
+  // Periodic heartbeat while searching: objective/bound only, no snapshot.
+  SOLVE_PHASE_PROGRESS = 4;
+}
+
+enum SolveStatus {
+  SOLVE_STATUS_UNSPECIFIED = 0;
+  SOLVE_STATUS_OPTIMAL = 1;
+  SOLVE_STATUS_FEASIBLE = 2;
+  SOLVE_STATUS_INFEASIBLE = 3;
+  SOLVE_STATUS_CANCELLED = 4;
+  SOLVE_STATUS_TIMEOUT = 5;
+  SOLVE_STATUS_ERROR = 6;
+}
+
+message SolveUpdate {
+  SolvePhase phase = 1;
+  SolveStatus status = 2;
+  ScheduleSnapshot snapshot = 3;
+  int64 objective = 4;
+  ScoreReport score = 5;
+  ValidationReport validation = 6;
+  double wall_time_seconds = 7;
+  string message = 8;
+  // Proven objective lower bound; objective - bound = optimality gap.
+  int64 best_bound = 9;
+  uint32 solutions_found = 10;
+  // The fully-resolved config that produced this update; set on EVERY
+  // update so any stored result records its exact configuration snapshot.
+  SolverConfig config = 11;
+  // Tier composed from validation (errors) + score metrics (warnings);
+  // attached wherever snapshot/score/validation are.
+  ScheduleVerdict verdict = 12;
+  // What the solver is doing RIGHT NOW: set on every PROGRESS update (the
+  // 1 Hz heartbeat carries the latest stage) and on stage transitions, so
+  // the caller is never left waiting on a silent stream.
+  SolveProgress progress = 13;
+  // Present on DONE after an INFEASIBLE solve when the explainer ran: the
+  // named (near-)minimal set of clashing inputs, or heuristic hints after
+  // a no-solution timeout.
+  InfeasibleCore infeasible_core = 14;
+}
+
+enum SolveStage {
+  SOLVE_STAGE_UNSPECIFIED = 0;
+  SOLVE_STAGE_PREFLIGHT = 1;   // input checks (validate/preflight.h)
+  SOLVE_STAGE_CANDIDATES = 2;  // building placement candidates
+  SOLVE_STAGE_CONSTRUCT = 3;   // large models: hard-only feasibility search
+  SOLVE_STAGE_DIRECT = 4;      // small models: single full optimize
+  SOLVE_STAGE_LNS = 5;         // polishing neighborhoods
+  SOLVE_STAGE_VALIDATE = 6;    // final validation + scoring
+  SOLVE_STAGE_DONE = 7;
+  SOLVE_STAGE_EXPLAIN = 8;  // proving WHY the model is infeasible
+}
+
+message SolveProgress {
+  SolveStage stage = 1;
+  string detail = 2;  // human sentence, e.g. "freed {1f,5a,5e}"
+  uint64 candidates = 3;
+  uint32 lns_pass = 4;
+  uint32 lns_neighborhood = 5;        // i of ...
+  uint32 lns_neighborhoods_total = 6;
+  uint32 lns_accepted = 7;
+  uint32 lns_rejected_worse = 8;
+  uint32 lns_rejected_invalid = 9;    // gate hits = solver-bug indicator
+  double stage_elapsed_seconds = 10;
+}
+
+// The one-glance answer "is this schedule pristine?". ERRORS = any hard
+// conflict; WARNINGS = any comfort metric below 100 (students AND teachers);
+// INFO never affects the tier — a pristine schedule may carry infos.
+message ScheduleVerdict {
+  enum Tier {
+    TIER_UNSPECIFIED = 0;
+    TIER_PRISTINE = 1;
+    TIER_WARNINGS = 2;
+    TIER_ERRORS = 3;
+  }
+  Tier tier = 1;
+  uint32 errors = 2;      // structural + config-hard combined
+  uint32 warnings = 3;
+  uint32 infos = 4;
+  // Of `errors`, how many are violations of rules the school set to HARD
+  // (as opposed to structural illegality).
+  uint32 config_hard_errors = 5;
+}
+
+service SolverService {
+  rpc GetDemoSchool(DemoRequest) returns (SchoolModel);
+  rpc Validate(ValidateRequest) returns (ValidationReport);
+  rpc Score(ScoreRequest) returns (ScoreReport);
+  rpc Solve(SolveRequest) returns (stream SolveUpdate);
+}
