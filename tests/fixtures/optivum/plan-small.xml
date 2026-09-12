@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<plan licencja="000001" wersja="12.00.0004">
+ <placowka kod="" nazwa="Szkoła Testowa"/>
+ <dni><dzien kod="Pn" nazwa="Poniedziałek"/><dzien kod="Wt" nazwa="Wtorek"/></dni>
+ <lekcje>
+  <lekcja kod="1" od=" 8:00" do=" 8:45" czas=""/>
+  <lekcja kod="2" od=" 8:55" do=" 9:40" czas=""/>
+  <lekcja kod="3" od=" 9:50" do="10:35" czas=""/>
+ </lekcje>
+ <nauczyciele>
+  <nauczyciel kod="AB" imie="Łukasz" nazwisko="Żółć" pensum="18" znizka="0" sala="101 gabinet" pref="101" uwagi="poza lista pol">
+   <info><p d="1" g="2" i="-" k="notatka poza lista pol"/><p d="0" g="0" i="+"/></info>
+  </nauczyciel>
+  <nauczyciel kod="CD" imie="Zofia" nazwisko="Śliwa" sala="" pref="komputery"/>
+  <nauczyciel kod="EF" imie="Jan" nazwisko="Kowalski" sala="999 nieznana" pref=""/>
+ </nauczyciele>
+ <przedmioty>
+  <przedmiot kod="mat" nazwa="matematyka" pensum="18" pref=""/>
+  <przedmiot kod="ang" nazwa="język angielski"/>
+  <przedmiot kod="wf" nazwa=""/>
+ </przedmioty>
+ <budynki><budynek kod="A" kolor="0"/></budynki>
+ <sale>
+  <sala kod="101" nazwa="Sala 101" bud="A" poj="30">
+   <info><p d="0" g="2" i="-"/></info>
+  </sala>
+  <sala kod="102" nazwa="" bud="A" poj="24"/>
+  <sala kod="103" nazwa="Sala 103" bud="B" poj="0"/>
+  <sala kod="gim" nazwa="Sala gimnastyczna" bud="A" poj="60"/>
+ </sale>
+ <oddzialy>
+  <oddzial kod="1A" nazwa="Klasa pierwsza" poziom="4" ch="12" dz="14" pmin="2" pmax="3" wych="AB">
+   <grupy>
+    <podzial kod="Podział na dwie grupy" przedmiot="">
+     <grupa kod="1/2" lu="13" max="2" nr="1"/>
+     <grupa kod="2/2" lu="13" max="2" nr="2"/>
+    </podzial>
+    <podzial kod="Podział wg płci" przedmiot="">
+     <grupa kod="Ch" lu="12" max="2" nr="1"/>
+     <grupa kod="Dz" lu="14" max="2" nr="2"/>
+    </podzial>
+   </grupy>
+   <info>
+    <p d="0" g="0" i="*"/><p d="0" g="1" i="*"/><p d="0" g="2" i="*"/>
+    <p d="1" g="0" i="*"/><p d="1" g="1" i="*"/><p d="1" g="2" i="-"/>
+   </info>
+  </oddzial>
+  <oddzial kod="2B" nazwa="Klasa druga" poziom="5" ch="10" dz="0" pmin="" pmax="4">
+   <grupy/>
+   <info>
+    <p d="0" g="0" i="*"/><p d="0" g="1" i="*"/><p d="0" g="2" i="*"/>
+    <p d="1" g="0" i="*"/><p d="1" g="1" i="*"/><p d="1" g="2" i="*"/>
+   </info>
+  </oddzial>
+ </oddzialy>
+ <zbiory>
+  <zbior kod="komputery" nazwa="Sale komputerowe" el="102,103"/>
+  <zbior kod="salagim" nazwa="Sale gimnastyczne" el="gim,*"/>
+ </zbiory>
+ <przydzialy>
+  <p kl="1A" nau="AB" prz="mat" sa="101" dz="0" godz="0" bk="2" nb="1" pref="101,komputery" f="5"/>
+  <p kl="1A" nau="AB" prz="mat" sa="101" dz="0" godz="1" pref="101,komputery" f="5"/>
+  <p kl="1A" gr="1/2" aog="1" nau="CD" prz="ang" sa="102" dz="1" godz="0" bk="1" sp="0" pref="komputery" f="5"/>
+  <p kl="1A" gr="2/2" aog="2" nau="EF" prz="ang" sa="103" dz="1" godz="0" bk="1" sp="0" pref="komputery" f="5"/>
+  <p kl="1A" nau="AB" prz="wf" sa="@" dz="1" godz="1" bk="1" pref="salagim,@" f="5"/>
+  <p kl="1A" gr="Ch" aog="2" nau="EF" prz="wf" bk="1" pref="*" f="1"/>
+  <p kl="2B" nau="CD" prz="mat" sa="102" dz="0" godz="2" bk="1" pref="102" f="5"/>
+ </przydzialy>
+ <spinacz liczba="1"/>
+ <dyzuryplan><p d="0" g="0" m="1" n="AB"/></dyzuryplan>
+ <warunki/>
+ <czasy/>
+ <mzajecia/>
+ <przerwa0 czas=""/>
+ <arkusz plik="arkusz.xls" tydzien="1"/>
+</plan>

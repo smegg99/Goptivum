@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<plan wersja="12.00.0004">
+ <dni><dzien kod="Pn" nazwa="Poniedziałek"/></dni>
+ <lekcje><lekcja kod="1" od=" 8:00" do=" 8:45"/><lekcja kod="2" od=" 8:55" do=" 9:40"/></lekcje>
+ <nauczyciele><nauczyciel kod="AB" imie="Jan" nazwisko="Nowak">
+  <info><p d="0" g="0" i="?"/><p d="9" g="0" i="-"/></info>
+ </nauczyciel></nauczyciele>
+ <przedmioty><przedmiot kod="mat" nazwa="matematyka"/></przedmioty>
+ <sale><sala kod="101" nazwa="Sala 101" poj="30"/><sala kod="102" nazwa="Sala 102" poj="30"/></sale>
+ <oddzialy><oddzial kod="1A" poziom="4" ch="20" dz="0" pmin="5" pmax="2">
+  <grupy><podzial kod="Blok 7"><grupa kod="z1" lu="10" nr="1"/></podzial></grupy>
+  <info><p d="0" g="0" i="*"/><p d="0" g="1" i="*"/></info>
+ </oddzial></oddzialy>
+ <przydzialy>
+  <p kl="9Z" nau="AB" prz="mat" bk="1" pref="*"/>
+  <p kl="1A" nau="AB" prz="zzz" bk="1" pref="*"/>
+  <p kl="1A" nau="ZZ" prz="mat" bk="1" pref="*"/>
+  <p kl="1A" gr="9/9" nau="AB" prz="mat" sa="999" dz="0" godz="0" bk="1" pref="nieznanyzbior"/>
+  <p kl="1A" nau="AB" prz="mat" dz="9" godz="0" bk="1" pref="*"/>
+  <p kl="1A" nau="AB" prz="mat" sa="101" dz="0" godz="1" bk="3" pref="*"/>
+  <p kl="1A" nau="AB" prz="mat" sa="101" dz="0" godz="1" pref="*"/>
+  <p kl="1A" nau="AB" prz="mat" sa="101" dz="0" godz="0" bk="2" nb="8" pref="*"/>
+  <p kl="1A" nau="AB" prz="mat" sa="102" dz="0" godz="1" pref="*"/>
+ </przydzialy>
+</plan>

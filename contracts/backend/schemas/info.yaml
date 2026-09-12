@@ -1,0 +1,34 @@
+# contracts/backend/schemas/info.yaml
+#
+# Frozen. A client reads this before it has a session and before it knows what
+# version the server speaks, so the four fields never change meaning and the
+# path never changes. A new field may only be added as an optional one.
+
+Info:
+  type: object
+  required: [product, api_version, min_client_version, server_version]
+  additionalProperties: false
+  properties:
+    product:
+      type: string
+      enum: [goptivum]
+      description: >
+        The only conclusive identification. A generic version endpoint looks
+        the same on any two unrelated services, and a desktop connecting to an
+        address a user typed has to know what it reached before it trusts
+        anything else on that connection.
+    api_version:
+      type: string
+      description: The versioned namespace this server serves, such as v1.
+      examples: [v1]
+    min_client_version:
+      type: string
+      description: >
+        The oldest client this server accepts. A client below it is too old,
+        which is a different problem from the server being too old, and the
+        two have different fixes.
+      examples: [0.1.0]
+    server_version:
+      type: string
+      description: This build, for support and logs.
+      examples: [0.1.0]

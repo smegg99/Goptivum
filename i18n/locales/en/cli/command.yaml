@@ -1,0 +1,107 @@
+rootShort:
+  description: "Server command summary."
+  value: "Manage one school's identity and data"
+rootLong:
+  description: "Server command description."
+  value: "Keep school timetables as versioned documents, import existing files, and send solving work to Arrango."
+serveShort:
+  description: "Serve command summary."
+  value: "Run the server until SIGINT or SIGTERM"
+statusShort:
+  description: "Status command summary."
+  value: "Check a running server and its readiness"
+statusLong:
+  description: "Status command description."
+  value: "Read server information and readiness. Use --addr to check a different server."
+configFlag:
+  description: "Configuration flag description."
+  value: "configuration file; created with defaults when missing"
+addrFlag:
+  description: "Address flag description."
+  value: "override server.address for this run"
+verboseFlag:
+  description: "Verbose flag description."
+  value: "log every debug line"
+noColorFlag:
+  description: "Log color flag description."
+  value: "plain log output for a pipe or journal"
+langFlag:
+  description: "Language flag description; backticks name the value in Cobra help."
+  value: "language for this run: `en|pl`"
+helpFlag:
+  description: "Help flag description."
+  value: "show command help"
+versionFlag:
+  description: "Version flag description."
+  value: "show version information"
+helpShort:
+  description: "Help command summary."
+  value: "Show help for a command"
+completionShort:
+  description: "Completion command summary."
+  value: "Generate shell completion scripts"
+shellShort:
+  description: "Shell completion summary; shell is the shell name."
+  value: "Generate completion for {shell}"
+  placeholders:
+    shell: {type: string}
+noDescriptionsFlag:
+  description: "Shell completion flag description."
+  value: "omit completion descriptions"
+usage:
+  description: "Cobra usage heading."
+  value: "Usage:"
+commands:
+  description: "Cobra command list heading."
+  value: "Available Commands:"
+flags:
+  description: "Cobra local flags heading."
+  value: "Flags:"
+globalFlags:
+  description: "Cobra inherited flags heading."
+  value: "Global Flags:"
+helpHint:
+  description: "Cobra help footer; command is the help invocation."
+  value: "Use \"{command}\" for more information about a command."
+  placeholders:
+    command: {type: string}
+version:
+  description: "Version output; release, api and client are version identifiers."
+  value: "goptivum-server {release} (api {api}, clients >= {client})"
+  placeholders:
+    release: {type: string}
+    api: {type: string}
+    client: {type: string}
+unknownCommand:
+  description: "Usage error; command is the unrecognized argument."
+  value: "Unknown command: {command}"
+  placeholders:
+    command: {type: string}
+noArgs:
+  description: "Usage error; command takes no positional arguments."
+  value: "{command} does not accept arguments"
+  placeholders:
+    command: {type: string}
+invalidFlag:
+  description: "Usage error with the original parser diagnostic in detail."
+  value: "Invalid option: {detail}"
+  placeholders:
+    detail: {type: string}
+invalidLanguage:
+  description: "Language validation error."
+  value: "Choose en or pl for --lang"
+error:
+  description: "CLI error line; detail is the diagnostic."
+  value: "Error: {detail}"
+  placeholders:
+    detail: {type: string}
+configFailed:
+  description: "Configuration load failure with original diagnostic."
+  value: "Cannot load configuration: {detail}"
+  placeholders:
+    detail: {type: string}
+loggingFailed:
+  description: "Logger setup failure with original diagnostic."
+  value: "Cannot configure logging: {detail}"
+  placeholders:
+    detail: {type: string}

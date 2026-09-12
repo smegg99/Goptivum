@@ -1,0 +1,11 @@
+# contracts/backend/redocly.yaml
+apis:
+  backend@v1:
+    root: ./openapi.yaml
+extends:
+  - recommended-strict
+# One operation is ignored in .redocly.lint-ignore.yaml: /api/info has no 4xx
+# because it has no failure mode. It is registered on the bare engine before
+# apimount.Mount, so it carries no session middleware and no rate limiter, it
+# takes no input, and it touches no dependency. The rule stays on for
+# everything else.

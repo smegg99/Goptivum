@@ -1,0 +1,17 @@
+# api/v1/oapi-codegen.yaml
+# Input is contracts/backend/dist/openapi.yaml, which just contracts bundles.
+package: gen
+output: api/v1/gen/api.gen.go
+generate:
+  models: true
+  gin-server: true
+  strict-server: true
+output-options:
+  # The discovery endpoint is registered by hand on the bare engine before
+  # apimount.Mount, so generating a handler for it would register the route
+  # twice and panic gin. The contract still documents it.
+  exclude-tags: [discovery]
+  # Without this, excluding an operation also prunes the models it was the only
+  # user of. The Info type this package exists to carry survives only because
+  # pruning is off.
+  skip-prune: true

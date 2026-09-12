@@ -1,0 +1,23 @@
+configLoaded:
+  description: 'Log event: the configuration file was read and validated.'
+  value: wczytano konfigurację
+migrationsApplied:
+  description: 'Log event: the database schema is at the version this build expects.'
+  value: baza danych zmigrowana
+storageReady:
+  description: 'Log event: object storage answered, so documents can be written.'
+  value: magazyn dokumentów gotowy
+serverStarted:
+  description: 'Log event: the HTTP server is listening.'
+  value: serwer uruchomiony
+serverStopping:
+  description: 'Log event: a signal arrived and the server stopped accepting.'
+  value: zamykanie serwera
+noIdentityProvider:
+  description: >-
+    Log event: no Kratos is configured, so every route that needs a session
+    stays unregistered rather than being mounted open.
+  value: brak dostawcy tożsamości, dostępne tylko wykrywanie i kontrola stanu
+runFailed:
+  description: 'Log event: the process is exiting because the work failed.'
+  value: serwer zakończył pracę z błędem

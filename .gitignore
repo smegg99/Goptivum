@@ -1,16 +1,24 @@
-backend/services/solver/README.md
-backend/services/solver/data
-backend/services/solver/build
-backend/services/solver/solver/README.md
-docs/docs.go
-docs/swagger.json
-docs/swagger.yaml
+# Build output and local runtime state
+bin/
+tmp/
+logs/
+.env
+config.yaml
+# The daemon's own defaults when nothing configures it: a local database and a
+# local object directory.
+goptivum.db
+goptivum.db-*
+documents/
 
-# Frontend junk (any frontend in the repo)
 node_modules/
-.nuxt/
-.output/
-dist/
-.nitro/
-.cache/
+__pycache__/
 *.log
+
+# The bundled contract is versioned for API consumers.
+!contracts/dist/
+
+# Real files: personal data, never committed. See tests/README.md
+tests/data/
+
+# Stray build output
+/plaprobe

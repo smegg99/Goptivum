@@ -1,0 +1,31 @@
+# contracts/backend/paths/info.yaml
+
+info:
+  # The discovery endpoint is unversioned, which is the whole point: a client
+  # has to learn which version the server speaks before it can call a versioned
+  # route. At /api/v1/info a client would have to guess v1 to ask what version
+  # to use, and when the server stops serving v1 that guess returns 404 without
+  # saying whether it reached the wrong version or something that is not a
+  # Goptivum Server at all.
+  servers:
+    - url: /api
+      description: Unversioned, and frozen.
+  get:
+    operationId: getInfo
+    summary: Identify the server and the API version it serves.
+    description: >
+      Answers with no session and with every dependency stopped: it reads
+      compiled-in values and never touches the database, object storage or
+      Kratos. A client checks four things in order, and each failure has its own
+      message: whether it answered at all, whether product is goptivum, whether
+      the client supports api_version, and whether the client is at or above
+      min_client_version.
+    tags: [discovery]
+    security: []
+    responses:
+      '200':
+        description: The server's identity.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/info.yaml#/Info'

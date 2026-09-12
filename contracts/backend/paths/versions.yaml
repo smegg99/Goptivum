@@ -1,0 +1,105 @@
+# contracts/backend/paths/versions.yaml
+
+versions:
+  parameters:
+    - $ref: '../parameters/path.yaml#/PlanID'
+  get:
+    operationId: listVersions
+    summary: The plan's version timeline, oldest first.
+    tags: [versions]
+    responses:
+      '200':
+        description: Every version of the plan.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/version.yaml#/VersionList'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+  post:
+    operationId: uploadVersion
+    summary: Upload a new version of the plan's document.
+    description: >
+      There is no lock. The upload names the version it was derived from, and a
+      parent that is no longer the newest is refused with a conflict carrying the
+      current version. The document itself is the encoded school: protobuf
+      compressed with zstd, the same bytes a download returns.
+    tags: [versions]
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: [document, parent]
+            properties:
+              document:
+                type: string
+                format: binary
+                description: The encoded document.
+              parent:
+                type: integer
+                format: int64
+                minimum: 0
+                description: The version this was derived from, or 0 for the first.
+              valid_from:
+                type: string
+                format: date
+              valid_to:
+                type: string
+                format: date
+    responses:
+      '201':
+        description: The version that landed.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/version.yaml#/Version'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '409':
+        description: >
+          The parent is not the current version. Someone saved first.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/version.yaml#/Conflict'
+      '413':
+        $ref: '../responses/error.yaml#/TooLarge'
+      '422':
+        $ref: '../responses/error.yaml#/Validation'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+version:
+  parameters:
+    - $ref: '../parameters/path.yaml#/PlanID'
+    - $ref: '../parameters/path.yaml#/VersionNumber'
+  get:
+    operationId: downloadVersion
+    summary: Download one version's document.
+    description: >
+      The stored bytes, unchanged: protobuf compressed with zstd. The desktop
+      downloads a document whole, edits it in memory and uploads a new version;
+      there is no per-entity API and no partial update.
+    tags: [versions]
+    responses:
+      '200':
+        description: The document.
+        content:
+          application/zstd:
+            schema:
+              type: string
+              format: binary
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'

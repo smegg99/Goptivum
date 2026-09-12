@@ -1,0 +1,55 @@
+# contracts/backend/paths/import.yaml
+
+import:
+  post:
+    operationId: importPlan
+    summary: Import a school file as a new plan.
+    description: >
+      Detection is by content, never by extension: a .zip could be anything and
+      a .pla is recognisable by its own header. The winning importer maps what it
+      can and returns the school plus typed findings for what it did not, because
+      a file that fails wholesale teaches a secretary nothing. The imported school
+      is stored as the plan's first version.
+    tags: [import]
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: [file]
+            properties:
+              file:
+                type: string
+                format: binary
+                description: The school's own file, as they have it.
+              name:
+                type: string
+                maxLength: 200
+                description: >
+                  The plan name. Absent means the uploaded file name without its
+                  extension.
+              school_year:
+                type: string
+                maxLength: 32
+    responses:
+      '201':
+        description: The plan, its first version, and what did not map.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/finding.yaml#/ImportResult'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '413':
+        $ref: '../responses/error.yaml#/TooLarge'
+      '415':
+        description: No importer recognises the file.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/error.yaml#/Error'
+      '422':
+        $ref: '../responses/error.yaml#/Validation'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'

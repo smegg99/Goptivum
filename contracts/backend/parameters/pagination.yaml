@@ -1,0 +1,47 @@
+# contracts/backend/parameters/pagination.yaml
+#
+# Query parameters every list endpoint takes. useServerTable sends exactly
+# these names; renaming one breaks every table in every app. apipage.Parse
+# reads them and never rejects: a page of 0 or a limit of "banana" falls back
+# to the default rather than turning a stale bookmark into a bug report.
+
+Page:
+  name: page
+  in: query
+  required: false
+  description: 1-indexed. Absent means 1.
+  schema:
+    type: integer
+    minimum: 1
+    default: 1
+
+Limit:
+  name: limit
+  in: query
+  required: false
+  description: Page size. Absent means the endpoint default.
+  schema:
+    type: integer
+    minimum: 1
+    maximum: 200
+    default: 25
+
+Sort:
+  name: sort
+  in: query
+  required: false
+  description: >
+    Comma-separated fields, `-` prefix for descending. Unknown fields are
+    ignored rather than rejected, so a stale bookmark keeps working.
+  schema:
+    type: string
+    examples: ['-created_at', 'name,-created_at']
+
+Query:
+  name: q
+  in: query
+  required: false
+  description: >
+    Free-text search over a plan's name and school year.
+  schema:
+    type: string

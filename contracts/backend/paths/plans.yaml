@@ -1,0 +1,89 @@
+# contracts/backend/paths/plans.yaml
+
+plans:
+  get:
+    operationId: listPlans
+    summary: List the signed-in owner's plans.
+    description: >
+      One owner's plans, newest first. Free-text search covers the plan name and
+      the school year.
+    tags: [plans]
+    parameters:
+      - $ref: '../parameters/pagination.yaml#/Page'
+      - $ref: '../parameters/pagination.yaml#/Limit'
+      - $ref: '../parameters/pagination.yaml#/Sort'
+      - $ref: '../parameters/pagination.yaml#/Query'
+    responses:
+      '200':
+        description: A page of plans.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/plan.yaml#/PlanPage'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+  post:
+    operationId: createPlan
+    summary: Create an empty plan.
+    description: >
+      A plan with no versions. The first document arrives as a version upload or
+      as an import.
+    tags: [plans]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/plan.yaml#/PlanCreate'
+    responses:
+      '201':
+        description: The plan.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/plan.yaml#/Plan'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '422':
+        $ref: '../responses/error.yaml#/Validation'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+plan:
+  parameters:
+    - $ref: '../parameters/path.yaml#/PlanID'
+  get:
+    operationId: getPlan
+    summary: Read one plan.
+    tags: [plans]
+    responses:
+      '200':
+        description: The plan.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/plan.yaml#/Plan'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+  delete:
+    operationId: deletePlan
+    summary: Delete a plan and its whole version timeline.
+    description: >
+      The documents the versions referenced become unreferenced objects a sweep
+      can collect. An orphaned object is garbage; an orphaned row would be a bug.
+    tags: [plans]
+    responses:
+      '204':
+        description: Deleted.
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'

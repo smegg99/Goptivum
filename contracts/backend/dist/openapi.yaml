@@ -1,0 +1,679 @@
+openapi: 3.1.0
+info:
+  title: Goptivum Server API
+  description: |
+    The contract between Goptivum Desktop and Goptivum Server. A plan is a document, not rows: the desktop downloads one whole, edits it in memory and uploads a new version, so there is no per-entity endpoint here and no partial update.
+  version: 0.1.0
+  license:
+    name: MIT
+    url: https://opensource.org/license/mit/
+servers:
+  - url: /api/v1
+    description: The versioned API. Every path below is relative to it.
+security:
+  - kratosSession: []
+tags:
+  - name: discovery
+    description: What a client reads before it has a session or knows the version.
+  - name: plans
+    description: The plans an owner has.
+  - name: versions
+    description: One plan's timeline of documents.
+  - name: import
+    description: Turning a school's own file into a plan.
+paths:
+  /info:
+    servers:
+      - url: /api
+        description: Unversioned, and frozen.
+    get:
+      operationId: getInfo
+      summary: Identify the server and the API version it serves.
+      description: |
+        Answers with no session and with every dependency stopped: it reads compiled-in values and never touches the database, object storage or Kratos. A client checks four things in order, and each failure has its own message: whether it answered at all, whether product is goptivum, whether the client supports api_version, and whether the client is at or above min_client_version.
+      tags:
+        - discovery
+      security: []
+      responses:
+        '200':
+          description: The server's identity.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Info'
+  /plans:
+    get:
+      operationId: listPlans
+      summary: List the signed-in owner's plans.
+      description: |
+        One owner's plans, newest first. Free-text search covers the plan name and the school year.
+      tags:
+        - plans
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Query'
+      responses:
+        '200':
+          description: A page of plans.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+    post:
+      operationId: createPlan
+      summary: Create an empty plan.
+      description: |
+        A plan with no versions. The first document arrives as a version upload or as an import.
+      tags:
+        - plans
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanCreate'
+      responses:
+        '201':
+          description: The plan.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Plan'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/Validation'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /plans/{planId}:
+    parameters:
+      - $ref: '#/components/parameters/PlanID'
+    get:
+      operationId: getPlan
+      summary: Read one plan.
+      tags:
+        - plans
+      responses:
+        '200':
+          description: The plan.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Plan'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+    delete:
+      operationId: deletePlan
+      summary: Delete a plan and its whole version timeline.
+      description: |
+        The documents the versions referenced become unreferenced objects a sweep can collect. An orphaned object is garbage; an orphaned row would be a bug.
+      tags:
+        - plans
+      responses:
+        '204':
+          description: Deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /plans/{planId}/versions:
+    parameters:
+      - $ref: '#/components/parameters/PlanID'
+    get:
+      operationId: listVersions
+      summary: The plan's version timeline, oldest first.
+      tags:
+        - versions
+      responses:
+        '200':
+          description: Every version of the plan.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+    post:
+      operationId: uploadVersion
+      summary: Upload a new version of the plan's document.
+      description: |
+        There is no lock. The upload names the version it was derived from, and a parent that is no longer the newest is refused with a conflict carrying the current version. The document itself is the encoded school: protobuf compressed with zstd, the same bytes a download returns.
+      tags:
+        - versions
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - document
+                - parent
+              properties:
+                document:
+                  type: string
+                  format: binary
+                  description: The encoded document.
+                parent:
+                  type: integer
+                  format: int64
+                  minimum: 0
+                  description: The version this was derived from, or 0 for the first.
+                valid_from:
+                  type: string
+                  format: date
+                valid_to:
+                  type: string
+                  format: date
+      responses:
+        '201':
+          description: The version that landed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Version'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: |
+            The parent is not the current version. Someone saved first.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conflict'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '422':
+          $ref: '#/components/responses/Validation'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /plans/{planId}/versions/{version}:
+    parameters:
+      - $ref: '#/components/parameters/PlanID'
+      - $ref: '#/components/parameters/VersionNumber'
+    get:
+      operationId: downloadVersion
+      summary: Download one version's document.
+      description: |
+        The stored bytes, unchanged: protobuf compressed with zstd. The desktop downloads a document whole, edits it in memory and uploads a new version; there is no per-entity API and no partial update.
+      tags:
+        - versions
+      responses:
+        '200':
+          description: The document.
+          content:
+            application/zstd:
+              schema:
+                type: string
+                format: binary
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /import:
+    post:
+      operationId: importPlan
+      summary: Import a school file as a new plan.
+      description: |
+        Detection is by content, never by extension: a .zip could be anything and a .pla is recognisable by its own header. The winning importer maps what it can and returns the school plus typed findings for what it did not, because a file that fails wholesale teaches a secretary nothing. The imported school is stored as the plan's first version.
+      tags:
+        - import
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The school's own file, as they have it.
+                name:
+                  type: string
+                  maxLength: 200
+                  description: |
+                    The plan name. Absent means the uploaded file name without its extension.
+                school_year:
+                  type: string
+                  maxLength: 32
+      responses:
+        '201':
+          description: The plan, its first version, and what did not map.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '413':
+          $ref: '#/components/responses/TooLarge'
+        '415':
+          description: No importer recognises the file.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          $ref: '#/components/responses/Validation'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+components:
+  securitySchemes:
+    kratosSession:
+      type: apiKey
+      in: cookie
+      name: ory_kratos_session
+      description: Ory Kratos browser session cookie.
+  schemas:
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+          pattern: ^[a-z][a-z0-9_]*$
+          description: |
+            Stable machine-readable code. Clients branch on this, never on the message or the status. Never localised, never reworded.
+          examples:
+            - not_found
+            - conflict
+            - validation
+            - unauthorized
+            - internal
+        message:
+          type: string
+          description: |
+            i18n key the client resolves. Never English prose, because the server does not know the caller's language.
+          examples:
+            - error.notFound
+            - plan.staleParent
+        details:
+          type: object
+          description: |
+            Field-level detail, keyed by field path. Present on validation errors, absent otherwise. Values are codes, not sentences.
+          additionalProperties:
+            type: string
+          examples:
+            - name: too_short
+    Info:
+      type: object
+      required:
+        - product
+        - api_version
+        - min_client_version
+        - server_version
+      additionalProperties: false
+      properties:
+        product:
+          type: string
+          enum:
+            - goptivum
+          description: |
+            The only conclusive identification. A generic version endpoint looks the same on any two unrelated services, and a desktop connecting to an address a user typed has to know what it reached before it trusts anything else on that connection.
+        api_version:
+          type: string
+          description: The versioned namespace this server serves, such as v1.
+          examples:
+            - v1
+        min_client_version:
+          type: string
+          description: |
+            The oldest client this server accepts. A client below it is too old, which is a different problem from the server being too old, and the two have different fixes.
+          examples:
+            - 0.1.0
+        server_version:
+          type: string
+          description: This build, for support and logs.
+          examples:
+            - 0.1.0
+    Plan:
+      type: object
+      required:
+        - id
+        - name
+        - school_year
+        - created_at
+        - updated_at
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          description: |
+            The plan id as a decimal string. It is a 64-bit integer, and JSON numbers are doubles in every browser, which silently rounds anything over 2^53.
+          examples:
+            - '4611686018427387904'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          examples:
+            - Plan lekcji 2026/2027
+        school_year:
+          type: string
+          maxLength: 32
+          examples:
+            - 2026/2027
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    PlanCreate:
+      type: object
+      required:
+        - name
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        school_year:
+          type: string
+          maxLength: 32
+    PlanPage:
+      type: object
+      required:
+        - items
+        - page
+        - limit
+        - total
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Plan'
+        page:
+          type: integer
+          description: The page this response is, echoed back after clamping.
+        limit:
+          type: integer
+          description: The page size applied, which may be lower than the one asked for.
+        total:
+          type: integer
+          description: How many plans the owner has in total, for the page count.
+    Version:
+      type: object
+      required:
+        - plan_id
+        - version
+        - object_key
+        - size_bytes
+        - created_at
+        - created_by
+      additionalProperties: false
+      properties:
+        plan_id:
+          type: string
+          description: Decimal string, as on Plan.
+        version:
+          type: integer
+          format: int64
+          minimum: 1
+        parent:
+          type: integer
+          format: int64
+          description: The version this one was derived from. Absent on the first.
+        object_key:
+          type: string
+          description: |
+            Where the document sits in object storage, content-addressed. Clients download through this API and never reach into the store, which is what keeps validation, id allocation and version checks in one place.
+        size_bytes:
+          type: integer
+          format: int64
+          description: The compressed size of the stored document.
+        created_at:
+          type: string
+          format: date-time
+        created_by:
+          type: string
+          description: The identity that uploaded it.
+        valid_from:
+          type: string
+          format: date
+          description: |
+            The first day this schedule applies. A school's timetable changes mid-year, so one plan holds a September schedule and a February one.
+        valid_to:
+          type: string
+          format: date
+          description: The last day this schedule applies. Absent means open-ended.
+    VersionList:
+      type: object
+      required:
+        - items
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Version'
+    VersionUpload:
+      type: object
+      required:
+        - parent
+      additionalProperties: false
+      properties:
+        parent:
+          type: integer
+          format: int64
+          minimum: 0
+          description: |
+            The version this upload was derived from, or 0 for the first version of a plan. A parent that is no longer the newest is refused.
+        valid_from:
+          type: string
+          format: date
+        valid_to:
+          type: string
+          format: date
+    Conflict:
+      type: object
+      required:
+        - code
+        - message
+        - current_version
+      additionalProperties: false
+      properties:
+        code:
+          type: string
+          enum:
+            - conflict
+        message:
+          type: string
+          description: i18n key the client resolves.
+        current_version:
+          type: integer
+          format: int64
+          description: |
+            The version the plan is actually at. The client shows "someone saved first, here is their version" instead of overwriting their work.
+    Finding:
+      type: object
+      required:
+        - kind
+        - severity
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          pattern: ^[a-z][a-z0-9_]*$
+          description: Stable, localisable identity of the finding.
+          examples:
+            - unmapped_element
+            - unknown_reference
+            - lesson_dropped
+        severity:
+          type: string
+          enum:
+            - info
+            - warning
+            - error
+          description: |
+            error means data was lost: a lesson the file describes did not survive the import.
+        entities:
+          type: array
+          description: The entities involved, for a client that highlights them.
+          items:
+            $ref: '#/components/schemas/EntityRef'
+        count:
+          type: integer
+          description: |
+            How many times this finding stands for, when the reader aggregated a bulk loss rather than reporting one per row.
+    EntityRef:
+      type: object
+      required:
+        - kind
+        - id
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          enum:
+            - division
+            - group
+            - teacher
+            - room
+            - subject
+            - year
+            - external_block
+        id:
+          type: integer
+          description: The entity id inside the imported document.
+    ImportResult:
+      type: object
+      required:
+        - plan_id
+        - version
+        - findings
+      additionalProperties: false
+      properties:
+        plan_id:
+          type: string
+          description: Decimal string, as on Plan.
+        version:
+          type: integer
+          format: int64
+        importer:
+          type: string
+          description: Which importer claimed the file.
+          examples:
+            - optivum.pla
+            - optivum.html
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/Finding'
+  parameters:
+    Page:
+      name: page
+      in: query
+      required: false
+      description: 1-indexed. Absent means 1.
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Page size. Absent means the endpoint default.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 25
+    Sort:
+      name: sort
+      in: query
+      required: false
+      description: |
+        Comma-separated fields, `-` prefix for descending. Unknown fields are ignored rather than rejected, so a stale bookmark keeps working.
+      schema:
+        type: string
+        examples:
+          - '-created_at'
+          - name,-created_at
+    Query:
+      name: q
+      in: query
+      required: false
+      description: |
+        Free-text search over a plan's name and school year.
+      schema:
+        type: string
+    PlanID:
+      name: planId
+      in: path
+      required: true
+      description: Decimal string, because a 64-bit id does not survive a JSON number.
+      schema:
+        type: string
+        pattern: ^[0-9]{1,19}$
+    VersionNumber:
+      name: version
+      in: path
+      required: true
+      description: 1-indexed position in the plan's timeline.
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+  responses:
+    Unauthorized:
+      description: No session, or a session Kratos does not recognise.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unavailable:
+      description: |
+        A dependency is unreachable. Never an anonymous answer: an unreachable Kratos is an outage, not a missing session.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Validation:
+      description: The request is well-formed but the values are not usable.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: No such plan, or none this owner may see.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    TooLarge:
+      description: The upload is over the size this server accepts.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'

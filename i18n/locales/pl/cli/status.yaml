@@ -1,0 +1,58 @@
+address:
+  description: 'Status field label: the base URL the command asked.'
+  value: adres
+reached:
+  description: 'Status field label: whether anything answered at all.'
+  value: odpowiedź
+product:
+  description: 'Status field label: what the server says it is.'
+  value: produkt
+apiVersion:
+  description: 'Status field label: the versioned namespace the server serves.'
+  value: wersja api
+serverVersion:
+  description: 'Status field label: the build the server is running.'
+  value: wersja serwera
+minClient:
+  description: 'Status field label: the oldest client the server accepts.'
+  value: min. klient
+readiness:
+  description: 'Status field label: whether the server''s dependencies answer.'
+  value: gotowość
+no:
+  description: 'Status value: nothing answered on that address.'
+  value: brak
+ready:
+  description: 'Status value: the server and everything it needs are up.'
+  value: gotowy
+dependencyDown:
+  description: 'Status value: the server answers but something it needs does not.'
+  value: zależność nie odpowiada
+unreachable:
+  description: 'Status value: the readiness probe itself could not be reached.'
+  value: nieosiągalny
+notGoptivum:
+  description: >-
+    Status value when the address answers with something else; product is what
+    it called itself.
+  value: '{product}, co nie jest serwerem Goptivum'
+  placeholders:
+    product: {type: string}
+otherApiVersion:
+  description: >-
+    Status value when the server serves a version this build does not know;
+    served is the server's, known is this build's.
+  value: '{served}, a ta wersja zna {known}'
+  placeholders:
+    served: {type: string}
+    known: {type: string}
+didNotAnswer:
+  description: Error returned when nothing is listening; address is the base URL.
+  value: '{address} nie odpowiedział'
+  placeholders:
+    address: {type: string}
+notAServer:
+  description: Error returned when the address answers with another product.
+  value: '{address} nie jest serwerem Goptivum'
+  placeholders:
+    address: {type: string}

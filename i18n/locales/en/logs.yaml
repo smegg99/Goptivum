@@ -1,0 +1,23 @@
+configLoaded:
+  description: 'Log event: the configuration file was read and validated.'
+  value: configuration loaded
+migrationsApplied:
+  description: 'Log event: the database schema is at the version this build expects.'
+  value: database migrated
+storageReady:
+  description: 'Log event: object storage answered, so documents can be written.'
+  value: document storage ready
+serverStarted:
+  description: 'Log event: the HTTP server is listening.'
+  value: server started
+serverStopping:
+  description: 'Log event: a signal arrived and the server stopped accepting.'
+  value: shutting down
+noIdentityProvider:
+  description: >-
+    Log event: no Kratos is configured, so every route that needs a session
+    stays unregistered rather than being mounted open.
+  value: no identity provider configured, serving discovery and health only
+runFailed:
+  description: 'Log event: the process is exiting because the work failed.'
+  value: server exited with an error

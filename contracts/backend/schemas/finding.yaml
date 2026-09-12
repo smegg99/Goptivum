@@ -1,0 +1,65 @@
+# contracts/backend/schemas/finding.yaml
+#
+# What an import did not map. An import that maps most of a school returns the
+# school plus these, because a file that fails wholesale teaches a secretary
+# nothing. The client localises from kind and the entity references, never
+# from a prose string, so there is no prose string here.
+
+Finding:
+  type: object
+  required: [kind, severity]
+  additionalProperties: false
+  properties:
+    kind:
+      type: string
+      pattern: '^[a-z][a-z0-9_]*$'
+      description: Stable, localisable identity of the finding.
+      examples: [unmapped_element, unknown_reference, lesson_dropped]
+    severity:
+      type: string
+      enum: [info, warning, error]
+      description: >
+        error means data was lost: a lesson the file describes did not survive
+        the import.
+    entities:
+      type: array
+      description: The entities involved, for a client that highlights them.
+      items:
+        $ref: './finding.yaml#/EntityRef'
+    count:
+      type: integer
+      description: >
+        How many times this finding stands for, when the reader aggregated a
+        bulk loss rather than reporting one per row.
+
+EntityRef:
+  type: object
+  required: [kind, id]
+  additionalProperties: false
+  properties:
+    kind:
+      type: string
+      enum: [division, group, teacher, room, subject, year, external_block]
+    id:
+      type: integer
+      description: The entity id inside the imported document.
+
+ImportResult:
+  type: object
+  required: [plan_id, version, findings]
+  additionalProperties: false
+  properties:
+    plan_id:
+      type: string
+      description: Decimal string, as on Plan.
+    version:
+      type: integer
+      format: int64
+    importer:
+      type: string
+      description: Which importer claimed the file.
+      examples: [optivum.pla, optivum.html]
+    findings:
+      type: array
+      items:
+        $ref: './finding.yaml#/Finding'

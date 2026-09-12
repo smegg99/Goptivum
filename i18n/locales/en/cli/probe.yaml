@@ -1,0 +1,54 @@
+file:
+  description: 'Probe field label: the file being read.'
+  value: file
+magic:
+  description: 'Probe field label: the container generation string.'
+  value: magic
+container:
+  description: 'Probe field label: the size of the file on disk.'
+  value: container
+payload:
+  description: 'Probe field label: the size of the plan XML inside it.'
+  value: payload
+compressed:
+  description: 'Probe field label: whether the payload was compressed in the container.'
+  value: compressed
+yes:
+  description: 'Probe value: it was.'
+  value: 'yes'
+no:
+  description: 'Probe value: it was not.'
+  value: 'no'
+element:
+  description: 'Census table column: the element name.'
+  value: element
+count:
+  description: 'Census table column: how many of them the document holds.'
+  value: count
+attributes:
+  description: 'Census table column: the attribute names that element carries.'
+  value: attributes
+attribute:
+  description: 'Tree table column: one attribute name.'
+  value: attribute
+valueShape:
+  description: 'Tree table column: what type the attribute holds, never its value.'
+  value: value shape
+inside:
+  description: 'Tree line: the elements this one appears inside; parents is a list.'
+  value: in {parents}
+  placeholders:
+    parents: {type: string}
+elements:
+  description: 'Census summary label: how many distinct elements were found.'
+  value: elements
+bytes:
+  description: 'A size in bytes; size is the number.'
+  value: '{size} bytes'
+  placeholders:
+    size: {type: string}
+payloadEncoding:
+  description: 'The payload size and the encoding it is in; size is the number.'
+  value: '{size} bytes, iso-8859-2'
+  placeholders:
+    size: {type: string}

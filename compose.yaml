@@ -1,0 +1,66 @@
+# compose.yaml
+name: goptivum-dev
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    ports:
+      # 5434 because the host postgres owns 5432 and blps-db owns 5433.
+      - "127.0.0.1:5434:5432"
+    environment:
+      POSTGRES_USER: goptivum
+      POSTGRES_PASSWORD: goptivum-development
+      POSTGRES_DB: goptivum
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U goptivum -d goptivum"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+    restart: unless-stopped
+
+  # Documents live in object storage, and MinIO is what that is by default. It
+  # is internal plumbing: nobody browses the bucket, because reaching past the
+  # application bypasses validation, id allocation and version checks.
+  minio:
+    # quay.io is where MinIO publishes; the mc client is not on Docker Hub.
+    image: quay.io/minio/minio:latest
+    command: server /data --console-address ":9001"
+    ports:
+      # 9004/9005 because portainer owns 9000 and blps-minio owns 9001 and
+      # 9002. A port is machine-wide state.
+      - "127.0.0.1:9004:9000"
+      - "127.0.0.1:9005:9001"
+    environment:
+      MINIO_ROOT_USER: goptivum
+      MINIO_ROOT_PASSWORD: goptivum-development
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+    restart: unless-stopped
+
+  # The bucket has to exist before the server starts: NewBucket verifies it at
+  # construction so a typo fails at boot instead of under a user's upload.
+  minio-init:
+    image: quay.io/minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint:
+      - sh
+      - -c
+      - |
+        mc alias set local http://minio:9000 goptivum goptivum-development
+        mc mb --ignore-existing local/goptivum-plans
+    restart: on-failure
+
+volumes:
+  postgres-data:
+  minio-data:

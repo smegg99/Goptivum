@@ -1,0 +1,58 @@
+address:
+  description: 'Status field label: the base URL the command asked.'
+  value: address
+reached:
+  description: 'Status field label: whether anything answered at all.'
+  value: reached
+product:
+  description: 'Status field label: what the server says it is.'
+  value: product
+apiVersion:
+  description: 'Status field label: the versioned namespace the server serves.'
+  value: api version
+serverVersion:
+  description: 'Status field label: the build the server is running.'
+  value: server version
+minClient:
+  description: 'Status field label: the oldest client the server accepts.'
+  value: min client
+readiness:
+  description: 'Status field label: whether the server''s dependencies answer.'
+  value: readiness
+no:
+  description: 'Status value: nothing answered on that address.'
+  value: 'no'
+ready:
+  description: 'Status value: the server and everything it needs are up.'
+  value: ready
+dependencyDown:
+  description: 'Status value: the server answers but something it needs does not.'
+  value: a dependency is down
+unreachable:
+  description: 'Status value: the readiness probe itself could not be reached.'
+  value: unreachable
+notGoptivum:
+  description: >-
+    Status value when the address answers with something else; product is what
+    it called itself.
+  value: '{product}, which is not a Goptivum Server'
+  placeholders:
+    product: {type: string}
+otherApiVersion:
+  description: >-
+    Status value when the server serves a version this build does not know;
+    served is the server's, known is this build's.
+  value: '{served}, and this build knows {known}'
+  placeholders:
+    served: {type: string}
+    known: {type: string}
+didNotAnswer:
+  description: Error returned when nothing is listening; address is the base URL.
+  value: '{address} did not answer'
+  placeholders:
+    address: {type: string}
+notAServer:
+  description: Error returned when the address answers with another product.
+  value: '{address} is not a Goptivum Server'
+  placeholders:
+    address: {type: string}

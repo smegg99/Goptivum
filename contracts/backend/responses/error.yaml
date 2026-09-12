@@ -1,0 +1,41 @@
+# contracts/backend/responses/error.yaml
+#
+# Every failing status carries the same envelope, so a client has one error
+# path rather than one per endpoint.
+
+Unauthorized:
+  description: No session, or a session Kratos does not recognise.
+  content:
+    application/json:
+      schema:
+        $ref: '../schemas/error.yaml#/Error'
+
+NotFound:
+  description: No such plan, or none this owner may see.
+  content:
+    application/json:
+      schema:
+        $ref: '../schemas/error.yaml#/Error'
+
+Validation:
+  description: The request is well-formed but the values are not usable.
+  content:
+    application/json:
+      schema:
+        $ref: '../schemas/error.yaml#/Error'
+
+TooLarge:
+  description: The upload is over the size this server accepts.
+  content:
+    application/json:
+      schema:
+        $ref: '../schemas/error.yaml#/Error'
+
+Unavailable:
+  description: >
+    A dependency is unreachable. Never an anonymous answer: an unreachable
+    Kratos is an outage, not a missing session.
+  content:
+    application/json:
+      schema:
+        $ref: '../schemas/error.yaml#/Error'

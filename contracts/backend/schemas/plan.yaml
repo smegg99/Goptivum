@@ -1,0 +1,61 @@
+# contracts/backend/schemas/plan.yaml
+
+Plan:
+  type: object
+  required: [id, name, school_year, created_at, updated_at]
+  additionalProperties: false
+  properties:
+    id:
+      type: string
+      description: >
+        The plan id as a decimal string. It is a 64-bit integer, and JSON
+        numbers are doubles in every browser, which silently rounds anything
+        over 2^53.
+      examples: ['4611686018427387904']
+    name:
+      type: string
+      minLength: 1
+      maxLength: 200
+      examples: ['Plan lekcji 2026/2027']
+    school_year:
+      type: string
+      maxLength: 32
+      examples: ['2026/2027']
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+
+PlanCreate:
+  type: object
+  required: [name]
+  additionalProperties: false
+  properties:
+    name:
+      type: string
+      minLength: 1
+      maxLength: 200
+    school_year:
+      type: string
+      maxLength: 32
+
+PlanPage:
+  type: object
+  required: [items, page, limit, total]
+  additionalProperties: false
+  properties:
+    items:
+      type: array
+      items:
+        $ref: './plan.yaml#/Plan'
+    page:
+      type: integer
+      description: The page this response is, echoed back after clamping.
+    limit:
+      type: integer
+      description: The page size applied, which may be lower than the one asked for.
+    total:
+      type: integer
+      description: How many plans the owner has in total, for the page count.

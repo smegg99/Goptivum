@@ -1,0 +1,20 @@
+# contracts/backend/parameters/path.yaml
+
+PlanID:
+  name: planId
+  in: path
+  required: true
+  description: Decimal string, because a 64-bit id does not survive a JSON number.
+  schema:
+    type: string
+    pattern: '^[0-9]{1,19}$'
+
+VersionNumber:
+  name: version
+  in: path
+  required: true
+  description: 1-indexed position in the plan's timeline.
+  schema:
+    type: integer
+    format: int64
+    minimum: 1

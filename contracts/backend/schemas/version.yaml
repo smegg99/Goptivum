@@ -1,0 +1,95 @@
+# contracts/backend/schemas/version.yaml
+#
+# One immutable document in a plan's timeline. There is no locking: an upload
+# names the version it came from, and a stale parent is refused with a conflict
+# that carries the current version so a client can say who saved first.
+
+Version:
+  type: object
+  required: [plan_id, version, object_key, size_bytes, created_at, created_by]
+  additionalProperties: false
+  properties:
+    plan_id:
+      type: string
+      description: Decimal string, as on Plan.
+    version:
+      type: integer
+      format: int64
+      minimum: 1
+    parent:
+      type: integer
+      format: int64
+      description: The version this one was derived from. Absent on the first.
+    object_key:
+      type: string
+      description: >
+        Where the document sits in object storage, content-addressed. Clients
+        download through this API and never reach into the store, which is what
+        keeps validation, id allocation and version checks in one place.
+    size_bytes:
+      type: integer
+      format: int64
+      description: The compressed size of the stored document.
+    created_at:
+      type: string
+      format: date-time
+    created_by:
+      type: string
+      description: The identity that uploaded it.
+    valid_from:
+      type: string
+      format: date
+      description: >
+        The first day this schedule applies. A school's timetable changes
+        mid-year, so one plan holds a September schedule and a February one.
+    valid_to:
+      type: string
+      format: date
+      description: The last day this schedule applies. Absent means open-ended.
+
+VersionList:
+  type: object
+  required: [items]
+  additionalProperties: false
+  properties:
+    items:
+      type: array
+      items:
+        $ref: './version.yaml#/Version'
+
+VersionUpload:
+  type: object
+  required: [parent]
+  additionalProperties: false
+  properties:
+    parent:
+      type: integer
+      format: int64
+      minimum: 0
+      description: >
+        The version this upload was derived from, or 0 for the first version of
+        a plan. A parent that is no longer the newest is refused.
+    valid_from:
+      type: string
+      format: date
+    valid_to:
+      type: string
+      format: date
+
+Conflict:
+  type: object
+  required: [code, message, current_version]
+  additionalProperties: false
+  properties:
+    code:
+      type: string
+      enum: [conflict]
+    message:
+      type: string
+      description: i18n key the client resolves.
+    current_version:
+      type: integer
+      format: int64
+      description: >
+        The version the plan is actually at. The client shows "someone saved
+        first, here is their version" instead of overwriting their work.

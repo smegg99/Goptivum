@@ -1,0 +1,107 @@
+rootShort:
+  description: "Server command summary."
+  value: "Zarządzaj tożsamością i danymi jednej szkoły"
+rootLong:
+  description: "Server command description."
+  value: "Przechowuj plany lekcji jako wersjonowane dokumenty, importuj istniejące pliki i przekazuj obliczenia do Arrango."
+serveShort:
+  description: "Serve command summary."
+  value: "Uruchom serwer do otrzymania SIGINT lub SIGTERM"
+statusShort:
+  description: "Status command summary."
+  value: "Sprawdź działający serwer i jego gotowość"
+statusLong:
+  description: "Status command description."
+  value: "Odczytaj informacje o serwerze i jego gotowość. Użyj --addr, aby sprawdzić inny serwer."
+configFlag:
+  description: "Configuration flag description."
+  value: "plik konfiguracji; tworzony z wartościami domyślnymi, jeśli nie istnieje"
+addrFlag:
+  description: "Address flag description."
+  value: "zastąp server.address na czas tego uruchomienia"
+verboseFlag:
+  description: "Verbose flag description."
+  value: "zapisuj wszystkie komunikaty debugowania"
+noColorFlag:
+  description: "Log color flag description."
+  value: "logi bez kolorów do potoku lub dziennika"
+langFlag:
+  description: "Language flag description; backticks name the value in Cobra help."
+  value: "język tego uruchomienia: `en|pl`"
+helpFlag:
+  description: "Help flag description."
+  value: "pokaż pomoc polecenia"
+versionFlag:
+  description: "Version flag description."
+  value: "pokaż informacje o wersji"
+helpShort:
+  description: "Help command summary."
+  value: "Pokaż pomoc polecenia"
+completionShort:
+  description: "Completion command summary."
+  value: "Wygeneruj skrypty uzupełniania poleceń"
+shellShort:
+  description: "Shell completion summary; shell is the shell name."
+  value: "Wygeneruj uzupełnianie dla {shell}"
+  placeholders:
+    shell: {type: string}
+noDescriptionsFlag:
+  description: "Shell completion flag description."
+  value: "pomiń opisy uzupełnień"
+usage:
+  description: "Cobra usage heading."
+  value: "Użycie:"
+commands:
+  description: "Cobra command list heading."
+  value: "Dostępne polecenia:"
+flags:
+  description: "Cobra local flags heading."
+  value: "Opcje:"
+globalFlags:
+  description: "Cobra inherited flags heading."
+  value: "Opcje globalne:"
+helpHint:
+  description: "Cobra help footer; command is the help invocation."
+  value: "Użyj \"{command}\", aby uzyskać więcej informacji o poleceniu."
+  placeholders:
+    command: {type: string}
+version:
+  description: "Version output; release, api and client are version identifiers."
+  value: "goptivum-server {release} (api {api}, klienci >= {client})"
+  placeholders:
+    release: {type: string}
+    api: {type: string}
+    client: {type: string}
+unknownCommand:
+  description: "Usage error; command is the unrecognized argument."
+  value: "Nieznane polecenie: {command}"
+  placeholders:
+    command: {type: string}
+noArgs:
+  description: "Usage error; command takes no positional arguments."
+  value: "Polecenie {command} nie przyjmuje argumentów"
+  placeholders:
+    command: {type: string}
+invalidFlag:
+  description: "Usage error with the original parser diagnostic in detail."
+  value: "Nieprawidłowa opcja: {detail}"
+  placeholders:
+    detail: {type: string}
+invalidLanguage:
+  description: "Language validation error."
+  value: "Wybierz en lub pl dla --lang"
+error:
+  description: "CLI error line; detail is the diagnostic."
+  value: "Błąd: {detail}"
+  placeholders:
+    detail: {type: string}
+configFailed:
+  description: "Configuration load failure with original diagnostic."
+  value: "Nie można wczytać konfiguracji: {detail}"
+  placeholders:
+    detail: {type: string}
+loggingFailed:
+  description: "Logger setup failure with original diagnostic."
+  value: "Nie można skonfigurować logowania: {detail}"
+  placeholders:
+    detail: {type: string}

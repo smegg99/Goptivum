@@ -1,0 +1,54 @@
+file:
+  description: 'Probe field label: the file being read.'
+  value: plik
+magic:
+  description: 'Probe field label: the container generation string.'
+  value: sygnatura
+container:
+  description: 'Probe field label: the size of the file on disk.'
+  value: kontener
+payload:
+  description: 'Probe field label: the size of the plan XML inside it.'
+  value: zawartość
+compressed:
+  description: 'Probe field label: whether the payload was compressed in the container.'
+  value: skompresowany
+yes:
+  description: 'Probe value: it was.'
+  value: tak
+no:
+  description: 'Probe value: it was not.'
+  value: nie
+element:
+  description: 'Census table column: the element name.'
+  value: element
+count:
+  description: 'Census table column: how many of them the document holds.'
+  value: liczba
+attributes:
+  description: 'Census table column: the attribute names that element carries.'
+  value: atrybuty
+attribute:
+  description: 'Tree table column: one attribute name.'
+  value: atrybut
+valueShape:
+  description: 'Tree table column: what type the attribute holds, never its value.'
+  value: typ wartości
+inside:
+  description: 'Tree line: the elements this one appears inside; parents is a list.'
+  value: w {parents}
+  placeholders:
+    parents: {type: string}
+elements:
+  description: 'Census summary label: how many distinct elements were found.'
+  value: elementy
+bytes:
+  description: 'A size in bytes; size is the number.'
+  value: '{size} bajtów'
+  placeholders:
+    size: {type: string}
+payloadEncoding:
+  description: 'The payload size and the encoding it is in; size is the number.'
+  value: '{size} bajtów, iso-8859-2'
+  placeholders:
+    size: {type: string}

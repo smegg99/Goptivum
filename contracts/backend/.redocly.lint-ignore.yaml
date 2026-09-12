@@ -1,0 +1,5 @@
+# This file instructs Redocly's linter to ignore the rules contained for specific parts of your API.
+# See https://redocly.com/docs/cli/ for more information.
+paths/info.yaml:
+  operation-4xx-response:
+    - '#/info/get/responses'

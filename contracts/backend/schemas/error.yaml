@@ -1,0 +1,33 @@
+# contracts/backend/schemas/error.yaml
+#
+# The one error shape every s99ab app returns, for every failing status.
+# apierr marshals exactly this. Diverging breaks every generated client, so
+# this file is a copy of the shared fragment and not a variation on it.
+
+Error:
+  type: object
+  required: [code, message]
+  additionalProperties: false
+  properties:
+    code:
+      type: string
+      pattern: '^[a-z][a-z0-9_]*$'
+      description: >
+        Stable machine-readable code. Clients branch on this, never on the
+        message or the status. Never localised, never reworded.
+      examples: [not_found, conflict, validation, unauthorized, internal]
+    message:
+      type: string
+      description: >
+        i18n key the client resolves. Never English prose, because the server
+        does not know the caller's language.
+      examples: [error.notFound, plan.staleParent]
+    details:
+      type: object
+      description: >
+        Field-level detail, keyed by field path. Present on validation errors,
+        absent otherwise. Values are codes, not sentences.
+      additionalProperties:
+        type: string
+      examples:
+        - name: too_short
