@@ -1,0 +1,135 @@
+syntax = "proto3";
+
+package goptivum.v1;
+
+import "arrango/v1/school.proto";
+import "arrango/v1/schedule.proto";
+
+option go_package = "github.com/smegg99/goptivum/document/gen/goptivumv1";
+
+// Document is what one plan version stores.
+//
+// A wrapper rather than a bare SchoolModel because two things have to travel
+// with the school and cannot live anywhere else. The id counter must be inside
+// the file: a .gpf mailed to another school is opened by a server that has no
+// idea which ids the sender spent, and a database restored from an old backup
+// would walk a row-held counter backwards over ids the documents already used.
+// The solved schedule belongs with the model it was solved from.
+message Document {
+  // The format, always 1. It is field 1, and a varint, so a bare SchoolModel
+  // cannot be read as a Document by accident: SchoolModel's field 1 is a
+  // string, which is a different wire type, and a school with no name gives
+  // format 0, which Decode refuses.
+  uint32 format = 1;
+
+  arrango.v1.SchoolModel model = 2;
+
+  // The solved timetable, absent until a solve produces one. A version with no
+  // schedule is a model somebody is still editing.
+  arrango.v1.ScheduleSnapshot schedule = 3;
+
+  // The next arrango_id to hand out. Every entity in the model carries one as
+  // its id, allocated on insert and never reused: deriving ids at export time
+  // renumbers on every edit and silently retargets locked placements, lesson
+  // links and previous placements, which surfaces as a bad timetable rather
+  // than an error.
+  uint32 next_arrango_id = 4;
+
+  // The check findings the owner chose to ignore. They live in the file so
+  // they travel with it, to another server or another school.
+  repeated IgnoredFinding ignored_findings = 5;
+
+  // Short names the school typed for its subjects, each subject at most
+  // once. Editor notes the solver never reads; a subject with none shows one
+  // the desktop makes from its name.
+  repeated SubjectShortName subject_short_names = 6;
+
+  // Who may teach which subject, an editor note the solver never reads. It
+  // suggests and never restricts: a lesson may have a teacher outside its
+  // subject's pool, which the desktop warns about. Absent until the school
+  // first edits it; the desktop then fills it from the lessons, so a file
+  // without one reads as "whoever teaches a subject may teach it". Present
+  // and empty is a pool with nobody in it.
+  TeacherPool teacher_pool = 7;
+
+  // The periods a week a teacher with no target of their own should teach
+  // (the Polish "pensum"), an editor note the solver never reads; absent
+  // when the school sets none.
+  HourTarget school_hour_target = 8;
+
+  // Teachers' own weekly targets, each teacher at most once; a teacher not
+  // listed takes the school's. Removing a teacher removes their target.
+  repeated TeacherHourTarget teacher_hour_targets = 9;
+
+  // Each year's template: the lessons a class of that year should have,
+  // each year at most once. An editor note the solver never reads: the
+  // desktop compares each class with it and copies it onto classes.
+  repeated YearTemplate year_templates = 10;
+}
+
+// A weekly target in half periods, 0 to 120 (60 periods), so a target can
+// count a lesson held every other week as half, as a teacher's load does.
+message HourTarget {
+  uint32 half_periods = 1;
+}
+
+// One teacher's own weekly target, in half periods as HourTarget.
+message TeacherHourTarget {
+  uint32 teacher_id = 1;
+  uint32 half_periods = 2;
+}
+
+// One year's template, its rows each subject and split name at most once,
+// the split name in any case.
+message YearTemplate {
+  uint32 year_id = 1;
+  repeated TemplateRow rows = 2;
+}
+
+// One subject a class of the year takes, who takes it and how long.
+message TemplateRow {
+  uint32 subject_id = 1;
+  // The split each of whose groups takes the subject, by the name the
+  // year's classes give it (some class of the year has a split of that
+  // name, in any case; no space at either end); empty for the whole class.
+  string split_name = 2;
+  // Periods a week, in half periods from 1 to 80 (40 periods): a lesson
+  // held every other week counts half.
+  uint32 half_periods = 3;
+}
+
+// A subject's short name: 1 to 8 letters with no space at either end, no
+// other subject's in any case.
+message SubjectShortName {
+  uint32 subject_id = 1;
+  string short_name = 2;
+}
+
+// The teacher pool, subject by subject; a subject not listed has nobody in it.
+message TeacherPool {
+  repeated SubjectPool subjects = 1;
+}
+
+// One subject's teachers in the pool, each once. Removing a subject or a
+// teacher removes it from the pool.
+message SubjectPool {
+  uint32 subject_id = 1;
+  repeated uint32 teacher_ids = 2;
+}
+
+// One ignored check finding. It matches a finding of the same kind that names
+// exactly these entities, lessons and time spans, in any order.
+message IgnoredFinding {
+  // The check route's finding kind: teacher_overloaded, student_gap.
+  string kind = 1;
+  repeated FindingEntity entities = 2;
+  repeated uint32 lesson_ids = 3;
+  repeated arrango.v1.TimeSpan spans = 4;
+}
+
+// An entity a check finding names, in the check route's words: teacher,
+// division, split, link.
+message FindingEntity {
+  string kind = 1;
+  uint32 id = 2;
+}
