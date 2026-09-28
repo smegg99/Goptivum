@@ -4,7 +4,9 @@ package plans_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -17,31 +19,56 @@ import (
 
 func repository(t *testing.T) *plans.Repository {
 	t.Helper()
-	return plans.NewRepository(db.TestDB(t, migrations.FS), db.SQLite)
+	repo, _ := repositoryWithConn(t)
+	return repo
+}
+
+// backupsKeep is the server default, so a test that is not about the cap
+// never meets it.
+const backupsKeep = 100
+
+func repositoryWithConn(t *testing.T) (*plans.Repository, *sql.DB) {
+	t.Helper()
+	conn := db.TestDB(t, migrations.FS)
+	return plans.NewRepository(conn, db.SQLite, plans.Caps{BackupsKeep: backupsKeep, ResultsKeep: 20}), conn
+}
+
+// firstUpload is the document every plan is created with.
+func firstUpload(owner string) plans.Upload {
+	return plans.Upload{ObjectKey: "plans/ab/cd/abcd", SizeBytes: 100, CreatedBy: owner}
 }
 
 func newPlan(t *testing.T, repo *plans.Repository, owner, name string) plans.Plan {
 	t.Helper()
 
-	plan, err := repo.Create(context.Background(), plans.Plan{
+	plan, _, err := repo.Create(context.Background(), plans.Plan{
 		OwnerIdentityID: owner, Name: name, SchoolYear: "2026/2027",
-	})
+	}, firstUpload(owner))
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
 	return plan
 }
 
-func TestCreateGetListDelete(t *testing.T) {
+func TestCreateStoresThePlanWithItsFirstVersion(t *testing.T) {
 	ctx := context.Background()
 	repo := repository(t)
 
-	plan := newPlan(t, repo, "identity-1", "Plan ZSEM")
-	if plan.ID == 0 {
-		t.Fatal("create returned no id")
+	plan, first, err := repo.Create(ctx, plans.Plan{
+		OwnerIdentityID: "identity-1", Name: "  Plan ZSEM  ", SchoolYear: " 2026/2027 ",
+	}, firstUpload("identity-1"))
+	if err != nil {
+		t.Fatalf("create: %v", err)
 	}
-	if plan.CreatedAt.IsZero() || !plan.UpdatedAt.Equal(plan.CreatedAt) {
-		t.Errorf("timestamps = %v / %v", plan.CreatedAt, plan.UpdatedAt)
+	if plan.ID == 0 || plan.Name != "Plan ZSEM" || plan.SchoolYear != "2026/2027" {
+		t.Fatalf("created %+v", plan)
+	}
+	if plan.CreatedAt.IsZero() || !plan.UpdatedAt.Equal(plan.CreatedAt) || !plan.DeletedAt.IsZero() {
+		t.Errorf("timestamps = %v / %v / %v", plan.CreatedAt, plan.UpdatedAt, plan.DeletedAt)
+	}
+	if first.PlanID != plan.ID || first.Version != 1 || first.Parent != 0 ||
+		first.ObjectKey != "plans/ab/cd/abcd" || first.CreatedBy != "identity-1" {
+		t.Errorf("first version = %+v", first)
 	}
 
 	read, err := repo.Get(ctx, plan.ID)
@@ -51,43 +78,96 @@ func TestCreateGetListDelete(t *testing.T) {
 	if read != plan {
 		t.Errorf("read back %+v, wrote %+v", read, plan)
 	}
-
-	other := newPlan(t, repo, "identity-2", "Inny plan")
-	mine, err := repo.List(ctx, "identity-1")
-	if err != nil {
-		t.Fatalf("list: %v", err)
-	}
-	if len(mine) != 1 || mine[0].ID != plan.ID {
-		t.Errorf("list returned %d plans for one owner", len(mine))
-	}
-	if theirs, err := repo.List(ctx, "identity-2"); err != nil || len(theirs) != 1 ||
-		theirs[0].ID != other.ID {
-		t.Errorf("list for the other owner = %v, %v", theirs, err)
-	}
-	if none, err := repo.List(ctx, "identity-3"); err != nil || len(none) != 0 {
-		t.Errorf("list for an owner with no plans = %v, %v", none, err)
-	}
-
-	if err := repo.Delete(ctx, plan.ID); err != nil {
-		t.Fatalf("delete: %v", err)
-	}
-	if _, err := repo.Get(ctx, plan.ID); !errors.Is(err, plans.ErrNotFound) {
-		t.Errorf("get after delete = %v, want ErrNotFound", err)
-	}
-	if err := repo.Delete(ctx, plan.ID); !errors.Is(err, plans.ErrNotFound) {
-		t.Errorf("delete twice = %v, want ErrNotFound", err)
+	if current, err := repo.Current(ctx, plan.ID); err != nil || current != 1 {
+		t.Errorf("current = %d, %v, want 1", current, err)
 	}
 }
 
-func TestCreateRefusesAPlanWithoutAnOwnerOrName(t *testing.T) {
+// The plan and its first version land together or not at all, so no plan ever
+// exists with nothing to open.
+func TestCreateIsOneTransaction(t *testing.T) {
+	ctx := context.Background()
+	repo, conn := repositoryWithConn(t)
+
+	if _, err := conn.ExecContext(ctx, `create trigger refuse_versions before insert on plan_versions
+		begin select raise(abort, 'refused by the test'); end`); err != nil {
+		t.Fatalf("trigger: %v", err)
+	}
+	if _, _, err := repo.Create(ctx, plans.Plan{
+		OwnerIdentityID: "identity-1", Name: "Plan ZSEM",
+	}, firstUpload("identity-1")); err == nil {
+		t.Fatal("create succeeded although its version was refused")
+	}
+
+	var count int
+	if err := conn.QueryRowContext(ctx, `select count(*) from plans`).Scan(&count); err != nil {
+		t.Fatalf("count: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("%d plans left behind by a refused version", count)
+	}
+}
+
+func TestCreateRefusesWhatCannotBeAPlan(t *testing.T) {
 	ctx := context.Background()
 	repo := repository(t)
 
-	if _, err := repo.Create(ctx, plans.Plan{Name: "Plan"}); err == nil {
+	cases := []struct {
+		name  string
+		plan  plans.Plan
+		first plans.Upload
+		field string
+		code  string
+	}{
+		{"a blank name", plans.Plan{OwnerIdentityID: "who", Name: "   "}, firstUpload("who"), "name", "required"},
+		{"a long name", plans.Plan{OwnerIdentityID: "who", Name: strings.Repeat("a", 201)}, firstUpload("who"), "name", "too_long"},
+		{"a long school year", plans.Plan{OwnerIdentityID: "who", Name: "Plan", SchoolYear: strings.Repeat("9", 33)}, firstUpload("who"), "school_year", "too_long"},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			_, _, err := repo.Create(ctx, test.plan, test.first)
+			var invalid *plans.Invalid
+			if !errors.As(err, &invalid) || invalid.Field != test.field || invalid.Code != test.code {
+				t.Errorf("error = %v, want %s %s", err, test.field, test.code)
+			}
+		})
+	}
+
+	// A name counts letters, not bytes: 200 Polish letters are a valid name.
+	if _, _, err := repo.Create(ctx, plans.Plan{
+		OwnerIdentityID: "who", Name: strings.Repeat("ż", 200),
+	}, firstUpload("who")); err != nil {
+		t.Errorf("200 letters refused: %v", err)
+	}
+	if _, _, err := repo.Create(ctx, plans.Plan{Name: "Plan"}, firstUpload("who")); err == nil {
 		t.Error("create accepted a plan with no owner")
 	}
-	if _, err := repo.Create(ctx, plans.Plan{OwnerIdentityID: "who"}); err == nil {
-		t.Error("create accepted a plan with no name")
+	if _, _, err := repo.Create(ctx, plans.Plan{OwnerIdentityID: "who", Name: "Plan"},
+		plans.Upload{CreatedBy: "who"}); err == nil {
+		t.Error("create accepted a first version with no object key")
+	}
+}
+
+// Everyone at the school sees every live plan, newest first.
+func TestListIsEveryOwnersLivePlans(t *testing.T) {
+	ctx := context.Background()
+	repo := repository(t)
+
+	plan := newPlan(t, repo, "identity-1", "Plan ZSEM")
+	time.Sleep(2 * time.Millisecond)
+	other := newPlan(t, repo, "identity-2", "Inny plan")
+	time.Sleep(2 * time.Millisecond)
+	trashed := newPlan(t, repo, "identity-1", "W koszu")
+	if err := repo.Trash(ctx, trashed.ID); err != nil {
+		t.Fatalf("trash: %v", err)
+	}
+
+	listed, err := repo.List(ctx)
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(listed) != 2 || listed[0].ID != other.ID || listed[1].ID != plan.ID {
+		t.Errorf("list = %+v, want both owners' live plans, newest first", listed)
 	}
 }
 
@@ -102,9 +182,74 @@ func TestUnknownPlanIsNotFound(t *testing.T) {
 		t.Errorf("current = %v", err)
 	}
 	if _, err := repo.AddVersion(ctx, plans.Upload{
-		PlanID: 404, ObjectKey: "plans/ab/cd/abcd", CreatedBy: "who",
+		PlanID: 404, Parent: 1, ObjectKey: "plans/ab/cd/abcd", CreatedBy: "who",
 	}); !errors.Is(err, plans.ErrNotFound) {
 		t.Errorf("add version = %v", err)
+	}
+	name := "Plan"
+	if _, err := repo.Update(ctx, 404, plans.Change{Name: &name}); !errors.Is(err, plans.ErrNotFound) {
+		t.Errorf("update = %v", err)
+	}
+}
+
+func TestUpdateRenamesAndChangesTheSchoolYear(t *testing.T) {
+	ctx := context.Background()
+	repo := repository(t)
+	plan := newPlan(t, repo, "identity-1", "Plan 2027")
+
+	name := "  Plan 2027 test "
+	renamed, err := repo.Update(ctx, plan.ID, plans.Change{Name: &name})
+	if err != nil {
+		t.Fatalf("rename: %v", err)
+	}
+	if renamed.Name != "Plan 2027 test" || renamed.SchoolYear != "2026/2027" {
+		t.Errorf("renamed = %+v, want the name trimmed and the year kept", renamed)
+	}
+	if renamed.UpdatedAt.Before(plan.UpdatedAt) {
+		t.Errorf("updated_at went back: %v before %v", renamed.UpdatedAt, plan.UpdatedAt)
+	}
+
+	year := "2027/2028"
+	moved, err := repo.Update(ctx, plan.ID, plans.Change{SchoolYear: &year})
+	if err != nil {
+		t.Fatalf("change year: %v", err)
+	}
+	if moved.Name != "Plan 2027 test" || moved.SchoolYear != "2027/2028" {
+		t.Errorf("moved = %+v, want the name kept", moved)
+	}
+
+	empty := ""
+	cleared, err := repo.Update(ctx, plan.ID, plans.Change{SchoolYear: &empty})
+	if err != nil || cleared.SchoolYear != "" {
+		t.Errorf("clearing the school year = %+v, %v", cleared, err)
+	}
+
+	read, err := repo.Get(ctx, plan.ID)
+	if err != nil || read != cleared {
+		t.Errorf("read back %+v, %v; want %+v", read, err, cleared)
+	}
+
+	// Naming no field changes nothing, not even updated_at.
+	untouched, err := repo.Update(ctx, plan.ID, plans.Change{})
+	if err != nil || untouched != cleared {
+		t.Errorf("an empty change = %+v, %v; want %+v", untouched, err, cleared)
+	}
+}
+
+func TestUpdateRefusesABlankName(t *testing.T) {
+	ctx := context.Background()
+	repo := repository(t)
+	plan := newPlan(t, repo, "identity-1", "Plan 2027")
+
+	for _, blank := range []string{"", "   ", "\t\n"} {
+		_, err := repo.Update(ctx, plan.ID, plans.Change{Name: &blank})
+		var invalid *plans.Invalid
+		if !errors.As(err, &invalid) || invalid.Field != "name" || invalid.Code != "required" {
+			t.Errorf("rename to %q = %v, want name required", blank, err)
+		}
+	}
+	if read, err := repo.Get(ctx, plan.ID); err != nil || read.Name != "Plan 2027" {
+		t.Errorf("a refused rename changed the plan: %+v, %v", read, err)
 	}
 }
 
@@ -113,15 +258,8 @@ func TestVersionTimeline(t *testing.T) {
 	repo := repository(t)
 	plan := newPlan(t, repo, "identity-1", "Plan ZSEM")
 
-	if current, err := repo.Current(ctx, plan.ID); err != nil || current != 0 {
-		t.Errorf("a plan with no versions is at %d, %v", current, err)
-	}
-	if _, err := repo.Latest(ctx, plan.ID); !errors.Is(err, plans.ErrNoVersion) {
-		t.Errorf("latest of an empty plan = %v, want ErrNoVersion", err)
-	}
-
-	var parent int64
-	for step := 1; step <= 3; step++ {
+	parent := int64(1)
+	for step := 2; step <= 3; step++ {
 		version, err := repo.AddVersion(ctx, plans.Upload{
 			PlanID: plan.ID, Parent: parent,
 			ObjectKey: "plans/ab/cd/abcd", SizeBytes: int64(step * 100),
@@ -171,9 +309,6 @@ func TestVersionTimeline(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
-	if !touched.UpdatedAt.After(touched.CreatedAt) && !touched.UpdatedAt.Equal(touched.CreatedAt) {
-		t.Errorf("updated_at %v is before created_at %v", touched.UpdatedAt, touched.CreatedAt)
-	}
 	if touched.UpdatedAt.Before(latest.CreatedAt) {
 		t.Errorf("updated_at %v predates the newest version %v", touched.UpdatedAt, latest.CreatedAt)
 	}
@@ -187,17 +322,17 @@ func TestStaleParentIsRefused(t *testing.T) {
 	plan := newPlan(t, repo, "identity-1", "Plan ZSEM")
 
 	upload := plans.Upload{
-		PlanID: plan.ID, ObjectKey: "plans/ab/cd/abcd", CreatedBy: "identity-1",
+		PlanID: plan.ID, Parent: 1, ObjectKey: "plans/ab/cd/abcd", CreatedBy: "identity-1",
 	}
 	if _, err := repo.AddVersion(ctx, upload); err != nil {
-		t.Fatalf("first version: %v", err)
+		t.Fatalf("second version: %v", err)
 	}
 
 	cases := []struct {
 		name   string
 		parent int64
 	}{
-		{"the same first version twice", 0},
+		{"the same parent twice", 1},
 		{"a parent the plan never had", 7},
 	}
 	for _, test := range cases {
@@ -209,8 +344,8 @@ func TestStaleParentIsRefused(t *testing.T) {
 			if !errors.As(err, &conflict) {
 				t.Fatalf("error = %v, want a Conflict", err)
 			}
-			if conflict.Current != 1 || conflict.Parent != test.parent {
-				t.Errorf("conflict = %+v, want current 1", conflict)
+			if conflict.Current != 2 || conflict.Parent != test.parent {
+				t.Errorf("conflict = %+v, want current 2", conflict)
 			}
 			if conflict.Error() == "" {
 				t.Error("a conflict with no message")
@@ -218,7 +353,7 @@ func TestStaleParentIsRefused(t *testing.T) {
 		})
 	}
 
-	if timeline, err := repo.Versions(ctx, plan.ID); err != nil || len(timeline) != 1 {
+	if timeline, err := repo.Versions(ctx, plan.ID); err != nil || len(timeline) != 2 {
 		t.Errorf("a refused upload landed: %d versions, %v", len(timeline), err)
 	}
 }
@@ -228,13 +363,6 @@ func TestConcurrentUploadsWithOneParentLeaveOneWinner(t *testing.T) {
 	ctx := context.Background()
 	repo := repository(t)
 	plan := newPlan(t, repo, "identity-1", "Plan ZSEM")
-
-	first, err := repo.AddVersion(ctx, plans.Upload{
-		PlanID: plan.ID, ObjectKey: "plans/ab/cd/abcd", CreatedBy: "identity-1",
-	})
-	if err != nil {
-		t.Fatalf("first version: %v", err)
-	}
 
 	const writers = 8
 	var (
@@ -252,7 +380,7 @@ func TestConcurrentUploadsWithOneParentLeaveOneWinner(t *testing.T) {
 			<-start
 
 			version, err := repo.AddVersion(ctx, plans.Upload{
-				PlanID: plan.ID, Parent: first.Version,
+				PlanID: plan.ID, Parent: 1,
 				ObjectKey: "plans/ab/cd/abcd", SizeBytes: int64(i),
 				CreatedBy: "identity-1",
 			})
@@ -301,21 +429,21 @@ func TestConcurrentUploadsWithOneParentLeaveOneWinner(t *testing.T) {
 func TestValidityDatesRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	repo := repository(t)
-	plan := newPlan(t, repo, "identity-1", "Plan ZSEM")
 
 	from := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2027, 1, 31, 0, 0, 0, 0, time.UTC)
-	if _, err := repo.AddVersion(ctx, plans.Upload{
-		PlanID: plan.ID, ObjectKey: "plans/ab/cd/abcd", CreatedBy: "identity-1",
-		ValidFrom: from, ValidTo: to,
-	}); err != nil {
-		t.Fatalf("add version: %v", err)
+	first := firstUpload("identity-1")
+	first.ValidFrom, first.ValidTo = &from, &to
+	plan, _, err := repo.Create(ctx, plans.Plan{OwnerIdentityID: "identity-1", Name: "Plan ZSEM"}, first)
+	if err != nil {
+		t.Fatalf("create: %v", err)
 	}
 	// A school's timetable changes mid-year, so one plan holds a September
 	// schedule and a February one.
+	february := to.AddDate(0, 0, 1)
 	if _, err := repo.AddVersion(ctx, plans.Upload{
 		PlanID: plan.ID, Parent: 1, ObjectKey: "plans/ef/12/ef12", CreatedBy: "identity-1",
-		ValidFrom: to.AddDate(0, 0, 1),
+		ValidFrom: &february, ValidTo: &time.Time{},
 	}); err != nil {
 		t.Fatalf("add second version: %v", err)
 	}
@@ -333,24 +461,6 @@ func TestValidityDatesRoundTrip(t *testing.T) {
 	}
 }
 
-func TestDeleteRemovesTheVersionIndex(t *testing.T) {
-	ctx := context.Background()
-	repo := repository(t)
-	plan := newPlan(t, repo, "identity-1", "Plan ZSEM")
-
-	if _, err := repo.AddVersion(ctx, plans.Upload{
-		PlanID: plan.ID, ObjectKey: "plans/ab/cd/abcd", CreatedBy: "identity-1",
-	}); err != nil {
-		t.Fatalf("add version: %v", err)
-	}
-	if err := repo.Delete(ctx, plan.ID); err != nil {
-		t.Fatalf("delete: %v", err)
-	}
-	if timeline, err := repo.Versions(ctx, plan.ID); err != nil || len(timeline) != 0 {
-		t.Errorf("versions after deleting the plan = %d, %v", len(timeline), err)
-	}
-}
-
 func TestUploadValidation(t *testing.T) {
 	ctx := context.Background()
 	repo := repository(t)
@@ -360,9 +470,11 @@ func TestUploadValidation(t *testing.T) {
 		name   string
 		upload plans.Upload
 	}{
-		{"no object key", plans.Upload{PlanID: plan.ID}},
-		{"a negative size", plans.Upload{PlanID: plan.ID, ObjectKey: "k", SizeBytes: -1}},
+		{"no object key", plans.Upload{PlanID: plan.ID, Parent: 1}},
+		{"a negative size", plans.Upload{PlanID: plan.ID, Parent: 1, ObjectKey: "k", SizeBytes: -1}},
 		{"a negative parent", plans.Upload{PlanID: plan.ID, ObjectKey: "k", Parent: -1}},
+		// Every plan is born with version 1, so a later version always names one.
+		{"no parent", plans.Upload{PlanID: plan.ID, ObjectKey: "k"}},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {

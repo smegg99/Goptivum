@@ -9,6 +9,7 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/smegg99/s99ab/data/db"
 
@@ -35,11 +36,30 @@ func postgresRepository(t *testing.T) *plans.Repository {
 	if err := db.Migrate(conn, migrations.FS, db.Postgres); err != nil {
 		t.Fatalf("migrate postgres: %v", err)
 	}
-	return plans.NewRepository(conn, db.Postgres)
+	return plans.NewRepository(conn, db.Postgres, plans.Caps{BackupsKeep: backupsKeep, ResultsKeep: 20})
+}
+
+// remove trashes a plan and purges everything trashed, which in the test
+// database is only what earlier runs left behind.
+func remove(ctx context.Context, repo *plans.Repository, id int64) {
+	_ = repo.Trash(ctx, id)
+	_, _ = repo.Purge(ctx, time.Now().AddDate(0, 0, 1), 0)
 }
 
 // owner is unique per run, so a shared development database does not make one
 // run depend on another.
+// listedOnce reports whether id is among plans exactly once. The database is
+// shared with other runs, so the listing may hold their plans too.
+func listedOnce(listed []plans.Plan, id int64) bool {
+	seen := 0
+	for _, plan := range listed {
+		if plan.ID == id {
+			seen++
+		}
+	}
+	return seen == 1
+}
+
 func owner(t *testing.T) string {
 	t.Helper()
 	return fmt.Sprintf("infra-%s-%d", t.Name(), os.Getpid())
@@ -50,13 +70,13 @@ func TestInfraPlansOnPostgres(t *testing.T) {
 	repo := postgresRepository(t)
 	identity := owner(t)
 
-	plan, err := repo.Create(ctx, plans.Plan{
+	plan, first, err := repo.Create(ctx, plans.Plan{
 		OwnerIdentityID: identity, Name: "Plan ZSEM", SchoolYear: "2026/2027",
-	})
+	}, plans.Upload{ObjectKey: "plans/ab/cd/abcd", SizeBytes: 22339, CreatedBy: identity})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	t.Cleanup(func() { repo.Delete(ctx, plan.ID) })
+	t.Cleanup(func() { remove(ctx, repo, plan.ID) })
 
 	read, err := repo.Get(ctx, plan.ID)
 	if err != nil {
@@ -65,17 +85,10 @@ func TestInfraPlansOnPostgres(t *testing.T) {
 	if read != plan {
 		t.Errorf("read back %+v, wrote %+v", read, plan)
 	}
-	if mine, err := repo.List(ctx, identity); err != nil || len(mine) != 1 {
-		t.Errorf("list = %d plans, %v", len(mine), err)
+	if listed, err := repo.List(ctx); err != nil || !listedOnce(listed, plan.ID) {
+		t.Errorf("list = %d plans, %v; want the new plan once", len(listed), err)
 	}
 
-	first, err := repo.AddVersion(ctx, plans.Upload{
-		PlanID: plan.ID, ObjectKey: "plans/ab/cd/abcd", SizeBytes: 22339,
-		CreatedBy: identity,
-	})
-	if err != nil {
-		t.Fatalf("first version: %v", err)
-	}
 	if _, err := repo.AddVersion(ctx, plans.Upload{
 		PlanID: plan.ID, Parent: first.Version, ObjectKey: "plans/ef/12/ef12",
 		SizeBytes: 22500, CreatedBy: identity,
@@ -98,8 +111,11 @@ func TestInfraPlansOnPostgres(t *testing.T) {
 	if timeline, err := repo.Versions(ctx, plan.ID); err != nil || len(timeline) != 2 {
 		t.Errorf("timeline = %d versions, %v", len(timeline), err)
 	}
-	if err := repo.Delete(ctx, plan.ID); err != nil {
-		t.Fatalf("delete: %v", err)
+	if err := repo.Trash(ctx, plan.ID); err != nil {
+		t.Fatalf("trash: %v", err)
+	}
+	if _, err := repo.Purge(ctx, time.Now().AddDate(0, 0, 1), 0); err != nil {
+		t.Fatalf("purge: %v", err)
 	}
 	if timeline, err := repo.Versions(ctx, plan.ID); err != nil || len(timeline) != 0 {
 		t.Errorf("the version index survived the plan: %d, %v", len(timeline), err)
@@ -113,18 +129,12 @@ func TestInfraConcurrentUploadsOnPostgres(t *testing.T) {
 	repo := postgresRepository(t)
 	identity := owner(t)
 
-	plan, err := repo.Create(ctx, plans.Plan{OwnerIdentityID: identity, Name: "Plan ZSEM"})
+	plan, first, err := repo.Create(ctx, plans.Plan{OwnerIdentityID: identity, Name: "Plan ZSEM"},
+		plans.Upload{ObjectKey: "plans/ab/cd/abcd", CreatedBy: identity})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	t.Cleanup(func() { repo.Delete(ctx, plan.ID) })
-
-	first, err := repo.AddVersion(ctx, plans.Upload{
-		PlanID: plan.ID, ObjectKey: "plans/ab/cd/abcd", CreatedBy: identity,
-	})
-	if err != nil {
-		t.Fatalf("first version: %v", err)
-	}
+	t.Cleanup(func() { remove(ctx, repo, plan.ID) })
 
 	const writers = 8
 	var (
