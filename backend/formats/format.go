@@ -18,6 +18,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"io/fs"
 	"path"
@@ -26,6 +27,8 @@ import (
 	"time"
 
 	arrangov1 "github.com/smegg99/arrango/backend/gen/arrangov1"
+
+	goptivumv1 "github.com/smegg99/goptivum/document/gen/goptivumv1"
 )
 
 // Source is one thing a user handed us.
@@ -61,11 +64,21 @@ type Importer interface {
 	Import(context.Context, Source) (*Result, error)
 }
 
+// Unlocker is an importer whose files may be locked with a passphrase. The
+// passphrase goes to the importer that won detection and to no detector.
+type Unlocker interface {
+	ImportUnlocked(ctx context.Context, src Source, passphrase string) (*Result, error)
+}
+
 // Exporter writes one target format. Not every Importer has one.
 type Exporter interface {
 	ID() string
 	Export(context.Context, *Result) ([]byte, error)
 }
+
+// ErrNoTimetable is an export whose format is the timetable, asked of a
+// result that places no lesson.
+var ErrNoTimetable = errors.New("formats: nothing is placed, so there is no timetable to export")
 
 // Result is one import: the school, the timetable it carried, and what did
 // not map.
@@ -73,6 +86,15 @@ type Result struct {
 	Model    *arrangov1.SchoolModel
 	Schedule *arrangov1.ScheduleSnapshot // the published timetable, if carried
 	Findings []Finding
+	// Document is set only by an importer reading Goptivum's own format, which
+	// carries the whole envelope rather than a model an importer assembled.
+	// Everything else leaves it nil and the caller builds one.
+	//
+	// It exists because the envelope's id counter cannot be recomputed: a file
+	// whose sender deleted their highest-numbered entity carries a counter
+	// above what the model implies, and recomputing it would hand out an id
+	// that sender already spent.
+	Document *goptivumv1.Document
 }
 
 // HasErrors reports whether anything failed to map badly enough to lose data.
@@ -143,7 +165,9 @@ type Finding struct {
 	Kind     FindingKind
 	Severity Severity
 	Entities []*arrangov1.EntityRef
-	Detail   string // debug hint only, never rendered
+	// Count is how many occurrences a tallied finding stands for; zero is one.
+	Count  int
+	Detail string // debug hint only, never rendered
 }
 
 // Ref is a typed entity reference for a Finding.
