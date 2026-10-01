@@ -98,13 +98,18 @@ func NewExporter() *Exporter { return &Exporter{} }
 
 func (*Exporter) ID() string { return ID }
 
-// Export renders the school and its timetable as a zipped HTML export.
+// Export renders the school and its timetable as a zipped HTML export. A
+// result that places no lesson is formats.ErrNoTimetable: the pages are the
+// timetable.
 func (*Exporter) Export(ctx context.Context, result *formats.Result) ([]byte, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	if result == nil {
 		return nil, fmt.Errorf("%s: nothing to export", ID)
+	}
+	if len(result.Schedule.GetLessons()) == 0 {
+		return nil, formats.ErrNoTimetable
 	}
 	return ExportZip(result.Model, result.Schedule)
 }

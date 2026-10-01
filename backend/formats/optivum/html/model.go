@@ -181,7 +181,7 @@ func (b *builder) subject(name string) uint32 {
 
 func build(p pages) (*Result, error) {
 	b := &builder{
-		model:          &arrangov1.SchoolModel{Name: "Import Optivum"},
+		model:          &arrangov1.SchoolModel{Name: schoolName(p.index)},
 		snapshot:       &arrangov1.ScheduleSnapshot{},
 		nextID:         1,
 		yearByLevel:    map[int]uint32{},

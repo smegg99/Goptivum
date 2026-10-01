@@ -4,8 +4,11 @@ package optivum
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"testing/fstest"
+
+	arrangov1 "github.com/smegg99/arrango/backend/gen/arrangov1"
 
 	"github.com/smegg99/goptivum/backend/formats"
 )
@@ -147,6 +150,21 @@ func TestImportRejectsAnEmptySource(t *testing.T) {
 func TestExportRejectsNothing(t *testing.T) {
 	if _, err := NewExporter().Export(context.Background(), nil); err == nil {
 		t.Fatal("export accepted a nil result")
+	}
+}
+
+// The pages are the timetable, so a school without one has no HTML export,
+// and the refusal says so rather than writing empty grids.
+func TestExportNeedsATimetable(t *testing.T) {
+	model := &arrangov1.SchoolModel{Name: "Szkoła Testowa"}
+	for name, schedule := range map[string]*arrangov1.ScheduleSnapshot{
+		"none":  nil,
+		"empty": {},
+	} {
+		_, err := NewExporter().Export(context.Background(), &formats.Result{Model: model, Schedule: schedule})
+		if !errors.Is(err, formats.ErrNoTimetable) {
+			t.Errorf("%s timetable: err = %v, want ErrNoTimetable", name, err)
+		}
 	}
 }
 

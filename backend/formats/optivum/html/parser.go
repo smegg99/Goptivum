@@ -60,6 +60,10 @@ type pages struct {
 	divisions map[string][]byte // "o1" -> bytes, etc.
 	teachers  map[string][]byte
 	rooms     map[string][]byte
+	// index is the shallowest index.html, which names the school; nil when
+	// the upload has none, as a single o*.html page.
+	index      []byte
+	indexDepth int
 }
 
 // ParseFS parses an export laid out as files anywhere inside fsys.
@@ -73,6 +77,18 @@ func ParseFS(fsys fs.FS) (*Result, error) {
 	err := fs.WalkDir(fsys, ".", func(fpath string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err
+		}
+		if path.Base(fpath) == "index.html" {
+			depth := strings.Count(fpath, "/")
+			if p.index != nil && depth >= p.indexDepth {
+				return nil
+			}
+			data, err := fs.ReadFile(fsys, fpath)
+			if err != nil {
+				return err
+			}
+			p.index, p.indexDepth = data, depth
+			return nil
 		}
 		m := fileRe.FindStringSubmatch(path.Base(fpath))
 		if m == nil {
@@ -171,8 +187,9 @@ func pageTitle(root *html.Node) string {
 	return text(nodes[0])
 }
 
+// parseHTML parses a page after decoding it by its declared charset.
 func parseHTML(data []byte) (*html.Node, error) {
-	return html.Parse(bytes.NewReader(data))
+	return html.Parse(bytes.NewReader(decodePage(data)))
 }
 
 // --- division page parsing --------------------------------------------
