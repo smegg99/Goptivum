@@ -157,6 +157,13 @@ func (b *builder) note(kind formats.FindingKind, severity formats.Severity, deta
 	})
 }
 
+// tally notes a bulk finding standing for count occurrences.
+func (b *builder) tally(kind formats.FindingKind, severity formats.Severity, count int, detail string) {
+	b.findings = append(b.findings, formats.Finding{
+		Kind: kind, Severity: severity, Count: count, Detail: detail,
+	})
+}
+
 // count parses a headcount or capacity. Optivum writes the attribute present
 // but empty, and zero means "not stated" rather than "nobody".
 func count(values ...string) (uint32, arrangov1.CountSource) {
@@ -1077,69 +1084,69 @@ func (b *builder) finishDays() {
 // --- findings ---------------------------------------------------------
 
 // reportUnmapped says what the reader did not read. Bulk is aggregated: one
-// finding per kind with a count, never one per row.
+// finding per kind carrying its count, never one per row.
 func (b *builder) reportUnmapped(shape *census) {
 	for _, path := range shape.unmapped() {
-		b.note(formats.KindUnmappedElement, formats.Info,
+		b.tally(formats.KindUnmappedElement, formats.Info, shape.counts[path],
 			fmt.Sprintf("%s: %d not read", path, shape.counts[path]))
 	}
 
 	if b.teacherLoads > 0 {
-		b.note(formats.KindUnmappedAttribute, formats.Info,
+		b.tally(formats.KindUnmappedAttribute, formats.Info, b.teacherLoads,
 			fmt.Sprintf("teaching load and its reduction: %d teachers, no field in the model", b.teacherLoads))
 	}
 	if b.formTutors > 0 {
-		b.note(formats.KindUnmappedAttribute, formats.Info,
+		b.tally(formats.KindUnmappedAttribute, formats.Info, b.formTutors,
 			fmt.Sprintf("form tutor: %d divisions, no field in the model", b.formTutors))
 	}
 	if b.flaggedAssignments > 0 {
-		b.note(formats.KindUnmappedAttribute, formats.Info,
+		b.tally(formats.KindUnmappedAttribute, formats.Info, b.flaggedAssignments,
 			fmt.Sprintf("assignment flags: %d rows, not interpreted", b.flaggedAssignments))
 	}
 
 	if b.fixedSplits > 0 || b.uncertainSplits > 0 {
-		b.note(formats.KindSplitKindInferred, formats.Info,
+		b.tally(formats.KindSplitKindInferred, formats.Info, b.fixedSplits+b.uncertainSplits,
 			fmt.Sprintf("the file does not state whether a split is a fact about a student: %d read as fixed by name, %d unrecognised names kept open",
 				b.fixedSplits, b.uncertainSplits))
 	}
 	if b.sharedRooms > 0 {
-		b.note(formats.KindUnmappedAttribute, formats.Info,
+		b.tally(formats.KindUnmappedAttribute, formats.Info, b.sharedRooms,
 			fmt.Sprintf("%d room references are the unnamed-room marker %q, read as no particular room", b.sharedRooms, sharedRoom))
 	}
 	if b.unplacedLessons > 0 {
-		b.note(formats.KindLessonUnplaced, formats.Info,
+		b.tally(formats.KindLessonUnplaced, formats.Info, b.unplacedLessons,
 			fmt.Sprintf("%d lessons carry no placement", b.unplacedLessons))
 	}
 	if b.openRoomPreferences > 0 {
-		b.note(formats.KindRoomPreferenceOpen, formats.Info,
+		b.tally(formats.KindRoomPreferenceOpen, formats.Info, b.openRoomPreferences,
 			fmt.Sprintf("%d lessons accept any room, so their preferred rooms are not a restriction", b.openRoomPreferences))
 	}
 	if b.unresolvedPrefTokens > 0 {
-		b.note(formats.KindUnknownReference, formats.Warning,
+		b.tally(formats.KindUnknownReference, formats.Warning, b.unresolvedPrefTokens,
 			fmt.Sprintf("%d room preferences name neither a room nor a room set", b.unresolvedPrefTokens))
 	}
 	if b.unresolvedHomeRooms > 0 {
-		b.note(formats.KindUnknownReference, formats.Info,
+		b.tally(formats.KindUnknownReference, formats.Info, b.unresolvedHomeRooms,
 			fmt.Sprintf("%d teacher home rooms do not start with a known room", b.unresolvedHomeRooms))
 	}
 	if b.preferredSlots > 0 {
-		b.note(formats.KindUnmappedSlotMark, formats.Info,
+		b.tally(formats.KindUnmappedSlotMark, formats.Info, b.preferredSlots,
 			fmt.Sprintf("%d slots are marked as preferred, which the model cannot express", b.preferredSlots))
 	}
 	if b.unknownSlotMarks > 0 {
-		b.note(formats.KindUnmappedSlotMark, formats.Warning,
+		b.tally(formats.KindUnmappedSlotMark, formats.Warning, b.unknownSlotMarks,
 			fmt.Sprintf("%d slots carry a mark this reader does not know", b.unknownSlotMarks))
 	}
 	if b.outOfRangeSlots > 0 {
-		b.note(formats.KindUnmappedSlotMark, formats.Warning,
+		b.tally(formats.KindUnmappedSlotMark, formats.Warning, b.outOfRangeSlots,
 			fmt.Sprintf("%d marked slots name a day or period the file does not define", b.outOfRangeSlots))
 	}
 	if b.trimmedBlocks > 0 {
-		b.note(formats.KindUnmappedSlotMark, formats.Info,
+		b.tally(formats.KindUnmappedSlotMark, formats.Info, b.trimmedBlocks,
 			fmt.Sprintf("%d blocked slots sit after the last teaching period of their day", b.trimmedBlocks))
 	}
 	if b.degeneratePins > 0 {
-		b.note(formats.KindUnknownReference, formats.Info,
+		b.tally(formats.KindUnknownReference, formats.Info, b.degeneratePins,
 			fmt.Sprintf("%d staples pin a single lesson, so nothing is pinned", b.degeneratePins))
 	}
 }
