@@ -1,0 +1,39 @@
+paired:
+  description: Heading after a node has been paired.
+  value: sparowano węzeł
+label:
+  description: Label column for a paired node.
+  value: etykieta
+address:
+  description: Address column for a paired node.
+  value: adres
+fingerprint:
+  description: Fingerprint column for a paired node.
+  value: odcisk palca
+versions:
+  description: Label for the versions a node reports.
+  value: wersje
+ourFingerprint:
+  description: Label for this deployment's own fingerprint, which the node pinned.
+  value: ten serwer
+nodes:
+  description: Heading over the list of paired nodes.
+  value: sparowane węzły
+none:
+  description: Shown when no node has been paired yet.
+  value: brak sparowanych węzłów
+state:
+  description: Column saying whether a node is still trusted.
+  value: stan
+active:
+  description: A node that may still be dispatched to.
+  value: aktywny
+revoked:
+  description: A node this server no longer dispatches to.
+  value: odwołany
+revokedNode:
+  description: Confirmation that a node was revoked.
+  value: odwołano węzeł
+needURI:
+  description: Error when the pair command was given no pairing URI.
+  value: polecenie pair potrzebuje URI arrango:// wypisanego przez węzeł

@@ -1,0 +1,39 @@
+paired:
+  description: Heading after a node has been paired.
+  value: node paired
+label:
+  description: Label column for a paired node.
+  value: label
+address:
+  description: Address column for a paired node.
+  value: address
+fingerprint:
+  description: Fingerprint column for a paired node.
+  value: fingerprint
+versions:
+  description: Label for the versions a node reports.
+  value: versions
+ourFingerprint:
+  description: Label for this deployment's own fingerprint, which the node pinned.
+  value: this server
+nodes:
+  description: Heading over the list of paired nodes.
+  value: paired nodes
+none:
+  description: Shown when no node has been paired yet.
+  value: no nodes paired
+state:
+  description: Column saying whether a node is still trusted.
+  value: state
+active:
+  description: A node that may still be dispatched to.
+  value: active
+revoked:
+  description: A node this server no longer dispatches to.
+  value: revoked
+revokedNode:
+  description: Confirmation that a node was revoked.
+  value: node revoked
+needURI:
+  description: Error when the pair command was given no pairing URI.
+  value: pair needs the arrango:// URI the node printed
