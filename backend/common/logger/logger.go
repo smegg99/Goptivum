@@ -24,29 +24,30 @@ var (
 	fileSink *rotation.Sink
 )
 
-// console writes coloured, human-readable lines to stderr. Colour is on when
-// stderr is a terminal and off when it is a pipe or a service manager's
-// journal.
+// console writes coloured, human-readable lines to stderr, and to the ring of
+// recent lines. Colour is on when stderr is a terminal and off when it is a
+// pipe or a service manager's journal.
 func console(noColor bool, level s99logger.Level) *s99logger.Logger {
 	sink := s99logger.NewConsoleSink(os.Stderr)
 	if noColor {
 		sink.WithColor(false)
 	}
-	return s99logger.New(sink, s99logger.Options{
+	return s99logger.New(s99logger.MultiSink(sink, recent), s99logger.Options{
 		Service: serviceName, MinLevel: level,
 		Language: messages.DefaultLanguage, Translator: Translator(),
 	})
 }
 
 // Configure rebuilds the logger from the configuration, adding a rotating file
-// sink when the school wants one on disk. The language is the application's,
+// sink when the school wants one on disk. The ring of recent lines stays the
+// same one, so lines logged before the configuration was read are kept. The language is the application's,
 // because the log and the command line are one program's voice.
 func Configure(settings config.Logging, language string) error {
 	consoleSink := s99logger.NewConsoleSink(os.Stderr)
 	if settings.NoColor {
 		consoleSink.WithColor(false)
 	}
-	sinks := []s99logger.Sink{consoleSink}
+	sinks := []s99logger.Sink{consoleSink, recent}
 
 	var nextFile *rotation.Sink
 	if settings.EnableFiles {
