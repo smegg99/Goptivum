@@ -48,6 +48,111 @@ func zeroForm(l *i18n.Localizer, id string, data map[string]any) string {
 	return out
 }
 
+// AccountLibraryConflict Refusal, HTTP 409: a save of the account's Library arrangement named a version that is no longer the stored one, because another window or device of the same account saved first. The refusal carries the stored arrangement; the desktop applies its change to it and saves again.
+func AccountLibraryConflict(l *i18n.Localizer) string {
+	return plain(l, "account.libraryConflict")
+}
+
+// AuthSignInBlocked Refusal, HTTP 429 from the server's /kratos proxy: too many failed sign-ins with this sign-in name or from this address, so sign-in is blocked for a while. {{.Seconds}} is the whole seconds left. The same answer is given for a name no account has.
+func AuthSignInBlocked(l *i18n.Localizer) string {
+	return plain(l, "auth.signInBlocked")
+}
+
+// CheckSuperseded Refusal, HTTP 409: a check of a newer version of the same plan replaced this one. The app asks again for the version it now shows, if it still needs one.
+func CheckSuperseded(l *i18n.Localizer) string {
+	return plain(l, "check.superseded")
+}
+
+// CheckWaitingForSolver Refusal, HTTP 504: the node did not answer a check within 20 seconds, usually because it waits for free memory before it starts one. Shown where the check's counts would be.
+func CheckWaitingForSolver(l *i18n.Localizer) string {
+	return plain(l, "check.waitingForSolver")
+}
+
+// CliArrangoActive A node that may still be dispatched to.
+func CliArrangoActive(l *i18n.Localizer) string {
+	return plain(l, "cli.arrango.active")
+}
+
+// CliArrangoAddress Address column for a paired node.
+func CliArrangoAddress(l *i18n.Localizer) string {
+	return plain(l, "cli.arrango.address")
+}
+
+// CliArrangoFingerprint Fingerprint column for a paired node.
+func CliArrangoFingerprint(l *i18n.Localizer) string {
+	return plain(l, "cli.arrango.fingerprint")
+}
+
+// CliArrangoLabel Label column for a paired node.
+func CliArrangoLabel(l *i18n.Localizer) string {
+	return plain(l, "cli.arrango.label")
+}
+
+// CliArrangoNeedURI Error when the pair command was given no pairing URI.
+func CliArrangoNeedURI(l *i18n.Localizer) string {
+	return plain(l, "cli.arrango.needURI")
+}
+
+// CliArrangoNodes Heading over the list of paired nodes.
+func CliArrangoNodes(l *i18n.Localizer) string {
+	return plain(l, "cli.arrango.nodes")
+}
+
+// CliArrangoNone Shown when no node has been paired yet.
+func CliArrangoNone(l *i18n.Localizer) string {
+	return plain(l, "cli.arrango.none")
+}
+
+// CliArrangoOurFingerprint Label for this deployment's own fingerprint, which the node pinned.
+func CliArrangoOurFingerprint(l *i18n.Localizer) string {
+	return plain(l, "cli.arrango.ourFingerprint")
+}
+
+// CliArrangoPaired Heading after a node has been paired.
+func CliArrangoPaired(l *i18n.Localizer) string {
+	return plain(l, "cli.arrango.paired")
+}
+
+// CliArrangoRevoked A node this server no longer dispatches to.
+func CliArrangoRevoked(l *i18n.Localizer) string {
+	return plain(l, "cli.arrango.revoked")
+}
+
+// CliArrangoRevokedNode Confirmation that a node was revoked.
+func CliArrangoRevokedNode(l *i18n.Localizer) string {
+	return plain(l, "cli.arrango.revokedNode")
+}
+
+// CliArrangoState Column saying whether a node is still trusted.
+func CliArrangoState(l *i18n.Localizer) string {
+	return plain(l, "cli.arrango.state")
+}
+
+// CliArrangoVersions Label for the versions a node reports.
+func CliArrangoVersions(l *i18n.Localizer) string {
+	return plain(l, "cli.arrango.versions")
+}
+
+// CliBootstrapPassword Label for the generated password.
+func CliBootstrapPassword(l *i18n.Localizer) string {
+	return plain(l, "cli.bootstrap.password")
+}
+
+// CliBootstrapTitle Heading over the first-boot administrator panel.
+func CliBootstrapTitle(l *i18n.Localizer) string {
+	return plain(l, "cli.bootstrap.title")
+}
+
+// CliBootstrapUsername Label for the generated account's username.
+func CliBootstrapUsername(l *i18n.Localizer) string {
+	return plain(l, "cli.bootstrap.username")
+}
+
+// CliBootstrapWarning Says the password cannot be recovered, because it is held nowhere after this line is printed.
+func CliBootstrapWarning(l *i18n.Localizer) string {
+	return plain(l, "cli.bootstrap.warning")
+}
+
 // CliCommandAddrFlag Address flag description.
 func CliCommandAddrFlag(l *i18n.Localizer) string {
 	return plain(l, "cli.command.addrFlag")
@@ -466,9 +571,273 @@ func CliStatusUnreachable(l *i18n.Localizer) string {
 	return plain(l, "cli.status.unreachable")
 }
 
+// CliUsersDisabled An account that may not sign in until it is enabled again.
+func CliUsersDisabled(l *i18n.Localizer) string {
+	return plain(l, "cli.users.disabled")
+}
+
+// CliUsersEmail Label for an account's email.
+func CliUsersEmail(l *i18n.Localizer) string {
+	return plain(l, "cli.users.email")
+}
+
+// CliUsersEnabled An account that may sign in.
+func CliUsersEnabled(l *i18n.Localizer) string {
+	return plain(l, "cli.users.enabled")
+}
+
+// CliUsersNoAccount Error; identifier is the username or email no account signs in with.
+type CliUsersNoAccountParams struct {
+	Identifier string
+}
+
+func CliUsersNoAccount(l *i18n.Localizer, p CliUsersNoAccountParams) string {
+	data := map[string]any{
+		"Identifier": p.Identifier,
+	}
+	return withData(l, "cli.users.noAccount", data)
+}
+
+// CliUsersNoIdentity Error when the configuration names no Kratos admin address, so accounts cannot be reached.
+func CliUsersNoIdentity(l *i18n.Localizer) string {
+	return plain(l, "cli.users.noIdentity")
+}
+
+// CliUsersRole Label for an account's role.
+func CliUsersRole(l *i18n.Localizer) string {
+	return plain(l, "cli.users.role")
+}
+
+// CliUsersRoleSet Heading after an account's role was set.
+func CliUsersRoleSet(l *i18n.Localizer) string {
+	return plain(l, "cli.users.roleSet")
+}
+
+// CliUsersSetRoleArgs Usage error when users set-role is not given exactly a sign-in name and a role.
+func CliUsersSetRoleArgs(l *i18n.Localizer) string {
+	return plain(l, "cli.users.setRoleArgs")
+}
+
+// CliUsersSetRoleLong users set-role command description; the role takes effect at the account's next request.
+func CliUsersSetRoleLong(l *i18n.Localizer) string {
+	return plain(l, "cli.users.setRoleLong")
+}
+
+// CliUsersSetRoleShort users set-role command summary.
+func CliUsersSetRoleShort(l *i18n.Localizer) string {
+	return plain(l, "cli.users.setRoleShort")
+}
+
+// CliUsersShort Users command summary.
+func CliUsersShort(l *i18n.Localizer) string {
+	return plain(l, "cli.users.short")
+}
+
+// CliUsersState Label for whether an account may sign in.
+func CliUsersState(l *i18n.Localizer) string {
+	return plain(l, "cli.users.state")
+}
+
+// CliUsersUnknownRole Usage error; role is the value given, which is not admin or planner.
+type CliUsersUnknownRoleParams struct {
+	Role string
+}
+
+func CliUsersUnknownRole(l *i18n.Localizer, p CliUsersUnknownRoleParams) string {
+	data := map[string]any{
+		"Role": p.Role,
+	}
+	return withData(l, "cli.users.unknownRole", data)
+}
+
+// CliUsersUsername Label for an account's username.
+func CliUsersUsername(l *i18n.Localizer) string {
+	return plain(l, "cli.users.username")
+}
+
+// ConfigDocumentsNeedKeys Configuration refused: a document bucket was named without the credentials to reach it.
+func ConfigDocumentsNeedKeys(l *i18n.Localizer) string {
+	return plain(l, "config.documentsNeedKeys")
+}
+
+// ConfigIdentityNeedsAdminURL Configuration refused: an identity provider is configured without its admin address, so the first administrator can never be created and nobody can sign in.
+func ConfigIdentityNeedsAdminURL(l *i18n.Localizer) string {
+	return plain(l, "config.identityNeedsAdminURL")
+}
+
+// ConfigIdentityURLsCollide Configuration refused: the public and admin identity addresses are the same. The public one is proxied, so this would publish the admin API.
+func ConfigIdentityURLsCollide(l *i18n.Localizer) string {
+	return plain(l, "config.identityURLsCollide")
+}
+
+// ConfigPostgresNeedsDSN Configuration refused: the database driver is postgres and no connection string was given, so the server has nowhere to connect.
+func ConfigPostgresNeedsDSN(l *i18n.Localizer) string {
+	return plain(l, "config.postgresNeedsDSN")
+}
+
+// ErrorBadRequest Refusal, HTTP 400: the request could not be read, such as a page or version that is not a number, a JSON body that does not parse, or a multipart body without a boundary. A client bug rather than a person's mistake.
+func ErrorBadRequest(l *i18n.Localizer) string {
+	return plain(l, "error.badRequest")
+}
+
+// ErrorInternal Refusal, HTTP 500: the server failed in a way it did not expect. The cause is in the server's log, never in the answer.
+func ErrorInternal(l *i18n.Localizer) string {
+	return plain(l, "error.internal")
+}
+
+// ErrorNotFound Refusal, HTTP 404: no such thing, or not this account's to see. A plan in Trash answers this everywhere except the Trash list and restore.
+func ErrorNotFound(l *i18n.Localizer) string {
+	return plain(l, "error.notFound")
+}
+
+// ErrorRequestTooLarge Refusal, HTTP 413: an upload or one of its parts is over the size this server accepts (the maximum_upload_bytes server setting), or a JSON body is over its own cap. When a handler refused the upload, the details carry Limit, the size in bytes; /api/info names it as maximum_upload_bytes.
+func ErrorRequestTooLarge(l *i18n.Localizer) string {
+	return plain(l, "error.requestTooLarge")
+}
+
+// ErrorUnauthorized Refusal, HTTP 401: no session, or a session the identity service does not recognise. The desktop signs out.
+func ErrorUnauthorized(l *i18n.Localizer) string {
+	return plain(l, "error.unauthorized")
+}
+
+// ErrorUnavailable Refusal, HTTP 503: something the server depends on (the database, the document store or the identity service) is not answering.
+func ErrorUnavailable(l *i18n.Localizer) string {
+	return plain(l, "error.unavailable")
+}
+
+// ErrorValidation Refusal, HTTP 422: a value was read and is not usable. The details name each field and a code, such as name: required (a blank plan name) or parent: invalid.
+func ErrorValidation(l *i18n.Localizer) string {
+	return plain(l, "error.validation")
+}
+
+// ExportNoTimetable Refusal, HTTP 422: an Optivum HTML export was asked of a version whose document places no lesson. The HTML pages are the timetable, so there is nothing to write; a .gpf of the same version still exports.
+func ExportNoTimetable(l *i18n.Localizer) string {
+	return plain(l, "export.noTimetable")
+}
+
+// GpfIdentityRequired Refusal: the file is encrypted to a key this server does not hold, usually because it belongs to another school.
+func GpfIdentityRequired(l *i18n.Localizer) string {
+	return plain(l, "gpf.identityRequired")
+}
+
+// GpfMalformed Refusal: the file is a .gpf and cannot be read. A length past the end, a missing locator, a chunk claiming more than is there.
+func GpfMalformed(l *i18n.Localizer) string {
+	return plain(l, "gpf.malformed")
+}
+
+// GpfNotAFile Refusal: the bytes are not a Goptivum Project File at all.
+func GpfNotAFile(l *i18n.Localizer) string {
+	return plain(l, "gpf.notAFile")
+}
+
+// GpfPasswordRequired Refusal: the file is protected by a password and none was given.
+func GpfPasswordRequired(l *i18n.Localizer) string {
+	return plain(l, "gpf.passwordRequired")
+}
+
+// GpfUnsupportedAlgorithm Refusal: the file requires something this reader does not understand, so opening it would mean guessing at its contents.
+func GpfUnsupportedAlgorithm(l *i18n.Localizer) string {
+	return plain(l, "gpf.unsupportedAlgorithm")
+}
+
+// GpfUnsupportedVersion Refusal: the file was written by a newer version of Goptivum than this one knows how to read.
+func GpfUnsupportedVersion(l *i18n.Localizer) string {
+	return plain(l, "gpf.unsupportedVersion")
+}
+
+// GpfWrongPassword Refusal: the password given does not open the file.
+func GpfWrongPassword(l *i18n.Localizer) string {
+	return plain(l, "gpf.wrongPassword")
+}
+
+// GpfWrongRealm Refusal: the file belongs to a different school. The whole reason the header is plaintext is so this can be said instead of failing blank.
+func GpfWrongRealm(l *i18n.Localizer) string {
+	return plain(l, "gpf.wrongRealm")
+}
+
+// ImportUnsupportedFormat Refusal, HTTP 415: an import or its preview was sent a file no importer recognises. Detection reads the content, never the extension, so this is a file that is not a .pla, a .gpf or an Optivum HTML export.
+func ImportUnsupportedFormat(l *i18n.Localizer) string {
+	return plain(l, "import.unsupportedFormat")
+}
+
+// LogsAuditFailed Log event: a change succeeded but its audit entry could not be written, so the audit trail misses it. The action and the reason are on this line.
+func LogsAuditFailed(l *i18n.Localizer) string {
+	return plain(l, "logs.auditFailed")
+}
+
+// LogsBackupsTrimmed Log event: an administrator applied every project's backups cap from Backend > Storage. How many versions went and who did it are on this line.
+func LogsBackupsTrimmed(l *i18n.Localizer) string {
+	return plain(l, "logs.backupsTrimmed")
+}
+
+// LogsBootstrapAdminCreated Log event: the deployment had no administrator, so one was created. The generated password is on this line and nowhere else, ever again.
+func LogsBootstrapAdminCreated(l *i18n.Localizer) string {
+	return plain(l, "logs.bootstrapAdminCreated")
+}
+
+// LogsBootstrapAdminExists Log event: an administrator already exists, so first-boot did nothing.
+func LogsBootstrapAdminExists(l *i18n.Localizer) string {
+	return plain(l, "logs.bootstrapAdminExists")
+}
+
+// LogsBootstrapFailed Log event: the first administrator could not be created, usually because Kratos is not up yet. The server keeps serving and tries again next boot.
+func LogsBootstrapFailed(l *i18n.Localizer) string {
+	return plain(l, "logs.bootstrapFailed")
+}
+
+// LogsCheckCountsDrift Log event: the errors, warnings and notes this server counted over a timetable differ from the node's own verdict, so its sorting of soft issue categories no longer matches the node's. Both sets of counts are on this line.
+func LogsCheckCountsDrift(l *i18n.Localizer) string {
+	return plain(l, "logs.checkCountsDrift")
+}
+
+// LogsCheckDone Log event: the node checked one plan version, or the answer came from the cache. The plan, the version, the counts and the time taken are on this line.
+func LogsCheckDone(l *i18n.Localizer) string {
+	return plain(l, "logs.checkDone")
+}
+
+// LogsCheckFailed Log event: a plan version could not be checked: no node, a node that did not answer or needs an update, or a document that could not be read. The reason is on this line. A check replaced by a newer one is not logged here.
+func LogsCheckFailed(l *i18n.Localizer) string {
+	return plain(l, "logs.checkFailed")
+}
+
 // LogsConfigLoaded Log event: the configuration file was read and validated.
 func LogsConfigLoaded(l *i18n.Localizer) string {
 	return plain(l, "logs.configLoaded")
+}
+
+// LogsDemoSchoolEnabled Log event: dev.demo_school is on, so the development-only route that stores Arrango's demo school as a new plan is registered.
+func LogsDemoSchoolEnabled(l *i18n.Localizer) string {
+	return plain(l, "logs.demoSchoolEnabled")
+}
+
+// LogsDemoSchoolFailed Log event: a request for the demo school found no node that could give it: none paired, all revoked, or the first one did not answer. The reason is on this line.
+func LogsDemoSchoolFailed(l *i18n.Localizer) string {
+	return plain(l, "logs.demoSchoolFailed")
+}
+
+// LogsEscrowDisabled Log event: no escrow passphrase is configured, so no school key is held and encrypted project files need the caller to bring their own recipients.
+func LogsEscrowDisabled(l *i18n.Localizer) string {
+	return plain(l, "logs.escrowDisabled")
+}
+
+// LogsEscrowKeyReady Log event: the school's own key for encrypted project files is available. Its public half is on this line; the private half never leaves the database unsealed.
+func LogsEscrowKeyReady(l *i18n.Localizer) string {
+	return plain(l, "logs.escrowKeyReady")
+}
+
+// LogsExportFailed Log event: a file asked for export could not be built or kept, usually because the document store, the database or the school key was out of reach. The plan, the version or result, the format and the reason are on this line; the person asking was told to try again.
+func LogsExportFailed(l *i18n.Localizer) string {
+	return plain(l, "logs.exportFailed")
+}
+
+// LogsIdentityReady Log event: Kratos answered, so sessions can be resolved.
+func LogsIdentityReady(l *i18n.Localizer) string {
+	return plain(l, "logs.identityReady")
+}
+
+// LogsLockoutChanged Log event: an administrator changed the sign-in lockout limits. The new limits and who changed them are on this line.
+func LogsLockoutChanged(l *i18n.Localizer) string {
+	return plain(l, "logs.lockoutChanged")
 }
 
 // LogsMigrationsApplied Log event: the database schema is at the version this build expects.
@@ -481,9 +850,49 @@ func LogsNoIdentityProvider(l *i18n.Localizer) string {
 	return plain(l, "logs.noIdentityProvider")
 }
 
+// LogsNodePairingRefused Log event: pairing with a node failed. The answer carries only the key, so the reason as the node or the network gave it is on this line.
+func LogsNodePairingRefused(l *i18n.Localizer) string {
+	return plain(l, "logs.nodePairingRefused")
+}
+
+// LogsObjectSweepFailed Log event: the hourly sweep could not delete some stored documents, usually because the database or the document store is unreachable. They stay listed and it tries again in an hour.
+func LogsObjectSweepFailed(l *i18n.Localizer) string {
+	return plain(l, "logs.objectSweepFailed")
+}
+
+// LogsObjectsSwept Log event: the hourly sweep deleted stored documents whose last version was removed over an hour ago. The count is on this line.
+func LogsObjectsSwept(l *i18n.Localizer) string {
+	return plain(l, "logs.objectsSwept")
+}
+
+// LogsOrphanedJobsClosed Log event: jobs left open by a process that died were failed at boot, so they stop counting against their node's concurrency.
+func LogsOrphanedJobsClosed(l *i18n.Localizer) string {
+	return plain(l, "logs.orphanedJobsClosed")
+}
+
+// LogsOwnersUnread Log event: the plan listings or Backend > Storage could not read the accounts from Kratos, so the projects are answered without their owners' names. The reason is on this line.
+func LogsOwnersUnread(l *i18n.Localizer) string {
+	return plain(l, "logs.ownersUnread")
+}
+
+// LogsPasswordRulesUnreadable Log event: the Kratos configuration file named by identity.kratos_config could not be read, so Backend > Security shows the password rules as not known. The path and the reason are on this line.
+func LogsPasswordRulesUnreadable(l *i18n.Localizer) string {
+	return plain(l, "logs.passwordRulesUnreadable")
+}
+
+// LogsRuleCatalogueFailed Log event: the rule list could not be read from a node: none paired, or the first one did not answer in time, had no room, or needs an update. The reason is on this line.
+func LogsRuleCatalogueFailed(l *i18n.Localizer) string {
+	return plain(l, "logs.ruleCatalogueFailed")
+}
+
 // LogsRunFailed Log event: the process is exiting because the work failed.
 func LogsRunFailed(l *i18n.Localizer) string {
 	return plain(l, "logs.runFailed")
+}
+
+// LogsServerSettingsChanged Log event: an administrator changed the server settings on Backend > Server. The settings that changed and who changed them are on this line.
+func LogsServerSettingsChanged(l *i18n.Localizer) string {
+	return plain(l, "logs.serverSettingsChanged")
 }
 
 // LogsServerStarted Log event: the HTTP server is listening.
@@ -496,7 +905,179 @@ func LogsServerStopping(l *i18n.Localizer) string {
 	return plain(l, "logs.serverStopping")
 }
 
+// LogsSignInBlocked Log event: failed sign-ins reached a lockout limit, so the /kratos proxy now refuses sign-ins for a while. The client address, which limit was reached (name or address) and the block's length are on this line; the sign-in name is not, because people type passwords into it by mistake.
+func LogsSignInBlocked(l *i18n.Localizer) string {
+	return plain(l, "logs.signInBlocked")
+}
+
 // LogsStorageReady Log event: object storage answered, so documents can be written.
 func LogsStorageReady(l *i18n.Localizer) string {
 	return plain(l, "logs.storageReady")
+}
+
+// LogsTrashEmptied Log event: an administrator emptied every owner's Trash from Backend > Storage. How many plans, checkpoints and results went and who did it are on this line.
+func LogsTrashEmptied(l *i18n.Localizer) string {
+	return plain(l, "logs.trashEmptied")
+}
+
+// LogsTrashPurgeFailed Log event: the hourly Trash purge could not run, usually because the database is unreachable. It tries again in an hour.
+func LogsTrashPurgeFailed(l *i18n.Localizer) string {
+	return plain(l, "logs.trashPurgeFailed")
+}
+
+// LogsTrashPurged Log event: plans, checkpoints and solve results that stayed in Trash for projects.trash_days were removed for good. A plan goes with its versions, results and jobs; a checkpoint's version becomes a plain backup under the backups cap. The counts are on this line.
+func LogsTrashPurged(l *i18n.Localizer) string {
+	return plain(l, "logs.trashPurged")
+}
+
+// LogsUserSessionsEnded Log event: an account was signed out everywhere, because it was disabled, its password was reset or an administrator signed it out. The account, the reason and who did it are on this line.
+func LogsUserSessionsEnded(l *i18n.Localizer) string {
+	return plain(l, "logs.userSessionsEnded")
+}
+
+// NodeClientTooOld Refusal or node state: the node needs a newer version of this server before it answers it. Used when pairing (HTTP 422), when changing a node's limits (HTTP 409) and as the problem in a node's status.
+func NodeClientTooOld(l *i18n.Localizer) string {
+	return plain(l, "node.clientTooOld")
+}
+
+// NodeFingerprintMismatch Refusal or node state: the machine at the node's address presented another certificate than the one expected, so nothing was sent. When pairing (HTTP 422) the link names another node; later (HTTP 409, or a node's status problem) the node's identity was replaced or another machine took its address, and the node has to be paired again.
+func NodeFingerprintMismatch(l *i18n.Localizer) string {
+	return plain(l, "node.fingerprintMismatch")
+}
+
+// NodeLinkSpent Refusal, HTTP 422, when pairing a node: the node refused the link's one-time token because it expired, was already used or was never issued. The node answers these three alike on purpose, so they cannot be told apart.
+func NodeLinkSpent(l *i18n.Localizer) string {
+	return plain(l, "node.linkSpent")
+}
+
+// NodeNotALink Refusal, HTTP 422, when pairing a node: the pasted text is not an arrango:// pairing link. Nothing was sent anywhere.
+func NodeNotALink(l *i18n.Localizer) string {
+	return plain(l, "node.notALink")
+}
+
+// NodeNotPaired Refusal or node state: the node no longer accepts this server, usually because its operator revoked this server on the node. Used when changing a node's limits (HTTP 409) and as the problem in a node's status.
+func NodeNotPaired(l *i18n.Localizer) string {
+	return plain(l, "node.notPaired")
+}
+
+// NodeOutdated Refusal, HTTP 409: the node answers but its build cannot do what was asked, and it needs an update. {{.Capability}} is the node's own name for the missing ability, such as check, or peer_policy when a node's limits were to be changed and its build does not report its ceilings.
+func NodeOutdated(l *i18n.Localizer) string {
+	return plain(l, "node.outdated")
+}
+
+// NodePairingFailed Refusal, HTTP 422, when pairing a node: the node answered with an error that none of the other pairing messages describes.
+func NodePairingFailed(l *i18n.Localizer) string {
+	return plain(l, "node.pairingFailed")
+}
+
+// NodeRevoked Refusal, HTTP 409: a revoked node's limits were to be changed. Pair it again first.
+func NodeRevoked(l *i18n.Localizer) string {
+	return plain(l, "node.revoked")
+}
+
+// NodeSolvesAboveCeiling Refusal, HTTP 422: the solves at once asked for a node are more than the node allows this server. {{.Ceiling}} is the node's own limit, set by its operator when this server was paired.
+func NodeSolvesAboveCeiling(l *i18n.Localizer) string {
+	return plain(l, "node.solvesAboveCeiling")
+}
+
+// NodeUnreachable Refusal or node state: nothing answered at the node's address, or the node did not answer within 3 seconds. Used when pairing (HTTP 422), when changing a node's limits (HTTP 409, the node's ceilings could not be read) and as the problem of a node that is not reachable in its status.
+func NodeUnreachable(l *i18n.Localizer) string {
+	return plain(l, "node.unreachable")
+}
+
+// NodeWorkersAboveCeiling Refusal, HTTP 422: the workers per solve asked for a node are more than the node allows this server. {{.Ceiling}} is the node's own worker ceiling for this server, or its core count when it sets none.
+func NodeWorkersAboveCeiling(l *i18n.Localizer) string {
+	return plain(l, "node.workersAboveCeiling")
+}
+
+// PlansForkName The name the server gives a fork or a duplicate when the request names none, in the server's own language. name is the name of the plan it was copied from.
+type PlansForkNameParams struct {
+	Name string
+}
+
+func PlansForkName(l *i18n.Localizer, p PlansForkNameParams) string {
+	data := map[string]any{
+		"Name": p.Name,
+	}
+	return withData(l, "plans.forkName", data)
+}
+
+// PlansNotYours Refusal, HTTP 403: an account changed a plan it does not own (renamed, deleted or restored it, uploaded a version, changed a checkpoint or a result, started or cancelled a solve). Everyone reads every plan; only its owner changes it, and anyone else may fork it.
+func PlansNotYours(l *i18n.Localizer) string {
+	return plain(l, "plans.notYours")
+}
+
+// PlansVersionConflict Refusal: an upload named a parent version that is no longer the newest, so somebody else saved first. The refusal carries the current version so the app can offer to open theirs.
+func PlansVersionConflict(l *i18n.Localizer) string {
+	return plain(l, "plans.versionConflict")
+}
+
+// RulesProfileNotYours Refusal, HTTP 403: an account that neither created a school rule profile nor is an administrator tried to change or delete it. Shown on the profile's card.
+func RulesProfileNotYours(l *i18n.Localizer) string {
+	return plain(l, "rules.profileNotYours")
+}
+
+// RulesWaitingForSolver Refusal, HTTP 504: the node did not list the solver's rules within 20 seconds, usually because it waits for free memory before it starts. Shown where the Rules station's list would be.
+func RulesWaitingForSolver(l *i18n.Localizer) string {
+	return plain(l, "rules.waitingForSolver")
+}
+
+// SolveIncompleteBaseline Refusal: an improve solve was asked for over a file (a version or a result) whose timetable does not place every lesson, or that has none. Unplaced is how many lessons it does not place, Lessons how many the school has. The solver abandons the whole baseline at the first lesson with no placement and says nothing, so the never-worse guarantee would be gone.
+func SolveIncompleteBaseline(l *i18n.Localizer) string {
+	return plain(l, "solve.incompleteBaseline")
+}
+
+// SolveInfeasible Job reason: the node proved the school cannot be scheduled, at its input checks before the search or in the search itself. The job's explanation and detail say more in the node's words.
+func SolveInfeasible(l *i18n.Localizer) string {
+	return plain(l, "solve.infeasible")
+}
+
+// SolveLimitTooLong A request above every reachable node time ceiling.
+func SolveLimitTooLong(l *i18n.Localizer) string {
+	return plain(l, "solve.limitTooLong")
+}
+
+// SolveModelInvalid Refusal: the node checked the school before solving and found problems that make a valid timetable impossible. Refused in a second rather than after a full search budget.
+func SolveModelInvalid(l *i18n.Localizer) string {
+	return plain(l, "solve.modelInvalid")
+}
+
+// SolveNoScheduleInTime Job reason: the solve's time limit ran out before any timetable was found.
+func SolveNoScheduleInTime(l *i18n.Localizer) string {
+	return plain(l, "solve.noScheduleInTime")
+}
+
+// SolveNodeError Job reason: the node failed, stopped answering, broke the stream or ran past the solve's deadline before the solve finished. The best timetable received before that, if one arrived, is kept as the job's result.
+func SolveNodeError(l *i18n.Localizer) string {
+	return plain(l, "solve.nodeError")
+}
+
+// SolveNodeUnavailable Refusal: no node can take the request. For a solve, no node is paired and unrevoked (or the one named is revoked), every candidate already carries as many solves as this server allows, or none that had room answered; the detail cause says which. For the demo school and for a check, no node is paired and unrevoked, or the first one did not answer.
+func SolveNodeUnavailable(l *i18n.Localizer) string {
+	return plain(l, "solve.nodeUnavailable")
+}
+
+// SolvePreflightFailed Inputs rejected by preflight before search.
+func SolvePreflightFailed(l *i18n.Localizer) string {
+	return plain(l, "solve.preflightFailed")
+}
+
+// SolveResultNotStored Job reason: a timetable arrived and this server could not store it as a result.
+func SolveResultNotStored(l *i18n.Localizer) string {
+	return plain(l, "solve.resultNotStored")
+}
+
+// SolveServerRestarted Job reason: this server stopped while the solve was pending or running, so the solve was lost. Set on every such job when the server starts again.
+func SolveServerRestarted(l *i18n.Localizer) string {
+	return plain(l, "solve.serverRestarted")
+}
+
+// UsersAlreadyExists Refusal, HTTP 409: another account already signs in with the username or the email a new account was given. Both are sign-in names, compared ignoring case. The detail Field, when present, is username or email.
+func UsersAlreadyExists(l *i18n.Localizer) string {
+	return plain(l, "users.alreadyExists")
+}
+
+// UsersLastAdmin Refusal, HTTP 409: a change to an account (a role, or disabling it) would leave the school without an account that is both an administrator and enabled. Nothing was changed. Shown on the Users page and by the command line's users set-role.
+func UsersLastAdmin(l *i18n.Localizer) string {
+	return plain(l, "users.lastAdmin")
 }
