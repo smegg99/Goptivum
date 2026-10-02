@@ -13,11 +13,19 @@ type Config struct {
 
 	Storage Storage `json:"storage"`
 
+	Identity Identity `json:"identity"`
+
+	Escrow Escrow `json:"escrow"`
+
+	Arrango Arrango `json:"arrango"`
+
 	Logging Logging `json:"logging"`
 
 	Security Security `json:"security"`
 
 	Api API `json:"api"`
+
+	Dev Dev `json:"dev"`
 }
 
 type Application struct {
@@ -29,6 +37,17 @@ type Application struct {
 	// A response never carries a sentence, only a key the desktop resolves in
 	// the language the person reading it chose.
 	Language string `json:"language"`
+
+	// The school this deployment belongs to, such as "szkola.edu.pl". It is
+	// written into every .gpf this server exports and compared against the one
+	// in a .gpf it is asked to open, so a file from another school is refused
+	// with "this belongs to X and you are signed into Y" rather than a blank
+	// failure.
+	//
+	// A message aid, never a security boundary: the header is plaintext and
+	// unsigned, so a hostile file can claim any realm. What it cannot lie about
+	// is which key opens it. Empty means no check.
+	Realm string `json:"realm"`
 }
 
 type Server struct {
@@ -86,6 +105,75 @@ type Documents struct {
 	Dir string `json:"dir"`
 }
 
+// Ory Kratos. An empty public_url means this daemon has no identity provider:
+// discovery and health still answer and every plan route stays unregistered,
+// because mounting a guarded route without a session check mounts it open.
+type Identity struct {
+	// Kratos's own public address, never this server's /kratos/ prefix. Routing
+	// the session check back through our own proxy is a needless hop and a
+	// recursion risk if the proxy target is ever pointed at itself.
+	PublicURL string `json:"public_url"`
+
+	// Loopback only, always. Anything that reaches this port can read and
+	// modify every identity in the school.
+	AdminURL string `json:"admin_url"`
+
+	// Bounds every call to Kratos. A hung identity provider is an outage, and
+	// an outage has to be reported rather than waited out.
+	TimeoutSeconds int64 `json:"timeout_seconds"`
+
+	// Bounds the /kratos/* proxy, which sits outside the versioned group and
+	// so is never seen by the API's own limiter. An unlimited login route on a
+	// school LAN is a password guessing machine.
+	//
+	// type=int: gengotypes makes every CUE int an int64 and httpmw wants a
+	// plain int.
+	RateLimitPerMinute int `json:"rate_limit_per_minute"`
+
+	// Kratos's own configuration file, read only to show its password rules on
+	// Backend > Security: Kratos offers no way to read them while it runs.
+	// Empty shows them as not known. Values Kratos takes from its environment
+	// instead of this file are not seen.
+	KratosConfig string `json:"kratos_config"`
+
+	Bootstrap Bootstrap `json:"bootstrap"`
+}
+
+// The first admin. A fixed default password would be the worst thing this
+// product could ship, so one is generated and printed exactly once.
+type Bootstrap struct {
+	Enabled bool `json:"enabled"`
+
+	Username string `json:"username"`
+
+	// The identity schema requires an address; nothing is sent to it.
+	Email string `json:"email"`
+}
+
+// The school's own key for .gpf Identity mode, held here so a new laptop does
+// not destroy a year of timetables.
+type Escrow struct {
+	// What encrypts the stored key at rest, through age's scrypt recipient.
+	//
+	// Empty disables escrow entirely: the key is never written rather than
+	// written in the clear. A database dump is the threat this answers, and it
+	// is a real one, because a .sql backup travels on a USB stick while the
+	// configuration stays on the server. It does NOT protect against a
+	// compromised server, which holds both halves by definition.
+	//
+	// Losing this passphrase loses every file the school ever exported in
+	// Identity mode. It is not recoverable and nothing here can make it so.
+	Passphrase s99config.Secret `json:"passphrase"`
+}
+
+// The solving nodes this deployment may dispatch to.
+type Arrango struct {
+	// This deployment's own keypair. A node pins the certificate in here when
+	// it enrols this server, so replacing the directory means every node must
+	// pair again.
+	IdentityDir string `json:"identity_dir"`
+}
+
 type Logging struct {
 	Verbose bool `json:"verbose"`
 
@@ -113,14 +201,6 @@ type Logging struct {
 type Security struct {
 	// A plan endpoint carries a name and a school year, nothing more.
 	MaximumBodyBytes int64 `json:"maximum_body_bytes"`
-
-	// A real Optivum file is tens of kilobytes and a document about 25 KB
-	// compressed, so this is headroom rather than a limit anyone meets.
-	MaximumUploadBytes int64 `json:"maximum_upload_bytes"`
-
-	// type=int: gengotypes defaults every CUE int to int64, and
-	// apimount.Options.RateLimitPerMinute is a plain int.
-	RateLimitPerMinute int `json:"rate_limit_per_minute"`
 }
 
 type API struct {
@@ -129,4 +209,90 @@ type API struct {
 	MinClientVersion string `json:"min_client_version"`
 }
 
+// Development-only surfaces. Every switch here is off in a real school.
+type Dev struct {
+	// Registers POST /api/v1/plans/demo, which asks the first paired node for
+	// Arrango's synthetic production-sized school and stores it as a project,
+	// so the editor and the solver can be tried at full size.
+	DemoSchool bool `json:"demo_school"`
+}
+
 type Environment string
+
+// What an administrator changes while the server runs. It lives in its own
+// file beside config.yaml, which the server writes and never the operator,
+// so a change made in the desktop cannot collide with an edit of config.yaml.
+type Settings struct {
+	Lockout Lockout `json:"lockout"`
+
+	Server ServerSettings `json:"server"`
+
+	Projects Projects `json:"projects"`
+}
+
+// The sign-in lockout the /kratos proxy enforces. Kratos has none of its own.
+// A change applies at the next sign-in.
+//
+// type=int: gengotypes makes every CUE int an int64.
+type Lockout struct {
+	// Failed sign-ins with one sign-in name before that name is blocked. The
+	// name is counted whether or not an account has it.
+	AccountFailures int `json:"account_failures"`
+
+	// Failed sign-ins from one client address, with any names, before the
+	// address is blocked. Higher than the name's, because a school's machines
+	// may share one address.
+	AddressFailures int `json:"address_failures"`
+
+	// How long a block lasts, and how far back failures are counted.
+	BlockMinutes int `json:"block_minutes"`
+}
+
+// How the server meets its clients.
+type ServerSettings struct {
+	// The other addresses this same server answers on, published at
+	// /api/info so a client that connected locally learns the public one.
+	// Read on every request.
+	//
+	// Not derived, because this server cannot see itself from outside: what is
+	// reachable from the internet is a decision about the school's router, and
+	// only the person who made it knows the answer.
+	PublicAddresses []string `json:"public_addresses"`
+
+	// A real Optivum file is tens of kilobytes and a document about 25 KB
+	// compressed, so this is headroom rather than a limit anyone meets. Read
+	// once at start: the upload routes' cap is built into the router.
+	MaximumUploadBytes int64 `json:"maximum_upload_bytes"`
+
+	// Requests one client address may make to /api/v1 per minute; 0 is off.
+	// Read once at start: the limiter is built into the router.
+	//
+	// type=int: apimount.Options.RateLimitPerMinute is a plain int.
+	RateLimitPerMinute int `json:"rate_limit_per_minute"`
+}
+
+// What happens to a school's projects over time. Each is read when it is
+// used, so a change applies at once.
+type Projects struct {
+	// How long a deleted project, checkpoint or result stays in Trash before
+	// it is removed for good. The removal date shown in Trash is the deletion
+	// time plus this, so changing it moves every date, including those
+	// already in Trash.
+	//
+	// type=int: gengotypes makes every CUE int an int64.
+	TrashDays int `json:"trash_days"`
+
+	// How many older versions of a project's main file are kept in Backups/,
+	// checkpoints not counted. Each new version removes the oldest beyond this
+	// for good. A project can set its own.
+	BackupsKeep int `json:"backups_keep"`
+
+	// How many unpinned solve results a project keeps in its results folder.
+	// Each new result removes the oldest unpinned ones beyond this for good;
+	// pinned results and results in Trash are not counted. A project can set
+	// its own.
+	ResultsKeep int `json:"results_keep"`
+}
+
+// An absolute http or https URL with a host and no user, query or fragment.
+type PublicAddress string

@@ -12,6 +12,8 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/smegg99/s99config"
+
+	"github.com/smegg99/goptivum/backend/common/messages"
 )
 
 // DefaultPath is where the server looks when nothing says otherwise.
@@ -67,14 +69,29 @@ func Path() string {
 
 // validate catches what CUE cannot: a combination that compiles and still
 // cannot serve.
+//
+// Every refusal here is a message key rather than a sentence. A school's
+// administrator reads these when the server will not start, and they read them
+// in the language they chose.
 func validate(settings Config) error {
 	if settings.Storage.Database.Driver == "postgres" && !hasSecret(settings.Storage.Database.DSN) {
-		return fmt.Errorf("a postgres database needs storage.database.dsn or GOPTIVUM_DATABASE_URL")
+		return messages.NewFault(messages.KeyConfigPostgresNeedsDSN, nil)
+	}
+	// An identity provider without an admin URL cannot create the first
+	// administrator, and a deployment with no administrator has no way in.
+	if settings.Identity.PublicURL != "" && settings.Identity.AdminURL == "" {
+		return messages.NewFault(messages.KeyConfigIdentityNeedsAdminURL, nil)
+	}
+	// The public URL is proxied at /kratos/*. Pointing it at the admin API
+	// would publish every identity in the school to anyone who reaches the
+	// port, and the mistake is one digit.
+	if settings.Identity.PublicURL != "" &&
+		settings.Identity.PublicURL == settings.Identity.AdminURL {
+		return messages.NewFault(messages.KeyConfigIdentityURLsCollide, nil)
 	}
 	if settings.Storage.Documents.Endpoint != "" {
 		if !hasSecret(settings.Storage.Documents.AccessKey) || !hasSecret(settings.Storage.Documents.SecretKey) {
-			return fmt.Errorf("a document bucket needs storage.documents.access_key and secret_key, " +
-				"or GOPTIVUM_STORAGE_ACCESS_KEY and GOPTIVUM_STORAGE_SECRET_KEY")
+			return messages.NewFault(messages.KeyConfigDocumentsNeedKeys, nil)
 		}
 	}
 	return nil

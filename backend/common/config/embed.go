@@ -14,3 +14,8 @@ import _ "embed"
 //
 //go:embed config.cue
 var definition []byte
+
+// settingsDefinition is the schema of the settings file beside config.yaml.
+//
+//go:embed settings.cue
+var settingsDefinition []byte
