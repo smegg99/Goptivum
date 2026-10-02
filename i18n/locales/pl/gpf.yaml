@@ -1,0 +1,36 @@
+notAFile:
+  description: 'Refusal: the bytes are not a Goptivum Project File at all.'
+  value: to nie jest plik projektu Goptivum
+malformed:
+  description: >-
+    Refusal: the file is a .gpf and cannot be read. A length past the end, a
+    missing locator, a chunk claiming more than is there.
+  value: ten plik jest uszkodzony i nie można go odczytać
+unsupportedVersion:
+  description: >-
+    Refusal: the file was written by a newer version of Goptivum than this one
+    knows how to read.
+  value: >-
+    ten plik zapisano nowszą wersją Goptivum (format {{.Found}}, a ta wersja
+    czyta do {{.Known}})
+unsupportedAlgorithm:
+  description: >-
+    Refusal: the file requires something this reader does not understand, so
+    opening it would mean guessing at its contents.
+  value: ten plik wymaga czegoś, czego ta wersja Goptivum nie rozumie
+wrongRealm:
+  description: >-
+    Refusal: the file belongs to a different school. The whole reason the header
+    is plaintext is so this can be said instead of failing blank.
+  value: ten plik należy do {{.File}}, a Ty jesteś zalogowany w {{.Local}}
+passwordRequired:
+  description: 'Refusal: the file is protected by a password and none was given.'
+  value: ten plik wymaga hasła
+wrongPassword:
+  description: 'Refusal: the password given does not open the file.'
+  value: to hasło nie otwiera tego pliku
+identityRequired:
+  description: >-
+    Refusal: the file is encrypted to a key this server does not hold, usually
+    because it belongs to another school.
+  value: ten plik wymaga klucza, którego ten serwer nie posiada

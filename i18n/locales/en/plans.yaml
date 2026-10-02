@@ -1,0 +1,23 @@
+versionConflict:
+  description: >-
+    Refusal: an upload named a parent version that is no longer the newest, so
+    somebody else saved first. The refusal carries the current version so the
+    app can offer to open theirs.
+  value: >-
+    somebody saved first: this plan is at version {{.Current}} and your change
+    was made against version {{.Parent}}
+notYours:
+  description: >-
+    Refusal, HTTP 403: an account changed a plan it does not own (renamed,
+    deleted or restored it, uploaded a version, changed a checkpoint or a
+    result, started or cancelled a solve). Everyone reads every plan; only
+    its owner changes it, and anyone else may fork it.
+  value: only this plan's owner can change it
+forkName:
+  description: >-
+    The name the server gives a fork or a duplicate when the request names
+    none, in the server's own language. name is the name of the plan it was
+    copied from.
+  value: "{name} (fork)"
+  placeholders:
+    name: {type: string}

@@ -1,0 +1,6 @@
+noTimetable:
+  description: >-
+    Refusal, HTTP 422: an Optivum HTML export was asked of a version whose
+    document places no lesson. The HTML pages are the timetable, so there is
+    nothing to write; a .gpf of the same version still exports.
+  value: this version has no timetable to export

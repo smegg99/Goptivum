@@ -1,0 +1,6 @@
+unsupportedFormat:
+  description: >-
+    Refusal, HTTP 415: an import or its preview was sent a file no importer
+    recognises. Detection reads the content, never the extension, so this is
+    a file that is not a .pla, a .gpf or an Optivum HTML export.
+  value: this is not a timetable file this server can read
