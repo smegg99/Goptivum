@@ -1,0 +1,60 @@
+incompleteBaseline:
+  description: >-
+    Refusal: an improve solve was asked for over a file (a version or a
+    result) whose timetable does not place every lesson, or that has none.
+    Unplaced is how many lessons it does not place, Lessons how many the school
+    has. The solver abandons the whole baseline at the first lesson with no
+    placement and says nothing, so the never-worse guarantee would be gone.
+  value: >-
+    {{.Unplaced}} of {{.Lessons}} lessons have no place in the current
+    timetable, so there is nothing to improve on; place them first, or solve
+    from scratch
+infeasible:
+  description: >-
+    Job reason: the node proved the school cannot be scheduled, at its input
+    checks before the search or in the search itself. The job's explanation
+    and detail say more in the node's words.
+  value: this school cannot be scheduled as it stands
+modelInvalid:
+  description: >-
+    Refusal: the node checked the school before solving and found problems that
+    make a valid timetable impossible. Refused in a second rather than after a
+    full search budget.
+  value: >-
+    this plan cannot be solved as it stands: the node found {{.Count}} problem(s)
+    that make a valid timetable impossible
+noScheduleInTime:
+  description: >-
+    Job reason: the solve's time limit ran out before any timetable was found.
+  value: no timetable was found within the time limit
+nodeError:
+  description: >-
+    Job reason: the node failed, stopped answering, broke the stream or ran
+    past the solve's deadline before the solve finished. The best timetable
+    received before that, if one arrived, is kept as the job's result.
+  value: the solver node failed or stopped answering
+nodeUnavailable:
+  description: >-
+    Refusal: no node can take the request. For a solve, no node is paired and
+    unrevoked (or the one named is revoked), every candidate already carries as
+    many solves as this server allows, or none that had room answered; the
+    detail cause says which. For the demo school and for a check, no node is
+    paired and unrevoked, or the first one did not answer.
+  value: no solver node can take this right now
+resultNotStored:
+  description: >-
+    Job reason: a timetable arrived and this server could not store it as a
+    result.
+  value: a timetable was found, but the server could not store it
+serverRestarted:
+  description: >-
+    Job reason: this server stopped while the solve was pending or running, so
+    the solve was lost. Set on every such job when the server starts again.
+  value: the server stopped while this solve was running
+
+limitTooLong:
+  description: A request above every reachable node time ceiling.
+  value: "the requested solve time exceeds the node limit of {{.max_seconds}} seconds"
+preflightFailed:
+  description: Inputs rejected by preflight before search.
+  value: "the solver refused the inputs before searching"

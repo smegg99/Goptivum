@@ -1,0 +1,12 @@
+superseded:
+  description: >-
+    Refusal, HTTP 409: a check of a newer version of the same plan replaced
+    this one. The app asks again for the version it now shows, if it still
+    needs one.
+  value: sprawdzenie nowszej wersji zastąpiło to sprawdzenie
+waitingForSolver:
+  description: >-
+    Refusal, HTTP 504: the node did not answer a check within 20 seconds,
+    usually because it waits for free memory before it starts one. Shown where
+    the check's counts would be.
+  value: sprawdzenie czeka na solver

@@ -1,0 +1,59 @@
+incompleteBaseline:
+  description: >-
+    Refusal: an improve solve was asked for over a file (a version or a
+    result) whose timetable does not place every lesson, or that has none.
+    Unplaced is how many lessons it does not place, Lessons how many the school
+    has. The solver abandons the whole baseline at the first lesson with no
+    placement and says nothing, so the never-worse guarantee would be gone.
+  value: >-
+    {{.Unplaced}} z {{.Lessons}} lekcji nie ma miejsca w obecnym planie, więc
+    nie ma czego poprawiać; najpierw je rozmieść albo ułóż plan od nowa
+infeasible:
+  description: >-
+    Job reason: the node proved the school cannot be scheduled, at its input
+    checks before the search or in the search itself. The job's explanation
+    and detail say more in the node's words.
+  value: dla tej szkoły nie da się ułożyć planu w obecnej postaci
+modelInvalid:
+  description: >-
+    Refusal: the node checked the school before solving and found problems that
+    make a valid timetable impossible. Refused in a second rather than after a
+    full search budget.
+  value: >-
+    tego planu nie da się ułożyć w obecnej postaci: węzeł znalazł {{.Count}}
+    problem(ów), które uniemożliwiają poprawny plan
+noScheduleInTime:
+  description: >-
+    Job reason: the solve's time limit ran out before any timetable was found.
+  value: w wyznaczonym czasie nie znaleziono żadnego planu
+nodeError:
+  description: >-
+    Job reason: the node failed, stopped answering, broke the stream or ran
+    past the solve's deadline before the solve finished. The best timetable
+    received before that, if one arrived, is kept as the job's result.
+  value: węzeł obliczeniowy zawiódł albo przestał odpowiadać
+nodeUnavailable:
+  description: >-
+    Refusal: no node can take the request. For a solve, no node is paired and
+    unrevoked (or the one named is revoked), every candidate already carries as
+    many solves as this server allows, or none that had room answered; the
+    detail cause says which. For the demo school and for a check, no node is
+    paired and unrevoked, or the first one did not answer.
+  value: żaden węzeł obliczeniowy nie może teraz tego przyjąć
+resultNotStored:
+  description: >-
+    Job reason: a timetable arrived and this server could not store it as a
+    result.
+  value: plan został znaleziony, ale serwer nie zdołał go zapisać
+serverRestarted:
+  description: >-
+    Job reason: this server stopped while the solve was pending or running, so
+    the solve was lost. Set on every such job when the server starts again.
+  value: serwer zatrzymał się w trakcie układania tego planu
+
+limitTooLong:
+  description: A request above every reachable node time ceiling.
+  value: "zadany czas układania przekracza limit węzła: {{.max_seconds}} s"
+preflightFailed:
+  description: Inputs rejected by preflight before search.
+  value: "solver odrzucił dane przed rozpoczęciem wyszukiwania"

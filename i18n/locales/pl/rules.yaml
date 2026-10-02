@@ -1,0 +1,12 @@
+waitingForSolver:
+  description: >-
+    Refusal, HTTP 504: the node did not list the solver's rules within 20
+    seconds, usually because it waits for free memory before it starts. Shown
+    where the Rules station's list would be.
+  value: lista reguł czeka na solver
+profileNotYours:
+  description: >-
+    Refusal, HTTP 403: an account that neither created a school rule profile
+    nor is an administrator tried to change or delete it. Shown on the
+    profile's card.
+  value: ten profil może zmienić tylko konto, które go utworzyło, albo administrator

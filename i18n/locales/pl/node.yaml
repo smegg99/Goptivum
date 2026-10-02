@@ -1,0 +1,72 @@
+outdated:
+  description: >-
+    Refusal, HTTP 409: the node answers but its build cannot do what was asked,
+    and it needs an update. {{.Capability}} is the node's own name for the
+    missing ability, such as check, or peer_policy when a node's limits were
+    to be changed and its build does not report its ceilings.
+  value: węzeł obliczeniowy wymaga aktualizacji, zanim to zrobi ({{.Capability}})
+notALink:
+  description: >-
+    Refusal, HTTP 422, when pairing a node: the pasted text is not an
+    arrango:// pairing link. Nothing was sent anywhere.
+  value: to nie jest link parowania; link parowania zaczyna się od arrango://
+unreachable:
+  description: >-
+    Refusal or node state: nothing answered at the node's address, or the node
+    did not answer within 3 seconds. Used when pairing (HTTP 422), when
+    changing a node's limits (HTTP 409, the node's ceilings could not be read)
+    and as the problem of a node that is not reachable in its status.
+  value: węzeł obliczeniowy nie odpowiada
+fingerprintMismatch:
+  description: >-
+    Refusal or node state: the machine at the node's address presented another
+    certificate than the one expected, so nothing was sent. When pairing (HTTP
+    422) the link names another node; later (HTTP 409, or a node's status
+    problem) the node's identity was replaced or another machine took its
+    address, and the node has to be paired again.
+  value: >-
+    maszyna pod tym adresem nie jest oczekiwanym węzłem obliczeniowym; sparuj
+    węzeł ponownie nowym linkiem
+linkSpent:
+  description: >-
+    Refusal, HTTP 422, when pairing a node: the node refused the link's
+    one-time token because it expired, was already used or was never issued.
+    The node answers these three alike on purpose, so they cannot be told
+    apart.
+  value: >-
+    węzeł odrzucił ten link parowania: wygasł, został już użyty albo nie został
+    wydany; poproś operatora węzła o nowy
+clientTooOld:
+  description: >-
+    Refusal or node state: the node needs a newer version of this server
+    before it answers it. Used when pairing (HTTP 422), when changing a node's
+    limits (HTTP 409) and as the problem in a node's status.
+  value: węzeł obliczeniowy wymaga nowszej wersji tego serwera
+pairingFailed:
+  description: >-
+    Refusal, HTTP 422, when pairing a node: the node answered with an error
+    that none of the other pairing messages describes.
+  value: parowanie z węzłem obliczeniowym nie powiodło się
+notPaired:
+  description: >-
+    Refusal or node state: the node no longer accepts this server, usually
+    because its operator revoked this server on the node. Used when changing a
+    node's limits (HTTP 409) and as the problem in a node's status.
+  value: węzeł obliczeniowy nie przyjmuje już tego serwera; sparuj go ponownie
+revoked:
+  description: >-
+    Refusal, HTTP 409: a revoked node's limits were to be changed. Pair it
+    again first.
+  value: ten węzeł obliczeniowy jest odwołany
+solvesAboveCeiling:
+  description: >-
+    Refusal, HTTP 422: the solves at once asked for a node are more than the
+    node allows this server. {{.Ceiling}} is the node's own limit, set by its
+    operator when this server was paired.
+  value: "limit tego węzła dla tego serwera, obliczenia naraz: {{.Ceiling}}"
+workersAboveCeiling:
+  description: >-
+    Refusal, HTTP 422: the workers per solve asked for a node are more than
+    the node allows this server. {{.Ceiling}} is the node's own worker ceiling
+    for this server, or its core count when it sets none.
+  value: "limit tego węzła dla tego serwera, wątki na jedno obliczenie: {{.Ceiling}}"
