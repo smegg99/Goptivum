@@ -1,0 +1,7 @@
+signInBlocked:
+  description: >-
+    Refusal, HTTP 429 from the server's /kratos proxy: too many failed sign-ins
+    with this sign-in name or from this address, so sign-in is blocked for a
+    while. {{.Seconds}} is the whole seconds left. The same answer is given for
+    a name no account has.
+  value: "zbyt wiele nieudanych logowań; spróbuj ponownie za {{.Seconds}} s"

@@ -1,0 +1,46 @@
+short:
+  description: "Users command summary."
+  value: "Manage the school's accounts in Kratos"
+setRoleShort:
+  description: "users set-role command summary."
+  value: "Set an account's role, found by username or email"
+setRoleLong:
+  description: "users set-role command description; the role takes effect at the account's next request."
+  value: "Set an account's role to admin or planner, found by its username or email. It works while the server runs and needs no restart: the new role applies at the account's next request."
+setRoleArgs:
+  description: "Usage error when users set-role is not given exactly a sign-in name and a role."
+  value: "users set-role takes a username or email and a role, such as: users set-role anna@example.invalid admin"
+unknownRole:
+  description: "Usage error; role is the value given, which is not admin or planner."
+  value: "Unknown role {role}; choose admin or planner"
+  placeholders:
+    role: {type: string}
+noAccount:
+  description: "Error; identifier is the username or email no account signs in with."
+  value: "No account signs in with {identifier}"
+  placeholders:
+    identifier: {type: string}
+noIdentity:
+  description: "Error when the configuration names no Kratos admin address, so accounts cannot be reached."
+  value: "identity.admin_url is not set, so there are no accounts to change"
+roleSet:
+  description: "Heading after an account's role was set."
+  value: "role set"
+username:
+  description: "Label for an account's username."
+  value: "username"
+email:
+  description: "Label for an account's email."
+  value: "email"
+role:
+  description: "Label for an account's role."
+  value: "role"
+state:
+  description: "Label for whether an account may sign in."
+  value: "state"
+enabled:
+  description: "An account that may sign in."
+  value: "enabled"
+disabled:
+  description: "An account that may not sign in until it is enabled again."
+  value: "disabled"

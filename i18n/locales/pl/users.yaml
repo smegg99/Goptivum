@@ -1,0 +1,13 @@
+lastAdmin:
+  description: >-
+    Refusal, HTTP 409: a change to an account (a role, or disabling it) would
+    leave the school without an account that is both an administrator and
+    enabled. Nothing was changed. Shown on the Users page and by the command
+    line's users set-role.
+  value: szkoła nie miałaby już żadnego włączonego konta administratora
+alreadyExists:
+  description: >-
+    Refusal, HTTP 409: another account already signs in with the username or
+    the email a new account was given. Both are sign-in names, compared
+    ignoring case. The detail Field, when present, is username or email.
+  value: inne konto już loguje się tą nazwą użytkownika lub tym adresem e-mail

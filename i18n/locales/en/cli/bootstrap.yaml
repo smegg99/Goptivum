@@ -1,0 +1,16 @@
+title:
+  description: Heading over the first-boot administrator panel.
+  value: first administrator created
+username:
+  description: Label for the generated account's username.
+  value: username
+password:
+  description: Label for the generated password.
+  value: password
+warning:
+  description: >-
+    Says the password cannot be recovered, because it is held nowhere after
+    this line is printed.
+  value: >-
+    This password is shown once and cannot be retrieved. Change it at the first
+    sign-in.

@@ -1,0 +1,46 @@
+short:
+  description: "Users command summary."
+  value: "Zarządzaj kontami szkoły w Kratosie"
+setRoleShort:
+  description: "users set-role command summary."
+  value: "Ustaw rolę konta, wskazanego nazwą użytkownika lub adresem e-mail"
+setRoleLong:
+  description: "users set-role command description; the role takes effect at the account's next request."
+  value: "Ustaw rolę konta na admin lub planner, wskazując je nazwą użytkownika lub adresem e-mail. Działa, gdy serwer pracuje, i nie wymaga restartu: nowa rola obowiązuje od następnego żądania tego konta."
+setRoleArgs:
+  description: "Usage error when users set-role is not given exactly a sign-in name and a role."
+  value: "users set-role przyjmuje nazwę użytkownika lub adres e-mail oraz rolę, na przykład: users set-role anna@example.invalid admin"
+unknownRole:
+  description: "Usage error; role is the value given, which is not admin or planner."
+  value: "Nieznana rola {role}; wybierz admin lub planner"
+  placeholders:
+    role: {type: string}
+noAccount:
+  description: "Error; identifier is the username or email no account signs in with."
+  value: "Żadne konto nie loguje się jako {identifier}"
+  placeholders:
+    identifier: {type: string}
+noIdentity:
+  description: "Error when the configuration names no Kratos admin address, so accounts cannot be reached."
+  value: "identity.admin_url nie jest ustawiony, więc nie ma kont do zmiany"
+roleSet:
+  description: "Heading after an account's role was set."
+  value: "rola ustawiona"
+username:
+  description: "Label for an account's username."
+  value: "nazwa użytkownika"
+email:
+  description: "Label for an account's email."
+  value: "e-mail"
+role:
+  description: "Label for an account's role."
+  value: "rola"
+state:
+  description: "Label for whether an account may sign in."
+  value: "stan"
+enabled:
+  description: "An account that may sign in."
+  value: "włączone"
+disabled:
+  description: "An account that may not sign in until it is enabled again."
+  value: "wyłączone"

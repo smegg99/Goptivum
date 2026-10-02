@@ -1,0 +1,7 @@
+libraryConflict:
+  description: >-
+    Refusal, HTTP 409: a save of the account's Library arrangement named a
+    version that is no longer the stored one, because another window or
+    device of the same account saved first. The refusal carries the stored
+    arrangement; the desktop applies its change to it and saves again.
+  value: układ Biblioteki zmieniono w innym oknie
