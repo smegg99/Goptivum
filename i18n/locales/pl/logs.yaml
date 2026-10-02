@@ -21,3 +21,161 @@ noIdentityProvider:
 runFailed:
   description: 'Log event: the process is exiting because the work failed.'
   value: serwer zakończył pracę z błędem
+identityReady:
+  description: 'Log event: Kratos answered, so sessions can be resolved.'
+  value: dostawca tożsamości gotowy
+bootstrapAdminCreated:
+  description: >-
+    Log event: the deployment had no administrator, so one was created. The
+    generated password is on this line and nowhere else, ever again.
+  value: utworzono pierwsze konto administratora
+bootstrapAdminExists:
+  description: >-
+    Log event: an administrator already exists, so first-boot did nothing.
+  value: konto administratora już istnieje
+bootstrapFailed:
+  description: >-
+    Log event: the first administrator could not be created, usually because
+    Kratos is not up yet. The server keeps serving and tries again next boot.
+  value: nie udało się utworzyć pierwszego konta administratora
+orphanedJobsClosed:
+  description: >-
+    Log event: jobs left open by a process that died were failed at boot, so
+    they stop counting against their node's concurrency.
+  value: zamknięto zadania pozostawione przez poprzedni proces
+escrowKeyReady:
+  description: >-
+    Log event: the school's own key for encrypted project files is available.
+    Its public half is on this line; the private half never leaves the database
+    unsealed.
+  value: klucz szkoły gotowy
+escrowDisabled:
+  description: >-
+    Log event: no escrow passphrase is configured, so no school key is held and
+    encrypted project files need the caller to bring their own recipients.
+  value: brak hasła depozytu kluczy, więc klucz szkoły nie jest przechowywany
+trashPurged:
+  description: >-
+    Log event: plans, checkpoints and solve results that stayed in Trash for
+    projects.trash_days were removed for good. A plan goes with its versions,
+    results and jobs; a checkpoint's version becomes a plain backup under the
+    backups cap. The counts are on this line.
+  value: trwale usunięto z Kosza to, czego czas minął
+trashPurgeFailed:
+  description: >-
+    Log event: the hourly Trash purge could not run, usually because the
+    database is unreachable. It tries again in an hour.
+  value: nie udało się usunąć starych elementów z Kosza
+objectsSwept:
+  description: >-
+    Log event: the hourly sweep deleted stored documents whose last version was
+    removed over an hour ago. The count is on this line.
+  value: usunięto zapisane dokumenty, których nie wskazuje już żadna wersja
+objectSweepFailed:
+  description: >-
+    Log event: the hourly sweep could not delete some stored documents, usually
+    because the database or the document store is unreachable. They stay listed
+    and it tries again in an hour.
+  value: nie udało się usunąć zapisanych dokumentów, których nie wskazuje żadna wersja
+demoSchoolEnabled:
+  description: >-
+    Log event: dev.demo_school is on, so the development-only route that stores
+    Arrango's demo school as a new plan is registered.
+  value: trasa szkoły demonstracyjnej jest włączona; to ustawienie deweloperskie
+demoSchoolFailed:
+  description: >-
+    Log event: a request for the demo school found no node that could give it:
+    none paired, all revoked, or the first one did not answer. The reason is on
+    this line.
+  value: żaden węzeł nie przekazał szkoły demonstracyjnej
+checkDone:
+  description: >-
+    Log event: the node checked one plan version, or the answer came from the
+    cache. The plan, the version, the counts and the time taken are on this
+    line.
+  value: sprawdzenie zakończone
+checkFailed:
+  description: >-
+    Log event: a plan version could not be checked: no node, a node that did
+    not answer or needs an update, or a document that could not be read. The
+    reason is on this line. A check replaced by a newer one is not logged here.
+  value: sprawdzenie nie powiodło się
+checkCountsDrift:
+  description: >-
+    Log event: the errors, warnings and notes this server counted over a
+    timetable differ from the node's own verdict, so its sorting of soft issue
+    categories no longer matches the node's. Both sets of counts are on this
+    line.
+  value: liczby sprawdzenia różnią się od werdyktu węzła
+ruleCatalogueFailed:
+  description: >-
+    Log event: the rule list could not be read from a node: none paired, or
+    the first one did not answer in time, had no room, or needs an update. The
+    reason is on this line.
+  value: żaden węzeł nie podał listy reguł solvera
+nodePairingRefused:
+  description: >-
+    Log event: pairing with a node failed. The answer carries only the key, so
+    the reason as the node or the network gave it is on this line.
+  value: parowanie z węzłem nie powiodło się
+signInBlocked:
+  description: >-
+    Log event: failed sign-ins reached a lockout limit, so the /kratos proxy
+    now refuses sign-ins for a while. The client address, which limit was
+    reached (name or address) and the block's length are on this line; the
+    sign-in name is not, because people type passwords into it by mistake.
+  value: logowanie zablokowane po powtarzających się nieudanych próbach
+lockoutChanged:
+  description: >-
+    Log event: an administrator changed the sign-in lockout limits. The new
+    limits and who changed them are on this line.
+  value: zmieniono limity blokady logowania
+userSessionsEnded:
+  description: >-
+    Log event: an account was signed out everywhere, because it was disabled,
+    its password was reset or an administrator signed it out. The account, the
+    reason and who did it are on this line.
+  value: konto zostało wylogowane ze wszystkich sesji
+passwordRulesUnreadable:
+  description: >-
+    Log event: the Kratos configuration file named by identity.kratos_config
+    could not be read, so Backend > Security shows the password rules as not
+    known. The path and the reason are on this line.
+  value: nie udało się odczytać zasad haseł z konfiguracji Kratosa
+serverSettingsChanged:
+  description: >-
+    Log event: an administrator changed the server settings on Backend >
+    Server. The settings that changed and who changed them are on this
+    line.
+  value: zmieniono ustawienia serwera
+trashEmptied:
+  description: >-
+    Log event: an administrator emptied every owner's Trash from Backend >
+    Storage. How many plans, checkpoints and results went and who did it
+    are on this line.
+  value: opróżniono Kosz
+backupsTrimmed:
+  description: >-
+    Log event: an administrator applied every project's backups cap from
+    Backend > Storage. How many versions went and who did it are on this
+    line.
+  value: usunięto starsze wersje ponad limit kopii
+ownersUnread:
+  description: >-
+    Log event: the plan listings or Backend > Storage could not read the
+    accounts from Kratos, so the projects are answered without their
+    owners' names. The reason is on this line.
+  value: nie udało się odczytać nazw właścicieli projektów
+auditFailed:
+  description: >-
+    Log event: a change succeeded but its audit entry could not be
+    written, so the audit trail misses it. The action and the reason are
+    on this line.
+  value: zmiany nie zapisano w dzienniku zmian
+exportFailed:
+  description: >-
+    Log event: a file asked for export could not be built or kept, usually
+    because the document store, the database or the school key was out of
+    reach. The plan, the version or result, the format and the reason are on
+    this line; the person asking was told to try again.
+  value: nie udało się przygotować eksportu

@@ -21,3 +21,161 @@ noIdentityProvider:
 runFailed:
   description: 'Log event: the process is exiting because the work failed.'
   value: server exited with an error
+identityReady:
+  description: 'Log event: Kratos answered, so sessions can be resolved.'
+  value: identity provider ready
+bootstrapAdminCreated:
+  description: >-
+    Log event: the deployment had no administrator, so one was created. The
+    generated password is on this line and nowhere else, ever again.
+  value: first administrator created
+bootstrapAdminExists:
+  description: >-
+    Log event: an administrator already exists, so first-boot did nothing.
+  value: administrator already exists
+bootstrapFailed:
+  description: >-
+    Log event: the first administrator could not be created, usually because
+    Kratos is not up yet. The server keeps serving and tries again next boot.
+  value: could not create the first administrator
+orphanedJobsClosed:
+  description: >-
+    Log event: jobs left open by a process that died were failed at boot, so
+    they stop counting against their node's concurrency.
+  value: closed solves left open by a previous run
+escrowKeyReady:
+  description: >-
+    Log event: the school's own key for encrypted project files is available.
+    Its public half is on this line; the private half never leaves the database
+    unsealed.
+  value: school key ready
+escrowDisabled:
+  description: >-
+    Log event: no escrow passphrase is configured, so no school key is held and
+    encrypted project files need the caller to bring their own recipients.
+  value: no escrow passphrase configured, so no school key is held
+trashPurged:
+  description: >-
+    Log event: plans, checkpoints and solve results that stayed in Trash for
+    projects.trash_days were removed for good. A plan goes with its versions,
+    results and jobs; a checkpoint's version becomes a plain backup under the
+    backups cap. The counts are on this line.
+  value: removed what outlived its time in Trash
+trashPurgeFailed:
+  description: >-
+    Log event: the hourly Trash purge could not run, usually because the
+    database is unreachable. It tries again in an hour.
+  value: could not remove old items from Trash
+objectsSwept:
+  description: >-
+    Log event: the hourly sweep deleted stored documents whose last version was
+    removed over an hour ago. The count is on this line.
+  value: deleted stored documents that no version names any more
+objectSweepFailed:
+  description: >-
+    Log event: the hourly sweep could not delete some stored documents, usually
+    because the database or the document store is unreachable. They stay listed
+    and it tries again in an hour.
+  value: could not delete stored documents that no version names
+demoSchoolEnabled:
+  description: >-
+    Log event: dev.demo_school is on, so the development-only route that stores
+    Arrango's demo school as a new plan is registered.
+  value: the demo school route is on; this is a development setting
+demoSchoolFailed:
+  description: >-
+    Log event: a request for the demo school found no node that could give it:
+    none paired, all revoked, or the first one did not answer. The reason is on
+    this line.
+  value: no node gave the demo school
+checkDone:
+  description: >-
+    Log event: the node checked one plan version, or the answer came from the
+    cache. The plan, the version, the counts and the time taken are on this
+    line.
+  value: a check finished
+checkFailed:
+  description: >-
+    Log event: a plan version could not be checked: no node, a node that did
+    not answer or needs an update, or a document that could not be read. The
+    reason is on this line. A check replaced by a newer one is not logged here.
+  value: a check failed
+checkCountsDrift:
+  description: >-
+    Log event: the errors, warnings and notes this server counted over a
+    timetable differ from the node's own verdict, so its sorting of soft issue
+    categories no longer matches the node's. Both sets of counts are on this
+    line.
+  value: the check's counts differ from the node's verdict
+ruleCatalogueFailed:
+  description: >-
+    Log event: the rule list could not be read from a node: none paired, or
+    the first one did not answer in time, had no room, or needs an update. The
+    reason is on this line.
+  value: no node listed the solver's rules
+nodePairingRefused:
+  description: >-
+    Log event: pairing with a node failed. The answer carries only the key, so
+    the reason as the node or the network gave it is on this line.
+  value: pairing with a node failed
+signInBlocked:
+  description: >-
+    Log event: failed sign-ins reached a lockout limit, so the /kratos proxy
+    now refuses sign-ins for a while. The client address, which limit was
+    reached (name or address) and the block's length are on this line; the
+    sign-in name is not, because people type passwords into it by mistake.
+  value: sign-in blocked after repeated failures
+lockoutChanged:
+  description: >-
+    Log event: an administrator changed the sign-in lockout limits. The new
+    limits and who changed them are on this line.
+  value: sign-in lockout limits changed
+userSessionsEnded:
+  description: >-
+    Log event: an account was signed out everywhere, because it was disabled,
+    its password was reset or an administrator signed it out. The account, the
+    reason and who did it are on this line.
+  value: an account was signed out everywhere
+passwordRulesUnreadable:
+  description: >-
+    Log event: the Kratos configuration file named by identity.kratos_config
+    could not be read, so Backend > Security shows the password rules as not
+    known. The path and the reason are on this line.
+  value: the password rules could not be read from the Kratos configuration
+serverSettingsChanged:
+  description: >-
+    Log event: an administrator changed the server settings on Backend >
+    Server. The settings that changed and who changed them are on this
+    line.
+  value: server settings changed
+trashEmptied:
+  description: >-
+    Log event: an administrator emptied every owner's Trash from Backend >
+    Storage. How many plans, checkpoints and results went and who did it
+    are on this line.
+  value: Trash emptied
+backupsTrimmed:
+  description: >-
+    Log event: an administrator applied every project's backups cap from
+    Backend > Storage. How many versions went and who did it are on this
+    line.
+  value: older versions beyond the backups cap removed
+ownersUnread:
+  description: >-
+    Log event: the plan listings or Backend > Storage could not read the
+    accounts from Kratos, so the projects are answered without their
+    owners' names. The reason is on this line.
+  value: the owners' names could not be read
+auditFailed:
+  description: >-
+    Log event: a change succeeded but its audit entry could not be
+    written, so the audit trail misses it. The action and the reason are
+    on this line.
+  value: a change was not written to the audit trail
+exportFailed:
+  description: >-
+    Log event: a file asked for export could not be built or kept, usually
+    because the document store, the database or the school key was out of
+    reach. The plan, the version or result, the format and the reason are on
+    this line; the person asking was told to try again.
+  value: an export could not be built
