@@ -1,0 +1,25 @@
+postgresNeedsDSN:
+  description: >-
+    Configuration refused: the database driver is postgres and no connection
+    string was given, so the server has nowhere to connect.
+  value: a postgres database needs storage.database.dsn or GOPTIVUM_DATABASE_URL
+identityNeedsAdminURL:
+  description: >-
+    Configuration refused: an identity provider is configured without its admin
+    address, so the first administrator can never be created and nobody can
+    sign in.
+  value: identity.public_url is set, so identity.admin_url is required
+identityURLsCollide:
+  description: >-
+    Configuration refused: the public and admin identity addresses are the
+    same. The public one is proxied, so this would publish the admin API.
+  value: >-
+    identity.public_url and identity.admin_url are the same address; the public
+    one is proxied and the admin one must never be reachable
+documentsNeedKeys:
+  description: >-
+    Configuration refused: a document bucket was named without the credentials
+    to reach it.
+  value: >-
+    a document bucket needs storage.documents.access_key and secret_key, or
+    GOPTIVUM_STORAGE_ACCESS_KEY and GOPTIVUM_STORAGE_SECRET_KEY

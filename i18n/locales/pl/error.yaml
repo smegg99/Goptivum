@@ -1,0 +1,39 @@
+badRequest:
+  description: >-
+    Refusal, HTTP 400: the request could not be read, such as a page or version
+    that is not a number, a JSON body that does not parse, or a multipart body
+    without a boundary. A client bug rather than a person's mistake.
+  value: nie udało się odczytać żądania
+internal:
+  description: >-
+    Refusal, HTTP 500: the server failed in a way it did not expect. The cause
+    is in the server's log, never in the answer.
+  value: serwer zawiódł w nieoczekiwany sposób; przyczyna jest w jego dzienniku
+validation:
+  description: >-
+    Refusal, HTTP 422: a value was read and is not usable. The details name each
+    field and a code, such as name: required (a blank plan name) or parent:
+    invalid.
+  value: części przesłanych danych nie można użyć
+notFound:
+  description: >-
+    Refusal, HTTP 404: no such thing, or not this account's to see. A plan in
+    Trash answers this everywhere except the Trash list and restore.
+  value: nie znaleziono
+unauthorized:
+  description: >-
+    Refusal, HTTP 401: no session, or a session the identity service does not
+    recognise. The desktop signs out.
+  value: zaloguj się ponownie
+unavailable:
+  description: >-
+    Refusal, HTTP 503: something the server depends on (the database, the
+    document store or the identity service) is not answering.
+  value: serwer nie może teraz tego zrobić; spróbuj ponownie za chwilę
+requestTooLarge:
+  description: >-
+    Refusal, HTTP 413: an upload or one of its parts is over the size this
+    server accepts (the maximum_upload_bytes server setting), or a JSON body is
+    over its own cap. When a handler refused the upload, the details carry
+    Limit, the size in bytes; /api/info names it as maximum_upload_bytes.
+  value: to jest większe, niż serwer przyjmuje
