@@ -3,33 +3,91 @@
 # Every failing status carries the same envelope, so a client has one error
 # path rather than one per endpoint.
 
+BadRequest:
+  description: >
+    The request could not be read: a query or path value that is not the type
+    the contract says (`page=abc`, a version that is not a number), a JSON body
+    that does not parse, or a multipart body without a boundary. Message
+    `error.badRequest`. Values that parse but are out of range are clamped or
+    answered with 422, never with this.
+  content:
+    application/json:
+      schema:
+        $ref: '../../shared/schemas/error.yaml#/Error'
+
 Unauthorized:
   description: No session, or a session Kratos does not recognise.
   content:
     application/json:
       schema:
-        $ref: '../schemas/error.yaml#/Error'
+        $ref: '../../shared/schemas/error.yaml#/Error'
+
+Forbidden:
+  description: >
+    The session is valid and the account may not do this. Three messages:
+    `auth.passwordChangeRequired`, an account still carrying the first-sign-in
+    flag, which every route refuses until the password is changed through the
+    Kratos settings flow at `/kratos/` (that flow is deliberately outside this
+    group, so it stays reachable while everything else is refused);
+    `plans.notYours`, a change to a plan the account does not own: renaming,
+    deleting or restoring it, uploading a version, a checkpoint or result
+    change, starting or cancelling a solve (everyone reads every plan, and may
+    fork it); and `rules.profileNotYours`, a school rule profile that only the
+    account that created it and administrators may change or delete. Branch
+    on `message`, not on the status.
+  content:
+    application/json:
+      schema:
+        $ref: '../../shared/schemas/error.yaml#/Error'
 
 NotFound:
-  description: No such plan, or none this owner may see.
+  description: >
+    No such thing. A plan in Trash is not found everywhere except its owner's
+    Trash listing and restore.
   content:
     application/json:
       schema:
-        $ref: '../schemas/error.yaml#/Error'
+        $ref: '../../shared/schemas/error.yaml#/Error'
 
 Validation:
-  description: The request is well-formed but the values are not usable.
+  description: >
+    The request is well-formed but the values are not usable.
+
+    `details` carries one of two shapes here, and the `message` says which. A
+    generic `error.validation` carries field-level codes keyed by field path
+    (`file: unreadable`). A specific key such as `gpf.wrongRealm` carries the
+    parameters that key needs to render (`File: szkola.edu.pl`,
+    `Local: liceum.pl`), because a refusal the server worded carefully is
+    useless if the client cannot fill in the blanks.
   content:
     application/json:
       schema:
-        $ref: '../schemas/error.yaml#/Error'
+        $ref: '../../shared/schemas/error.yaml#/Error'
 
 TooLarge:
-  description: The upload is over the size this server accepts.
+  description: >
+    The upload, or one part of it, is over the size this server accepts
+    (the `maximum_upload_bytes` server setting, as it was when the server
+    started). Message `error.requestTooLarge`. When a handler refused it,
+    `details.Limit` is that size in bytes, as a decimal string. A body whose
+    declared length is already over it is refused before any handler reads it
+    and carries no details; `/api/info` names the size as
+    `maximum_upload_bytes` in every case, so a client can check a file before
+    sending it.
   content:
     application/json:
       schema:
-        $ref: '../schemas/error.yaml#/Error'
+        $ref: '../../shared/schemas/error.yaml#/Error'
+
+UnsupportedFormat:
+  description: >
+    No importer recognises the file: it is not a .pla, a .gpf or an Optivum
+    HTML export, whatever its name says. Code `unsupported_format`, message
+    `import.unsupportedFormat`.
+  content:
+    application/json:
+      schema:
+        $ref: '../../shared/schemas/error.yaml#/Error'
 
 Unavailable:
   description: >
@@ -38,4 +96,4 @@ Unavailable:
   content:
     application/json:
       schema:
-        $ref: '../schemas/error.yaml#/Error'
+        $ref: '../../shared/schemas/error.yaml#/Error'

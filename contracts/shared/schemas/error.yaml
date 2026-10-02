@@ -1,8 +1,9 @@
-# contracts/backend/schemas/error.yaml
+# Copied from s99ab by scripts/shared-contracts.py. Do not edit.
+# Run `just shared-contracts` after bumping s99ab.
+# contracts/schemas/error.yaml
 #
 # The one error shape every s99ab app returns, for every failing status.
-# apierr marshals exactly this. Diverging breaks every generated client, so
-# this file is a copy of the shared fragment and not a variation on it.
+# apierr marshals exactly this. Diverging breaks every generated client.
 
 Error:
   type: object
@@ -19,9 +20,9 @@ Error:
     message:
       type: string
       description: >
-        i18n key the client resolves. Never English prose, because the server
-        does not know the caller's language.
-      examples: [error.notFound, plan.staleParent]
+        i18n key the client resolves. Never English prose - the server does not
+        know the caller's language.
+      examples: [error.notFound, session.nameTooShort]
     details:
       type: object
       description: >
@@ -31,3 +32,4 @@ Error:
         type: string
       examples:
         - name: too_short
+          email: invalid_format

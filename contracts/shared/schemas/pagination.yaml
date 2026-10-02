@@ -1,0 +1,31 @@
+# Copied from s99ab by scripts/shared-contracts.py. Do not edit.
+# Run `just shared-contracts` after bumping s99ab.
+# contracts/schemas/pagination.yaml
+#
+# OpenAPI has no generics, so a shared "Page<T>" is impossible. Apps compose:
+#
+#   ItemPage:
+#     allOf:
+#       - $ref: 'pagination.yaml#/PageBase'
+#       - type: object
+#         required: [items]
+#         properties:
+#           items:
+#             type: array
+#             items: { $ref: '#/components/schemas/Item' }
+#
+# That keeps the item type concrete, so the generated client stays typed.
+# Inlining `items: {}` here instead would erase it.
+
+PageBase:
+  type: object
+  required: [total]
+  properties:
+    total:
+      type: integer
+      minimum: 0
+      description: >
+        Rows matching the filter, ignoring pagination. Drives the pager.
+        An endpoint that cannot produce this must not use PageBase - it needs
+        a different shape, not a guess.
+      examples: [128]
