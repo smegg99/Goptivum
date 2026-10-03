@@ -3,15 +3,17 @@
 plans:
   get:
     operationId: listPlans
-    summary: List the signed-in owner's plans.
+    summary: List the school's plans.
     description: >
-      One owner's plans, newest first. Free-text search covers the plan name and
-      the school year.
+      Every live plan of every owner, newest first; `can_edit` says which
+      are the caller's to change. Plans in Trash are not listed. Free-text
+      search covers the plan name and the school year. The owners' names
+      come from Kratos; when it does not answer, the plans are listed
+      without them.
     tags: [plans]
     parameters:
       - $ref: '../parameters/pagination.yaml#/Page'
       - $ref: '../parameters/pagination.yaml#/Limit'
-      - $ref: '../parameters/pagination.yaml#/Sort'
       - $ref: '../parameters/pagination.yaml#/Query'
     responses:
       '200':
@@ -20,16 +22,82 @@ plans:
           application/json:
             schema:
               $ref: '../schemas/plan.yaml#/PlanPage'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
       '401':
         $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
       '503':
         $ref: '../responses/error.yaml#/Unavailable'
   post:
     operationId: createPlan
-    summary: Create an empty plan.
+    summary: Create a plan with its first version.
     description: >
-      A plan with no versions. The first document arrives as a version upload or
-      as an import.
+      The plan and its version 1 are stored in one transaction, so no plan
+      exists with nothing to open. Without a document, version 1 is an empty
+      school named after the plan: it has no week yet, so it cannot be checked
+      or solved until one is added. With a document, version 1 is that document
+      as it was sent. The body goes through the upload size limit, not the JSON
+      one.
+    tags: [plans]
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: [name]
+            properties:
+              name:
+                type: string
+                minLength: 1
+                maxLength: 200
+                description: >
+                  Trimmed. Blank is refused with `name: required`, longer than
+                  200 letters with `name: too_long`.
+              school_year:
+                type: string
+                maxLength: 32
+                description: >
+                  Trimmed. Absent means none. Longer than 32 letters is
+                  refused with `school_year: too_long`.
+              document:
+                type: string
+                format: binary
+                description: >
+                  An encoded document, the same bytes a download returns.
+                  Absent means an empty school.
+    responses:
+      '201':
+        description: The plan. Its version 1 exists.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/plan.yaml#/Plan'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '413':
+        $ref: '../responses/error.yaml#/TooLarge'
+      '422':
+        $ref: '../responses/error.yaml#/Validation'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+demo:
+  post:
+    operationId: createDemoPlan
+    summary: Create a plan from Arrango's demo school. Development only.
+    description: >
+      Registered only when the server's configuration sets `dev.demo_school`;
+      otherwise the route does not exist and answers 404. Asks the first
+      paired, unrevoked node for its synthetic production-sized school (about
+      1272 lessons, no timetable) and stores it as version 1 of a new plan with
+      the name and school year given here.
     tags: [plans]
     requestBody:
       required: true
@@ -39,13 +107,27 @@ plans:
             $ref: '../schemas/plan.yaml#/PlanCreate'
     responses:
       '201':
-        description: The plan.
+        description: The plan. Its version 1 is the demo school.
         content:
           application/json:
             schema:
               $ref: '../schemas/plan.yaml#/Plan'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
       '401':
         $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '409':
+        description: >
+          No node can give the school: none is paired, every one is revoked, or
+          the first one did not answer. Message `solve.nodeUnavailable`.
+        content:
+          application/json:
+            schema:
+              $ref: '../../shared/schemas/error.yaml#/Error'
       '422':
         $ref: '../responses/error.yaml#/Validation'
       '503':
@@ -57,6 +139,7 @@ plan:
   get:
     operationId: getPlan
     summary: Read one plan.
+    description: Any signed-in account reads any live plan. A plan in Trash is not found.
     tags: [plans]
     responses:
       '200':
@@ -67,23 +150,178 @@ plan:
               $ref: '../schemas/plan.yaml#/Plan'
       '401':
         $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
       '404':
         $ref: '../responses/error.yaml#/NotFound'
       '503':
         $ref: '../responses/error.yaml#/Unavailable'
+  patch:
+    operationId: updatePlan
+    summary: Rename a plan or change its school year.
+    description: >
+      A field that is absent is left as it is, so a body with neither changes
+      nothing. The name is trimmed and a blank one is refused with
+      `name: required`. A change moves `updated_at`. The owner's only: anyone
+      else gets 403 `plans.notYours`.
+    tags: [plans]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/plan.yaml#/PlanUpdate'
+    responses:
+      '200':
+        description: The plan as it now is.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/plan.yaml#/Plan'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '422':
+        $ref: '../responses/error.yaml#/Validation'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
   delete:
     operationId: deletePlan
-    summary: Delete a plan and its whole version timeline.
+    summary: Move a plan to Trash.
     description: >
-      The documents the versions referenced become unreferenced objects a sweep
-      can collect. An orphaned object is garbage; an orphaned row would be a bug.
+      The plan's running solves are cancelled first, and the answer waits until
+      their jobs are closed, which can take ten seconds plus storing the
+      timetable a cancelled solve had found. Then the plan moves to Trash with
+      its versions and jobs: every route answers 404 for it except the Trash
+      listing and restore. It is removed for good the server's `trash_days`
+      after the deletion. The owner's only: anyone else gets 403
+      `plans.notYours`.
     tags: [plans]
     responses:
       '204':
-        description: Deleted.
+        description: In Trash.
       '401':
         $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
       '404':
         $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+restore:
+  parameters:
+    - $ref: '../parameters/path.yaml#/PlanID'
+  post:
+    operationId: restorePlan
+    summary: Take a plan out of Trash.
+    description: >
+      The plan comes back with its versions and jobs. Restoring a plan that is
+      not in Trash changes nothing and answers the plan, so an undo that runs
+      twice lands where one did. A plan removed for good is not found. The
+      owner's only: anyone else gets 403 `plans.notYours`.
+    tags: [trash]
+    responses:
+      '200':
+        description: The plan, live again.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/plan.yaml#/Plan'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+fork:
+  parameters:
+    - $ref: '../parameters/path.yaml#/PlanID'
+  post:
+    operationId: forkPlan
+    summary: Make an own copy of a plan.
+    description: >
+      Any signed-in account copies any live plan: a fork of another account's
+      plan, or a duplicate of its own. The copy is a new plan the caller owns,
+      with the origin's school year and one version: the origin's chosen
+      version (the newest when none is named) as its version 1, with that
+      version's validity dates. Nothing else is copied: no older versions,
+      checkpoints, results, solves or caps. `origin` records the plan and
+      version it came from. A plan in Trash, or a version the plan does not
+      have, is not found.
+    tags: [plans]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/plan.yaml#/PlanFork'
+    responses:
+      '201':
+        description: The copy. Its version 1 exists.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/plan.yaml#/Plan'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '422':
+        $ref: '../responses/error.yaml#/Validation'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+owner:
+  parameters:
+    - $ref: '../parameters/path.yaml#/PlanID'
+  put:
+    operationId: transferPlan
+    summary: Give a plan to another account. Administrator-only.
+    description: >
+      The account named becomes the plan's owner: from then on only it edits,
+      deletes and solves the plan, and the previous owner reads it like
+      everyone else. The plan's results, checkpoints and Trash items go with
+      it; solves already running go on. Giving a plan to its owner changes
+      nothing. The change is written to the audit trail as
+      `project.transferred`. A plan in Trash is not found. A signed-in
+      account that is not an administrator gets 404, as for every
+      administrator route.
+    tags: [plans]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/plan.yaml#/PlanTransfer'
+    responses:
+      '200':
+        description: The plan with its new owner.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/plan.yaml#/Plan'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '422':
+        $ref: '../responses/error.yaml#/Validation'
       '503':
         $ref: '../responses/error.yaml#/Unavailable'

@@ -18,3 +18,70 @@ VersionNumber:
     type: integer
     format: int64
     minimum: 1
+
+UserID:
+  name: userId
+  in: path
+  required: true
+  description: Kratos's identity id, a UUID.
+  schema:
+    type: string
+    minLength: 1
+    maxLength: 64
+
+NodeID:
+  name: nodeId
+  in: path
+  required: true
+  description: Decimal string, same reason as a plan id.
+  schema:
+    type: string
+    pattern: '^[0-9]{1,19}$'
+
+JobID:
+  name: jobId
+  in: path
+  required: true
+  description: Decimal string, same reason as a plan id.
+  schema:
+    type: string
+    pattern: '^[0-9]{1,19}$'
+
+ResultID:
+  name: resultId
+  in: path
+  required: true
+  description: Decimal string, same reason as a plan id.
+  schema:
+    type: string
+    pattern: '^[0-9]{1,19}$'
+
+RuleProfileID:
+  name: profileId
+  in: path
+  required: true
+  description: Decimal string, same reason as a plan id.
+  schema:
+    type: string
+    pattern: '^[0-9]{1,19}$'
+
+SessionID:
+  name: sessionId
+  in: path
+  required: true
+  description: Kratos's session id, a UUID.
+  schema:
+    type: string
+    minLength: 1
+    maxLength: 64
+
+ExportFormat:
+  name: format
+  in: path
+  required: true
+  description: >
+    The file to build, named as the import registry names the format:
+    `goptivum.gpf` is Goptivum's own project file, `optivum.html` a zipped
+    VULCAN-style Optivum HTML export.
+  schema:
+    $ref: '../schemas/export.yaml#/ExportFormat'

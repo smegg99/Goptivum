@@ -1,0 +1,62 @@
+# contracts/backend/schemas/changes.yaml
+
+ChangeList:
+  type: object
+  required: [cursor, reset, more, plans]
+  additionalProperties: false
+  properties:
+    cursor:
+      type: string
+      description: The point to ask from next, as `since`. Opaque.
+    reset:
+      type: boolean
+      description: >
+        True when there was no point, or the point is not one this server's
+        database handed out: `plans` is empty, read everything again, then
+        poll from `cursor`.
+    more:
+      type: boolean
+      description: True when further changes wait; ask again at once from `cursor`.
+    plans:
+      type: array
+      description: Each plan that changed after the point, once, in the order of its first change.
+      items:
+        $ref: './changes.yaml#/PlanChange'
+
+PlanChange:
+  type: object
+  required: [plan_id, state, parts]
+  additionalProperties: false
+  properties:
+    plan_id:
+      type: string
+      description: The plan, as a decimal string like Plan.id.
+    state:
+      $ref: './changes.yaml#/PlanState'
+    parts:
+      type: array
+      minItems: 1
+      uniqueItems: true
+      description: What of the plan changed, in the order project, versions, results.
+      items:
+        $ref: './changes.yaml#/ChangedPart'
+
+PlanState:
+  type: string
+  enum: [live, trash, removed]
+  description: >
+    Where a changed plan is now. `live` is readable by every account. `trash`
+    is in its owner's Trash: only the owner lists it, with listTrash, and
+    restores it. `removed` is deleted for good.
+
+ChangedPart:
+  type: string
+  enum: [project, versions, results]
+  description: >
+    What of a plan changed. `project` is the plan itself: created, renamed,
+    its school year or a cap changed, moved to Trash or restored, given to
+    another owner, removed for good, or a new version moved its `updated_at`.
+    `versions` is its timeline: a new main version, older versions the backups
+    cap removed, a checkpoint named, deleted, restored or ended in Trash.
+    `results` is its results: one kept, named, pinned, moved to Trash or
+    restored, or removed by the results cap or the purge.

@@ -1,9 +1,9 @@
 # contracts/backend/parameters/pagination.yaml
 #
-# Query parameters every list endpoint takes. useServerTable sends exactly
-# these names; renaming one breaks every table in every app. apipage.Parse
-# reads them and never rejects: a page of 0 or a limit of "banana" falls back
-# to the default rather than turning a stale bookmark into a bug report.
+# Query parameters every list endpoint takes. A value that parses but is out of
+# range is clamped rather than refused: a page of 0 or a limit of 10000 is
+# answerable, and refusing it turns a stale bookmark into a bug report. A value
+# that is not an integer at all is a 400 envelope.
 
 Page:
   name: page
@@ -25,17 +25,6 @@ Limit:
     minimum: 1
     maximum: 200
     default: 25
-
-Sort:
-  name: sort
-  in: query
-  required: false
-  description: >
-    Comma-separated fields, `-` prefix for descending. Unknown fields are
-    ignored rather than rejected, so a stale bookmark keeps working.
-  schema:
-    type: string
-    examples: ['-created_at', 'name,-created_at']
 
 Query:
   name: q

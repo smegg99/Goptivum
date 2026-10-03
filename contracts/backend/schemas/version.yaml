@@ -19,7 +19,9 @@ Version:
     parent:
       type: integer
       format: int64
-      description: The version this one was derived from. Absent on the first.
+      description: >
+        The version this one was derived from. Absent on version 1, which is
+        created with the plan.
     object_key:
       type: string
       description: >
@@ -46,6 +48,31 @@ Version:
       type: string
       format: date
       description: The last day this schedule applies. Absent means open-ended.
+    summary:
+      $ref: './version.yaml#/VersionSummary'
+    checkpoint:
+      type: string
+      minLength: 1
+      maxLength: 200
+      description: >
+        The checkpoint name when this version is a named checkpoint. Absent
+        otherwise, and while the checkpoint is in Trash.
+
+VersionSummary:
+  type: object
+  description: >
+    What changed from the parent, as counts per edit kind and then per kind of
+    thing, such as `{"added":{"teacher":3},"moved":{"lesson":2}}`. Never prose:
+    every reader words it in its own language. Names are lower camel case
+    (letters and digits, starting with a letter, at most 32), counts are 1 to
+    1000000, and the whole object is at most 4096 bytes of JSON. Absent on a
+    version whose uploader sent none.
+  additionalProperties:
+    type: object
+    additionalProperties:
+      type: integer
+      minimum: 1
+      maximum: 1000000
 
 VersionList:
   type: object
@@ -59,22 +86,57 @@ VersionList:
 
 VersionUpload:
   type: object
-  required: [parent]
+  required: [document, parent, upload_key]
   additionalProperties: false
   properties:
+    document:
+      type: string
+      format: binary
+      description: The encoded document.
     parent:
       type: integer
       format: int64
-      minimum: 0
+      minimum: 1
       description: >
-        The version this upload was derived from, or 0 for the first version of
-        a plan. A parent that is no longer the newest is refused.
+        The version this was derived from. Absent or below 1 is refused with
+        `parent: required` or `parent: invalid`.
+    upload_key:
+      type: string
+      pattern: '^[A-Za-z0-9_-]{16,64}$'
+      description: >
+        Random, chosen by the client for this one upload and sent again
+        unchanged on a retry. Stored on the version, unique per plan. Absent is
+        refused with `upload_key: required`, a value outside the pattern with
+        `upload_key: invalid`, and a key already stored with another document
+        or parent with `upload_key: reused`.
+    summary:
+      $ref: './version.yaml#/VersionSummary'
     valid_from:
       type: string
       format: date
+      description: >
+        Absent keeps the parent's date, an empty value clears it. A value that
+        is not a date is refused with `valid_from: invalid`.
     valid_to:
       type: string
       format: date
+      description: >
+        Absent keeps the parent's date, an empty value clears it. A value that
+        is not a date is refused with `valid_to: invalid`.
+
+CheckpointName:
+  type: object
+  required: [name]
+  additionalProperties: false
+  properties:
+    name:
+      type: string
+      minLength: 1
+      maxLength: 200
+      description: >
+        Trimmed. Blank is refused with `name: required`, longer than 200
+        letters with `name: too_long`.
+      examples: ['tydzień i klasy']
 
 Conflict:
   type: object

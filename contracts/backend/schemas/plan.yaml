@@ -2,8 +2,12 @@
 
 Plan:
   type: object
-  required: [id, name, school_year, created_at, updated_at]
+  required: [id, name, school_year, created_at, updated_at, backups_keep, backups_keep_default, results_keep, results_keep_default, owner, can_edit, can_delete]
   additionalProperties: false
+  description: >
+    One project. Every signed-in account reads every live project; only its
+    owner changes it. Its versions, checkpoints, results and solves follow
+    `can_edit`.
   properties:
     id:
       type: string
@@ -27,6 +31,113 @@ Plan:
     updated_at:
       type: string
       format: date-time
+    backups_keep:
+      type: integer
+      minimum: 0
+      maximum: 10000
+      description: >
+        The project's own cap on the older versions kept in Backups/,
+        checkpoints not counted. 0 means it has none and follows
+        `backups_keep_default`.
+    backups_keep_default:
+      type: integer
+      minimum: 1
+      description: >
+        The server's `backups_keep` setting, the cap in force while
+        `backups_keep` is 0.
+    results_keep:
+      type: integer
+      minimum: 0
+      maximum: 10000
+      description: >
+        The project's own cap on the unpinned results it keeps. 0 means it has
+        none and follows `results_keep_default`.
+    results_keep_default:
+      type: integer
+      minimum: 1
+      description: >
+        The server's `results_keep` setting, the cap in force while
+        `results_keep` is 0.
+    owner:
+      $ref: './storage.yaml#/Owner'
+    can_edit:
+      type: boolean
+      description: >
+        Whether the caller may change the project: rename it, change its
+        school year or caps, upload a version, name, delete or restore a
+        checkpoint, rename, pin, delete or restore a result, and start a
+        solve. True for the owner only; anyone else is refused with 403
+        `plans.notYours` and may fork it instead.
+    can_delete:
+      type: boolean
+      description: >
+        Whether the caller may move the project to Trash and restore it. True
+        for the owner only.
+    origin:
+      $ref: './plan.yaml#/PlanOrigin'
+
+PlanOrigin:
+  type: object
+  required: [plan_id, version]
+  additionalProperties: false
+  description: >
+    The project and version a fork or a duplicate was made from. Absent on a
+    project that was not forked. It stays when the origin is deleted or
+    removed for good.
+  properties:
+    plan_id:
+      type: string
+      description: The origin's id, as a decimal string like Plan.id.
+    version:
+      type: integer
+      format: int64
+      description: The origin's version the copy was made from.
+    name:
+      type: string
+      description: >
+        The origin's name now. Absent while the origin is in Trash or after
+        it was removed for good.
+
+PlanFork:
+  type: object
+  additionalProperties: false
+  description: >
+    An own copy of any live project: a fork of another account's, or a
+    duplicate of one's own.
+  properties:
+    version:
+      type: integer
+      format: int64
+      minimum: 1
+      description: >
+        The origin's version to copy. Absent copies the newest. A version the
+        origin does not have is not found; below 1 is refused with
+        `version: invalid`.
+      examples: [3]
+    name:
+      type: string
+      minLength: 1
+      maxLength: 200
+      description: >
+        The copy's name. Trimmed. Blank is refused with `name: required`,
+        longer than 200 letters with `name: too_long`. Absent names it after
+        the origin with the server's `plans.forkName` in the server's own
+        language ("Plan 2027 (fork)"), the origin's name shortened to fit.
+      examples: ['Plan 2027 (fork)']
+
+PlanTransfer:
+  type: object
+  required: [owner_id]
+  additionalProperties: false
+  properties:
+    owner_id:
+      type: string
+      minLength: 1
+      maxLength: 128
+      description: >
+        The Kratos identity id of the account that becomes the owner. Blank is
+        refused with `owner_id: required`, an id no account has with
+        `owner_id: unknown`, a disabled account with `owner_id: disabled`.
 
 PlanCreate:
   type: object
@@ -37,9 +148,55 @@ PlanCreate:
       type: string
       minLength: 1
       maxLength: 200
+      description: >
+        Trimmed. Blank is refused with `name: required`, longer than 200
+        letters with `name: too_long`.
     school_year:
       type: string
       maxLength: 32
+      description: >
+        Trimmed. Longer than 32 letters is refused with
+        `school_year: too_long`.
+
+PlanUpdate:
+  type: object
+  additionalProperties: false
+  description: A field that is absent is left as it is.
+  properties:
+    name:
+      type: string
+      minLength: 1
+      maxLength: 200
+      description: >
+        Trimmed. Blank is refused with `name: required`, longer than 200
+        letters with `name: too_long`.
+      examples: ['Plan 2027']
+    school_year:
+      type: string
+      maxLength: 32
+      description: >
+        Trimmed. An empty string clears it. Longer than 32 letters is refused
+        with `school_year: too_long`.
+      examples: ['2026/2027']
+    backups_keep:
+      type: integer
+      minimum: 0
+      maximum: 10000
+      description: >
+        The project's own cap on the older versions kept in Backups/,
+        checkpoints not counted. 0 drops it, so the server's default applies
+        again. Outside 0 to 10000 is refused with `backups_keep: invalid`. A
+        lower cap takes effect at the next new version.
+      examples: [5]
+    results_keep:
+      type: integer
+      minimum: 0
+      maximum: 10000
+      description: >
+        The project's own cap on the unpinned results it keeps. 0 drops it, so
+        the server's default applies again. Outside 0 to 10000 is refused with
+        `results_keep: invalid`. A lower cap takes effect at the next result.
+      examples: [2]
 
 PlanPage:
   type: object
@@ -58,4 +215,4 @@ PlanPage:
       description: The page size applied, which may be lower than the one asked for.
     total:
       type: integer
-      description: How many plans the owner has in total, for the page count.
+      description: How many live plans match, for the page count.

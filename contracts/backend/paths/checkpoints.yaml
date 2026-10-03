@@ -1,0 +1,100 @@
+# contracts/backend/paths/checkpoints.yaml
+#
+# Naming, deleting and restoring a checkpoint is the plan owner's; anyone else
+# gets 403 plans.notYours.
+
+checkpoint:
+  parameters:
+    - $ref: '../parameters/path.yaml#/PlanID'
+    - $ref: '../parameters/path.yaml#/VersionNumber'
+  put:
+    operationId: nameCheckpoint
+    summary: Name a version as a checkpoint, or rename one.
+    description: >
+      A checkpoint is a named version. The backups cap never removes it, so it
+      stays in Backups/ beside the newest versions. Naming a version whose
+      checkpoint is in Trash takes it out of Trash under the new name.
+      The plan owner's only: anyone else gets 403 `plans.notYours`.
+    tags: [versions]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/version.yaml#/CheckpointName'
+    responses:
+      '200':
+        description: The version, named.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/version.yaml#/Version'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '422':
+        $ref: '../responses/error.yaml#/Validation'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+  delete:
+    operationId: deleteCheckpoint
+    summary: Move a checkpoint to Trash.
+    description: >
+      The version keeps its name in Trash and listVersions lists it as a plain
+      version. The backups cap does not remove it while the checkpoint is in
+      Trash, so restoreCheckpoint brings back the same document. Once
+      the server's `trash_days` have passed the name goes, and the version is
+      removed with the other backups beyond the cap. A version that is not a
+      live checkpoint is not found.
+      The plan owner's only: anyone else gets 403 `plans.notYours`.
+    tags: [versions]
+    responses:
+      '204':
+        description: In Trash.
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+restore:
+  parameters:
+    - $ref: '../parameters/path.yaml#/PlanID'
+    - $ref: '../parameters/path.yaml#/VersionNumber'
+  post:
+    operationId: restoreCheckpoint
+    summary: Take a checkpoint out of Trash.
+    description: >
+      The version is named again with the name it had. Restoring a checkpoint
+      that is not in Trash changes nothing and answers the version, so an undo
+      that runs twice lands where one did. A version that is no checkpoint,
+      or whose checkpoint was removed for good, is not found.
+      The plan owner's only: anyone else gets 403 `plans.notYours`.
+    tags: [trash]
+    responses:
+      '200':
+        description: The version, named again.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/version.yaml#/Version'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'

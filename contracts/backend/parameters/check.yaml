@@ -1,0 +1,10 @@
+# contracts/backend/parameters/check.yaml
+RulesVersion:
+  name: rules_version
+  in: query
+  required: false
+  description: Judge using only the rules of this version in the same plan. Omitted keeps the checked file's rules or saved solve profile.
+  schema:
+    type: integer
+    format: int64
+    minimum: 1

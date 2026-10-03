@@ -1,0 +1,55 @@
+# contracts/backend/paths/changes.yaml
+
+changes:
+  get:
+    operationId: listChanges
+    summary: Which projects changed since a point.
+    description: >
+      The desktop keeps a copy of every project the account can open and polls
+      this, about every 30 seconds, to learn which ones to read again. Every
+      signed-in account reads every project's changes, as it reads every live
+      project; an answer names plans by id only.
+
+      Start without `since`: the answer has `reset` true, a `cursor` and no
+      plans. Keep the cursor first, then read everything (listPlans, and for
+      each plan getPlan, listVersions, listResults), then poll with `since`
+      set to the cursor. Each answer's `cursor` is the point to ask from next.
+
+      Each plan that changed after the point is listed once, however often it
+      changed, with the parts to read again: `project` (getPlan), `versions`
+      (listVersions), `results` (listResults). `state` is where the plan is
+      now. A poll where nothing changed reads one row, so polling every 30
+      seconds costs next to nothing.
+
+      `reset` true on a later poll means the point is not one this server's
+      database handed out, for example because the database was made again:
+      read everything again, then poll from the new cursor. `more` true means
+      further changes wait: ask again at once from the new cursor. One answer
+      covers at most 500 changed parts.
+    tags: [plans]
+    parameters:
+      - name: since
+        in: query
+        required: false
+        description: >
+          A `cursor` this route answered with. Absent means the caller has
+          nothing yet. It is opaque: send it back as it came. Anything else is
+          422 `error.validation` with details `since: invalid`.
+        schema:
+          type: string
+          maxLength: 64
+    responses:
+      '200':
+        description: The plans that changed after the point.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/changes.yaml#/ChangeList'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '422':
+        $ref: '../responses/error.yaml#/Validation'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
