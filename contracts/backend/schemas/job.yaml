@@ -1,0 +1,398 @@
+# contracts/backend/schemas/job.yaml
+#
+# A dispatched solve. The job is the truth about what happened; the event
+# stream beside it only says something changed.
+
+Job:
+  type: object
+  required: [id, plan_id, plan_name, plan_version, node_id, node_label, status, num_workers, time_limit_seconds, improve, stall_stop_seconds, started_by, created_at, can_cancel]
+  additionalProperties: false
+  properties:
+    id:
+      type: string
+      description: Decimal string, because a 64-bit id does not survive a JSON number.
+    plan_id:
+      type: string
+    plan_name:
+      type: string
+      description: The project's name now, so a list across projects names each.
+    plan_version:
+      type: integer
+      format: int64
+      description: >
+        Which version's school the solve read: the version it named, or the
+        source version of the result it named. The new result's source version.
+        The backups cap never removes it while the job is pending or running.
+    source_result_id:
+      type: string
+      description: >
+        The result the solve read instead of a version, as a decimal string;
+        absent when it read a version. Draw a preview over this result's
+        document: its school is `plan_version`'s, and that version may already
+        be gone. The results cap and the Trash purge never remove it while the
+        job is pending or running.
+    node_id:
+      type: string
+    node_label:
+      type: string
+      description: The node's label now, so a renamed node reads under its new name.
+    status:
+      $ref: './job.yaml#/JobStatus'
+    reason:
+      type: string
+      enum: [solve.infeasible, solve.noScheduleInTime, solve.nodeError, solve.resultNotStored, solve.serverRestarted, solve.preflightFailed]
+      description: >
+        Why a solve failed or kept nothing, as a message key the client words;
+        absent when there is nothing to explain. `solve.infeasible`: the node
+        proved the school cannot be scheduled, at its input checks or in the
+        search (`explanation` and `detail` say more in the node's words).
+        `solve.noScheduleInTime`: the time limit ran out before a timetable was
+        found. `solve.nodeError`: the node failed, stopped answering, broke the
+        stream or ran past the solve's deadline; `result_id` is then the best
+        timetable received before that, when one arrived.
+        `solve.resultNotStored`: a timetable arrived and this server could not
+        store it. `solve.serverRestarted`: this server stopped while the solve
+        was open.
+    result_id:
+      type: string
+      description: >
+        The result this solve kept in the project's results, as a decimal
+        string. Absent when nothing was kept. A `failed` job has one when the
+        node failed after sending a timetable (reason `solve.nodeError`). It
+        can outlive the result: one removed by the results cap or from Trash
+        answers 404.
+    started_by:
+      $ref: './job.yaml#/Starter'
+    can_cancel:
+      type: boolean
+      description: >
+        Whether the caller may cancel the solve: true when it owns the job's
+        project and the project is not in Trash, whatever the status. `status`
+        says whether anything is left to stop.
+    rule_profile:
+      $ref: './rules.yaml#/SolveRuleProfile'
+    num_workers:
+      type: integer
+      description: >
+        What the solve was actually given: this server's clamp, then the
+        node's own once it reports it. Never zero: zero means every core to the
+        solver, which is about 0.9 GB of memory each.
+    time_limit_seconds:
+      type: number
+      format: double
+      minimum: 0
+      maximum: 86400
+      description: Search limit granted by the node, or the requested limit while pending.
+    improve:
+      type: boolean
+      description: True when this run improves the source timetable.
+    stall_stop_seconds:
+      type: number
+      format: double
+      minimum: 0
+      maximum: 86400
+      description: Stop after this many seconds without a better timetable; zero disables this stop.
+    peak_rss_bytes:
+      type: integer
+      format: int64
+      description: >
+        The solver process's peak memory, from the node's final frame. Absent
+        when no final frame came or the node did not report it.
+    cpu_seconds:
+      type: number
+      format: double
+      description: >
+        The solver process's CPU time, from the node's final frame. Absent
+        when no final frame came or the node did not report it.
+    quality:
+      type: number
+      format: double
+      description: >
+        The node's own rating of the schedule, 0 to 100, where 100 is pristine.
+        Absent when the solve produced nothing. This is the number to show a
+        person and to compare two runs of one school by. It is **not** the
+        search objective, which moves with the rule weights and cannot rank two
+        schedules built under different rules.
+    verdict:
+      type: string
+      description: >
+        The node's one-glance tier over errors and warnings, as its own enum
+        name. Absent when there is nothing to judge.
+    explanation:
+      type: string
+      description: >
+        Why the model could not be satisfied, in the node's own words: the
+        named inputs that cannot all hold, such as a teacher's availability
+        against the lessons assigned to them. Present only after a solve the
+        node proved infeasible, and worth showing prominently: it is the
+        difference between a school knowing what to change and a school
+        retrying the same file.
+    detail:
+      type: string
+      description: >
+        What the node or the solver last said, or why the stream ended. English
+        free text for an operator; a client words `reason` instead.
+    created_at:
+      type: string
+      format: date-time
+    started_at:
+      type: string
+      format: date-time
+      description: Absent while the job is still pending.
+    finished_at:
+      type: string
+      format: date-time
+      description: Absent while the job is still running.
+
+Starter:
+  type: object
+  required: [id, name]
+  additionalProperties: false
+  description: >
+    Who started a solve, uploaded a result solved on a device, or created a
+    school rule profile.
+  properties:
+    id:
+      type: string
+      description: The identity id, which says whether a solve or a profile is the caller's own.
+    name:
+      type: string
+      description: >
+        The display name at that time: the account's name, or its username
+        when it has none.
+
+JobStatus:
+  type: string
+  enum: [pending, running, done, failed, cancelled]
+  description: >
+    Pending and running count against a node's concurrency; the rest are
+    terminal. A clean stream close is not success, so `done` means a timetable
+    arrived and was kept as a result, and `failed` covers a solve that ran
+    correctly and found nothing, and one whose node failed, stopped answering
+    or ran past the deadline. That second kind keeps the best timetable
+    received, when it had one. A `cancelled` solve keeps the timetable it had,
+    when it had one.
+
+JobCreate:
+  type: object
+  additionalProperties: false
+  description: >
+    Exactly one of `plan_version` and `result_id` names the file the solve
+    reads. At most one of `builtin_rule_profile` and `school_rule_profile_id`
+    names a rule profile; with one, the profile's rules replace every rule of
+    the plan for this solve, and without either the solve uses the plan's own
+    rules.
+  properties:
+    node_id:
+      type: string
+      pattern: '^[0-9]{1,19}$'
+      description: >
+        Which paired node to dispatch to. Absent lets the server pick: the
+        node paired earliest that is not revoked, has a free slot and answers.
+    plan_version:
+      type: integer
+      format: int64
+      minimum: 1
+      description: The version of the plan to solve.
+    result_id:
+      type: string
+      pattern: '^[0-9]{1,19}$'
+      description: >
+        A result of the plan to solve instead of a version: the solve reads
+        the result's own document, its school and its timetable. One in Trash
+        is not found.
+    total_time_seconds:
+      type: number
+      minimum: 1
+      maximum: 86400
+      description: >
+        The search budget. The call's own deadline is computed from it with
+        room for the solver's work after the search, so this is the only time
+        value a caller sets.
+    stall_stop_seconds:
+      type: number
+      format: double
+      minimum: 0
+      maximum: 86400
+      description: Stop after this many seconds without a strictly better timetable once one exists; zero or absent disables this stop.
+    num_workers:
+      type: integer
+      minimum: 0
+      maximum: 64
+      description: >
+        At most this many workers. The node's `workers_per_solve` is the most a
+        solve on it gets, and what it gets when this is absent or zero; the
+        node's free memory can lower it. Zero is never passed through, because
+        zero means all cores to the solver.
+    ignore_previous_placements:
+      type: boolean
+      description: >
+        True solves from scratch. False improves on the timetable of the file
+        the solve reads (the version or the result): each lesson starts where
+        that timetable places it, and the solve never ends worse than it. Absent
+        is false. Refused with `solve.incompleteBaseline` (details `Unplaced`
+        and `Lessons`) unless that timetable places every lesson; a file with
+        no timetable places none.
+    builtin_rule_profile:
+      type: string
+      pattern: '^[a-z][a-z0-9_]*$'
+      maxLength: 64
+      description: >
+        A built-in profile to solve with, by the name getRuleCatalogue lists
+        (`default` is the solver's defaults). The node refuses a name it does
+        not know when the solve starts.
+    school_rule_profile_id:
+      type: string
+      pattern: '^[0-9]{1,19}$'
+      description: >
+        A school profile to solve with (listRuleProfiles). The solve is sent
+        its overrides as they are now; a later edit or delete does not change
+        this solve or what its job and result record. An unknown id is not
+        found.
+
+JobList:
+  type: object
+  required: [items]
+  additionalProperties: false
+  properties:
+    items:
+      type: array
+      items:
+        $ref: './job.yaml#/Job'
+
+JobPage:
+  type: object
+  required: [items, page, limit, total]
+  additionalProperties: false
+  properties:
+    items:
+      type: array
+      items:
+        $ref: './job.yaml#/Job'
+    page:
+      type: integer
+      description: The page this response is, echoed back after clamping.
+    limit:
+      type: integer
+      description: The page size applied, which may be lower than the one asked for.
+    total:
+      type: integer
+      description: How many jobs match the filter in total, for the page count and a badge.
+
+JobPreview:
+  type: object
+  required: [job_id, plan_version, received]
+  additionalProperties: false
+  description: >
+    The best timetable a running solve has sent so far. It is kept only while
+    the job runs; once the job ends the timetable is in the project's results.
+  properties:
+    job_id:
+      type: string
+    plan_version:
+      type: integer
+      format: int64
+      description: >
+        The version the solve reads. Draw the timetable over that version's
+        school, never over the main file being edited.
+    source_result_id:
+      type: string
+      description: >
+        The result the solve reads instead of a version, when it reads one.
+        Draw the timetable over that result's document then: its school is
+        `plan_version`'s, and that version may already be gone.
+    received:
+      type: integer
+      minimum: 0
+      description: >
+        How many timetables this server has received from the solve. The count
+        to show a person; `solutions_found` on the event stream also counts
+        timetables that never arrived.
+    quality:
+      type: number
+      format: double
+      description: The node's 0-100 rating of this timetable. Absent until one arrives.
+    verdict:
+      type: string
+      description: The node's tier over this timetable's errors and warnings, as its enum name.
+    lessons:
+      type: array
+      description: The timetable, one entry per placed lesson. Absent until one arrives.
+      items:
+        $ref: './job.yaml#/PreviewLesson'
+
+PreviewLesson:
+  type: object
+  required: [lesson_id, day_id, start_period]
+  additionalProperties: false
+  properties:
+    lesson_id:
+      type: integer
+      format: int64
+    day_id:
+      type: integer
+      format: int64
+    start_period:
+      type: integer
+      format: int64
+    room_id:
+      type: integer
+      format: int64
+      description: Absent when the lesson has no room.
+
+JobEvent:
+  type: object
+  required: [job_id, terminal]
+  additionalProperties: false
+  description: >
+    One frame of the nudge stream. Every field is a hint for an indicator: the
+    stream is lossy by design, so a client that will act on a value reads the
+    job instead.
+
+    A field with nothing to say is absent, so the terminal frame carries only
+    `job_id`, `job_status`, `terminal`, and `message` and `received` when they
+    have a value.
+  properties:
+    job_id:
+      type: string
+    phase:
+      type: string
+      description: The solver's phase, as its own enum name.
+    status:
+      type: string
+      description: >
+        The solver's status enum on this frame, and only ever that. Not
+        evidence of anything on a progress frame, where it is set
+        unconditionally. Absent on the terminal frame, which carries no solver
+        frame of its own.
+    job_status:
+      description: >
+        The job's own status, and only on the terminal frame. It is a different
+        vocabulary from `status` above, which is why it is a different field.
+      $ref: '#/JobStatus'
+    stage:
+      type: string
+      description: What the search is doing right now, for a live indicator.
+    wall_seconds:
+      type: number
+    objective:
+      type: integer
+      format: int64
+    solutions_found:
+      type: integer
+      description: >
+        What the search found, which can exceed what arrived here: an invalid
+        solution is dropped before it is written to the stream. Never shown as
+        a count; `received` is.
+    received:
+      type: integer
+      description: >
+        How many timetables this server has received from the solve so far, the
+        same count as JobPreview.received.
+    message:
+      type: string
+    terminal:
+      type: boolean
+      description: >
+        The job is over and no further frame is coming, so a client can stop
+        waiting without a timeout.

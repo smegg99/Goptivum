@@ -1,0 +1,265 @@
+# contracts/backend/paths/jobs.yaml
+#
+# Dispatching a solve is a planner's work, not an administrator's, so these
+# routes are guarded by a session and no role. Every signed-in account reads
+# every live plan's jobs, previews and events; starting and cancelling a solve
+# is the plan owner's, and anyone else gets 403 plans.notYours.
+
+jobs:
+  parameters:
+    - $ref: '../parameters/path.yaml#/PlanID'
+  get:
+    operationId: listJobs
+    summary: List one plan's solves, newest first.
+    tags: [jobs]
+    responses:
+      '200':
+        description: The plan's jobs.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/job.yaml#/JobList'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+  post:
+    operationId: createJob
+    summary: Dispatch a solve and answer at once.
+    description: >
+      Admission runs before anything is sent, so a revoked node, a node already
+      at its concurrency ceiling, a node that does not answer, and a file that
+      cannot be improved on because its timetable does not place every lesson
+      are all refused here rather than discovered minutes later. What follows
+      outlives this request: a solve takes minutes and the answer is the job,
+      not the timetable.
+
+      The solve reads the version or the result it names and never writes the
+      plan: a timetable it finds is kept as a new result of the plan
+      (listResults), a full document of the school it read with the timetable,
+      so editing can go on while it runs. Beyond the plan's results cap the
+      oldest unpinned results are removed for good. A solve whose node fails,
+      stops answering or runs past the deadline after sending a timetable
+      still keeps the best one received.
+
+      With a rule profile the model is sent with an empty `rule_config` and
+      the profile as the request's `rule_config`, so the profile's rules
+      replace the plan's completely for this solve; the plan's document is not
+      changed. The job and its result record the profile's name then.
+
+      404 covers a version or a result the plan does not have, a result in
+      Trash, and a school rule profile that does not exist. 422
+      `error.validation` with `plan_version: required` names neither file,
+      with `result_id: exclusive` names both, and with
+      `school_rule_profile_id: exclusive` names both a built-in and a school
+      profile.
+
+      Only the plan's owner starts a solve; anyone else gets 403
+      `plans.notYours` and may fork the plan instead.
+    tags: [jobs]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/job.yaml#/JobCreate'
+    responses:
+      '202':
+        description: The job, accepted and running.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/job.yaml#/Job'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '409':
+        description: >
+          No node can take it. `solve.limitTooLong` carries `max_seconds` when the request exceeds every reachable node's ceiling. Otherwise message `solve.nodeUnavailable`, with detail
+          `cause`: `none` when no node is paired and unrevoked (or the one named
+          is revoked), `busy` when every candidate already carries as many
+          solves as its `solves_at_once` or the node's own ceiling for this
+          server allows, or has no memory for one worker, `unreachable` when
+          every candidate that had room did not answer.
+        content:
+          application/json:
+            schema:
+              $ref: '../../shared/schemas/error.yaml#/Error'
+      '422':
+        description: >
+          The body names no usable file or profile, or the file cannot be
+          improved on. Three messages. `error.validation` with field codes,
+          such as the ones the operation lists. `solve.incompleteBaseline` for
+          an improve of a file whose timetable does not place every lesson,
+          with `Unplaced` (lessons it does not place) and `Lessons` (lessons of
+          the school), both decimal. `solve.modelInvalid` for an improve of a
+          timetable the node checked and found breaking rules that must hold,
+          with `Count` (the conflicts found, decimal) and `conflicts` (each
+          distinct kind once, as Arrango's `Conflict.Kind` names joined by
+          commas, such as `KIND_TEACHER_OVERLOADED,KIND_LOCKED_COLLISION`).
+          Nothing reaches the node's solver for any of them.
+        content:
+          application/json:
+            schema:
+              $ref: '../../shared/schemas/error.yaml#/Error'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+allJobs:
+  get:
+    operationId: listAllJobs
+    summary: List the solves of every project of the school, newest first.
+    description: >
+      One call for the Jobs place and for a client that looks for running
+      solves at start and at sign-in. Every owner's jobs are listed; each
+      names its project, and `started_by` says whose solve it is. Jobs of a
+      project in Trash are not listed.
+    tags: [jobs]
+    parameters:
+      - name: status
+        in: query
+        required: false
+        description: >
+          Only jobs in one of these statuses. Repeat the parameter for several
+          (`status=pending&status=running` for the active ones). Absent lists
+          every status.
+        style: form
+        explode: true
+        schema:
+          type: array
+          items:
+            $ref: '../schemas/job.yaml#/JobStatus'
+      - $ref: '../parameters/pagination.yaml#/Page'
+      - $ref: '../parameters/pagination.yaml#/Limit'
+    responses:
+      '200':
+        description: One page of the school's jobs.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/job.yaml#/JobPage'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+job:
+  parameters:
+    - $ref: '../parameters/path.yaml#/JobID'
+  get:
+    operationId: getJob
+    summary: Read one job.
+    description: >
+      **This is the authority.** The event stream beside it is a nudge and is
+      lossy by design, so a client reads this on connect, re-reads it on every
+      nudge, and never treats a frame as the last word.
+    tags: [jobs]
+    responses:
+      '200':
+        description: The job as it now is.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/job.yaml#/Job'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+  delete:
+    operationId: cancelJob
+    summary: Cancel a running solve.
+    description: >
+      Cancelling a job that already finished is not an error: the caller wanted
+      it stopped and it is stopped. The row is closed by the work itself on its
+      way out, so the status is authoritative a moment later, not immediately.
+      Only the owner of the job's plan cancels it; anyone else gets 403
+      `plans.notYours`. `Job.can_cancel` says which.
+    tags: [jobs]
+    responses:
+      '202':
+        description: Cancellation asked for.
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+jobPreview:
+  parameters:
+    - $ref: '../parameters/path.yaml#/JobID'
+  get:
+    operationId: getJobPreview
+    summary: The best timetable a running solve has sent so far.
+    description: >
+      Answers while the job runs, `received` 0 and no timetable until the
+      first one arrives. A timetable scoring worse than one already received
+      (an improve sends its baseline first) is counted but does not replace
+      it. Once the job ends the preview is gone and this answers 404: the
+      timetable, when one was kept, is the job's `result_id`.
+    tags: [jobs]
+    responses:
+      '200':
+        description: The best timetable the solve sent.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/job.yaml#/JobPreview'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+jobEvents:
+  parameters:
+    - $ref: '../parameters/path.yaml#/JobID'
+  get:
+    operationId: watchJob
+    summary: Watch a solve as it runs.
+    description: >
+      A `text/event-stream` of `update` events. It says something changed and
+      nothing more: a slow reader is dropped a frame rather than allowed to
+      stall the solve, so a client that must not miss a value reads the job
+      itself. The stream always ends with a terminal frame: a job that has
+      already finished, or finishes while the client subscribes, answers with
+      one terminal frame read from the job and closes, so a late subscriber
+      never hangs.
+    tags: [jobs]
+    responses:
+      '200':
+        description: The stream.
+        content:
+          text/event-stream:
+            schema:
+              $ref: '../schemas/job.yaml#/JobEvent'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'

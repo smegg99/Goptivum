@@ -1,0 +1,70 @@
+# contracts/backend/paths/check.yaml
+
+check:
+  parameters:
+    - $ref: '../parameters/path.yaml#/PlanID'
+    - $ref: '../parameters/path.yaml#/VersionNumber'
+    - $ref: '../parameters/check.yaml#/RulesVersion'
+  get:
+    operationId: checkVersion
+    summary: What a solve's input checks say about one version.
+    description: >
+      The first paired, unrevoked node checks the version's school and, when
+      the version's timetable places every lesson, validates and rates that
+      timetable too. Nothing is solved and nothing is stored in the plan.
+
+      A result is cached by the version's stored object, so versions with
+      identical documents, in any plan, share one result and a repeated check
+      answers without asking the node.
+
+      At most one check per plan runs at a time. A check of a newer version
+      stops the one running for an older version, which then answers 409
+      `check.superseded`; a check asked for an older version while a newer one
+      runs answers the same at once. A check of the same document as the one
+      running waits for that one's result.
+
+      When `rules_version` is supplied, only the rule configuration of that
+      version in the same plan replaces the checked document's rules. Compare
+      sends one captured main-file version for both sides. The cache includes
+      these rules.
+
+      The node runs each check in a child process that waits, without saying
+      so, until the node has memory for it. The check gives up after 20 s,
+      dialling included, and answers 504 `check.waitingForSolver`.
+    tags: [check]
+    responses:
+      '200':
+        description: The findings, the counts and, for a rated timetable, its scores.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/check.yaml#/Check'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '409':
+        description: >
+          No check ran. Message `solve.nodeUnavailable`: no node is paired and
+          unrevoked, the node did not answer, or it has no room for a check.
+          Message `node.outdated`: the node answers but cannot check (details
+          `Capability: check`); it needs an update. Message `check.superseded`:
+          a check of a newer version of this plan replaced this one.
+        content:
+          application/json:
+            schema:
+              $ref: '../../shared/schemas/error.yaml#/Error'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+      '504':
+        description: >
+          The node did not answer within 20 s, usually because it is waiting
+          for memory to start the check. Message `check.waitingForSolver`.
+        content:
+          application/json:
+            schema:
+              $ref: '../../shared/schemas/error.yaml#/Error'

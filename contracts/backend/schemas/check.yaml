@@ -1,0 +1,245 @@
+# contracts/backend/schemas/check.yaml
+#
+# What the node's checks say about one version or one result. The client words every
+# finding from its kind and fields, never from prose, so there is no prose
+# here: the node's own message is English debug text and stays on the node.
+
+Check:
+  type: object
+  required: [plan_id, version, errors, warnings, notes, ignored, findings]
+  additionalProperties: false
+  properties:
+    plan_id:
+      type: string
+      description: Decimal string, as on Plan.
+    version:
+      type: integer
+      format: int64
+      description: >
+        The version checked, or for a result the version its solve read.
+    result_id:
+      type: string
+      description: The result checked, as a decimal string. Absent for a version.
+    errors:
+      type: integer
+      description: Findings of severity error the document does not ignore.
+    warnings:
+      type: integer
+      description: Findings of severity warning the document does not ignore.
+    notes:
+      type: integer
+      description: Findings of severity note the document does not ignore.
+    ignored:
+      type: integer
+      description: Findings the document ignores, of any severity.
+    findings:
+      type: array
+      description: >
+        Every finding, ignored ones included and marked. Input findings come
+        first, then the timetable's.
+      items:
+        $ref: './check.yaml#/CheckFinding'
+    score:
+      $ref: './check.yaml#/CheckScore'
+
+CheckFinding:
+  type: object
+  required: [kind, part, severity, ignored]
+  additionalProperties: false
+  properties:
+    kind:
+      type: string
+      pattern: '^[a-z][a-z0-9_]*$'
+      description: >
+        What is wrong. A hard conflict's kind without its prefix
+        (`teacher_overloaded` for KIND_TEACHER_OVERLOADED) or a soft issue's
+        category (`student_gap`). `invalid_model` is a school the node could
+        not take at all, most often one with no week yet; it names nothing and
+        nothing else is checked. `unknown` is a kind this server does not
+        know.
+      examples: [teacher_overloaded, room_pool_overloaded, invalid_model, student_gap]
+    part:
+      type: string
+      enum: [input, timetable, rule]
+      description: School input, timetable validity, or a configured rule finding.
+    severity:
+      type: string
+      enum: [error, warning, note]
+      description: >
+        error: a solve refuses this school, or the timetable breaks a hard
+        rule. warning: a solve still runs, or the timetable misses a comfort
+        rule. note: hygiene the rating ignores.
+    ignored:
+      type: boolean
+      description: >
+        The document ignores this finding: one of its ignored findings has
+        this kind, these entities, these lessons and these exact time spans, in any order.
+    entities:
+      type: array
+      description: >
+        What the finding names. A `split` or `link` is not a place to go to;
+        it tells which split or lesson link the finding is about.
+      items:
+        $ref: './finding.yaml#/EntityRef'
+    lessons:
+      type: array
+      description: The lessons the finding names, with where each one sits.
+      items:
+        $ref: './check.yaml#/CheckLesson'
+    spans:
+      type: array
+      description: The periods the finding covers.
+      items:
+        $ref: './check.yaml#/CheckSpan'
+    needed:
+      type: integer
+      minimum: 0
+      description: >
+        Periods a week the lessons need. Only `teacher_overloaded` and
+        `room_pool_overloaded` carry it, always together with `available`.
+    available:
+      type: integer
+      minimum: 0
+      description: Periods a week that are free for them. Zero is a real value.
+    count:
+      type: integer
+      minimum: 0
+      description: >
+        A soft issue's size, such as the periods in a gap. Absent on hard
+        findings.
+
+CheckLesson:
+  type: object
+  required: [lesson_id]
+  additionalProperties: false
+  properties:
+    lesson_id:
+      type: integer
+      minimum: 1
+    day_id:
+      type: integer
+      description: The day it is placed on. Absent when the lesson is not placed.
+    start_period:
+      type: integer
+      description: >
+        The period it starts in, counted the way the document's placements
+        count them. Absent when it is not placed.
+    duration:
+      type: integer
+      description: Periods the lesson takes. Absent when the node did not say.
+    room_id:
+      type: integer
+      description: The room it is placed in. Absent when it has none.
+
+CheckSpan:
+  type: object
+  required: [day_id, start_period, period_span]
+  additionalProperties: false
+  properties:
+    day_id:
+      type: integer
+    start_period:
+      type: integer
+      description: Counted the way the document's placements count periods.
+    period_span:
+      type: integer
+      minimum: 1
+      description: Consecutive periods from start_period.
+
+CheckScore:
+  type: object
+  required: [rating, quality, students_quality, teachers_quality, metrics, classes, teachers]
+  additionalProperties: false
+  description: >
+    The timetable's comfort and error-capped rating. Present only when the version's timetable places
+    every lesson of a school that has lessons.
+  properties:
+    rating:
+      type: number
+      format: double
+      description: Comfort capped by unignored errors at max(0, 50 - 5 * errors); comfort when no errors.
+    quality:
+      type: number
+      format: double
+      description: Comfort from enabled rules, from 0 to 100. Errors cap rating separately.
+    students_quality:
+      type: number
+      format: double
+    teachers_quality:
+      type: number
+      format: double
+    metrics:
+      type: array
+      items:
+        $ref: './check.yaml#/CheckMetric'
+    classes:
+      type: array
+      description: One rating per class.
+      items:
+        $ref: './check.yaml#/CheckEntityScore'
+    teachers:
+      type: array
+      description: One rating per teacher.
+      items:
+        $ref: './check.yaml#/CheckEntityScore'
+
+CheckMetric:
+  type: object
+  required: [key, group, applicable, rate, subscore, count]
+  additionalProperties: false
+  properties:
+    key:
+      type: string
+      description: The node's stable metric name.
+      examples: [gaps, t_late]
+    group:
+      type: string
+      enum: [students, teachers]
+    applicable:
+      type: boolean
+      description: False when no rule or nothing to measure applies; then it is not rated.
+    rate:
+      type: number
+      format: double
+      description: The count over the metric's own denominator.
+    subscore:
+      type: number
+      format: double
+      description: 0 to 100.
+    count:
+      type: integer
+      format: int64
+
+CheckEntityScore:
+  type: object
+  required: [id, rating, quality, items]
+  additionalProperties: false
+  properties:
+    rating:
+      type: number
+      format: double
+      description: Comfort capped by unignored errors at max(0, 50 - 5 * errors); comfort when no errors.
+    id:
+      type: integer
+      description: The class's or teacher's id in the document.
+    quality:
+      type: number
+      format: double
+      description: 0 to 100.
+    items:
+      type: array
+      description: What lowered it, by soft issue category.
+      items:
+        $ref: './check.yaml#/CheckScoreItem'
+
+CheckScoreItem:
+  type: object
+  required: [category, count]
+  additionalProperties: false
+  properties:
+    category:
+      type: string
+      examples: [student_gap, late_student]
+    count:
+      type: integer
+      minimum: 0
