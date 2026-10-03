@@ -1,0 +1,79 @@
+# contracts/backend/paths/exports.yaml
+#
+# A version or a result as a file for someone else: a .gpf or an Optivum
+# HTML export. The server builds each file once per source and format, keeps
+# it in its object storage and answers every later request for it from there.
+# Exporting is reading: every signed-in account exports every live plan.
+
+version:
+  parameters:
+    - $ref: '../parameters/path.yaml#/PlanID'
+    - $ref: '../parameters/path.yaml#/VersionNumber'
+    - $ref: '../parameters/path.yaml#/ExportFormat'
+  get:
+    operationId: exportVersion
+    summary: One version as a file in the named format.
+    description: &exportDescription >
+      The file is built on the first request and kept, so a second request for
+      the same source and format answers from storage without building again.
+      A `.gpf` is encrypted to the school's own key when the server holds one
+      (Identity mode: any of the school's machines opens it, nobody else),
+      and plain when it holds none; a kept file built for another key, or
+      plain before the school had one, is built again. `optivum.html` is a zip
+      of index.html and one page per class, teacher and room. A version whose
+      document holds no timetable has no HTML export: 422 `export.noTimetable`.
+      When the plan is deleted for good, or the version or result leaves
+      through a cap or the Trash purge, its files go with it: the object sweep
+      deletes them after its hour.
+    tags: [export]
+    responses:
+      '200': &exportFile
+        description: >
+          The file. `application/octet-stream` for `goptivum.gpf`,
+          `application/zip` for `optivum.html`.
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+          application/zip:
+            schema:
+              type: string
+              format: binary
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '422':
+        $ref: '../responses/error.yaml#/Validation'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+result:
+  parameters:
+    - $ref: '../parameters/path.yaml#/PlanID'
+    - $ref: '../parameters/path.yaml#/ResultID'
+    - $ref: '../parameters/path.yaml#/ExportFormat'
+  get:
+    operationId: exportResult
+    summary: One result as a file in the named format.
+    description: *exportDescription
+    tags: [export]
+    responses:
+      '200': *exportFile
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '422':
+        $ref: '../responses/error.yaml#/Validation'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'

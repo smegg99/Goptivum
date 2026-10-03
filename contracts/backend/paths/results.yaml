@@ -1,0 +1,258 @@
+# contracts/backend/paths/results.yaml
+#
+# The timetables a plan's solves kept: the project's Rozwiazania/ folder.
+# Every signed-in account lists, downloads and checks them; uploading one
+# solved on a device, naming, pinning, deleting and restoring one is the plan
+# owner's, and anyone else gets 403 plans.notYours.
+
+results:
+  parameters:
+    - $ref: '../parameters/path.yaml#/PlanID'
+  get:
+    operationId: listResults
+    summary: The plan's results, newest first.
+    description: >
+      Every result a solve of this plan kept and nobody deleted. The plan's
+      results cap (`Plan.results_keep`) keeps the pinned ones and the newest
+      unpinned ones; each new result removes the oldest unpinned ones beyond it
+      for good. Results in Trash are not listed.
+    tags: [results]
+    responses:
+      '200':
+        description: The plan's results.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/result.yaml#/SolveResultList'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+  post:
+    operationId: uploadResult
+    summary: Keep a timetable solved on a device as a result of the plan.
+    description: >
+      A desktop that solved on its own Arrango node, for example while it
+      could not reach this server, sends the result it kept: the whole
+      document (the school data it solved plus the timetable, the same bytes a
+      download returns), the version its school data came from, what the node
+      said about the timetable, the rule profile the solve used, and the
+      device's name. It becomes a result like one a server solve keeps, with
+      no job, `device` set and the caller as `started_by`.
+
+      The results cap counts it like any other result, by `created_at`, which
+      is `solved_at` when sent: a result older than the plan's newest
+      `results_keep` unpinned ones is removed by the cap at once, and the
+      answer still describes it.
+
+      Each upload carries an `upload_key` the device chose. An upload whose key
+      this plan already stored is answered with that result, 201 as the first
+      time, so a retry after a lost answer keeps one result. The same key with
+      a different document or source version is refused with
+      `upload_key: reused`.
+
+      The plan owner's only: anyone else gets 403 `plans.notYours`.
+    tags: [results]
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            $ref: '../schemas/result.yaml#/SolveResultUpload'
+          encoding:
+            rule_profile:
+              contentType: application/json
+    responses:
+      '201':
+        description: The result as it was kept.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/result.yaml#/SolveResult'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '413':
+        $ref: '../responses/error.yaml#/TooLarge'
+      '422':
+        $ref: '../responses/error.yaml#/Validation'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+result:
+  parameters:
+    - $ref: '../parameters/path.yaml#/PlanID'
+    - $ref: '../parameters/path.yaml#/ResultID'
+  get:
+    operationId: downloadResult
+    summary: Download one result's document.
+    description: >
+      The stored bytes, unchanged: protobuf compressed with zstd, the same
+      format as downloadVersion. The document holds the school data of the
+      version the solve read and the timetable it found.
+    tags: [results]
+    responses:
+      '200':
+        description: The document.
+        content:
+          application/zstd:
+            schema:
+              type: string
+              format: binary
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+  patch:
+    operationId: updateResult
+    summary: Name, rename or pin a result.
+    description: >
+      The plan owner's only: anyone else gets 403 `plans.notYours`.
+    tags: [results]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/result.yaml#/SolveResultUpdate'
+    responses:
+      '200':
+        description: The result as it now is.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/result.yaml#/SolveResult'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '422':
+        $ref: '../responses/error.yaml#/Validation'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+  delete:
+    operationId: deleteResult
+    summary: Move a result to Trash.
+    description: >
+      It stays in Trash for the server's `trash_days` and restoreResult brings it
+      back, pinned or not as it was. The results cap does not count or remove
+      a result in Trash. A result already in Trash is not found.
+      The plan owner's only: anyone else gets 403 `plans.notYours`.
+    tags: [results]
+    responses:
+      '204':
+        description: In Trash.
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+restore:
+  parameters:
+    - $ref: '../parameters/path.yaml#/PlanID'
+    - $ref: '../parameters/path.yaml#/ResultID'
+  post:
+    operationId: restoreResult
+    summary: Take a result out of Trash.
+    description: >
+      Restoring a result that is not in Trash changes nothing and answers the
+      result, so an undo that runs twice lands where one did. A result removed
+      for good is not found.
+      The plan owner's only: anyone else gets 403 `plans.notYours`.
+    tags: [trash]
+    responses:
+      '200':
+        description: The result, listed again.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/result.yaml#/SolveResult'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+check:
+  parameters:
+    - $ref: '../parameters/path.yaml#/PlanID'
+    - $ref: '../parameters/path.yaml#/ResultID'
+    - $ref: '../parameters/check.yaml#/RulesVersion'
+  get:
+    operationId: checkResult
+    summary: What a solve's input checks say about one result.
+    description: >
+      The same check as checkVersion, over the result's own document: its
+      school data and its timetable, not the plan's main file. A result solved
+      with a rule profile is judged by that profile's rules as the solve was
+      sent them: the model with an empty `rule_config` and the profile as the
+      request's; its document keeps the plan's own rules. The answer is cached
+      by the result's stored object and the rules sent, and a check of a
+      result never replaces a running check of a version or of another result.
+      When `rules_version` is supplied, the rule configuration of that version
+      in the same plan replaces both the saved profile and document rules.
+      Compare sends the same main-file version for both sides. The same node,
+      capacity and 20 s limits apply.
+    tags: [check]
+    responses:
+      '200':
+        description: The findings, the counts and, for a rated timetable, its scores.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/check.yaml#/Check'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '409':
+        description: >
+          No check ran. Message `solve.nodeUnavailable` or `node.outdated`, as
+          on checkVersion.
+        content:
+          application/json:
+            schema:
+              $ref: '../../shared/schemas/error.yaml#/Error'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+      '504':
+        description: >
+          The node did not answer within 20 s. Message `check.waitingForSolver`.
+        content:
+          application/json:
+            schema:
+              $ref: '../../shared/schemas/error.yaml#/Error'

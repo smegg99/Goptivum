@@ -1,0 +1,9 @@
+# contracts/backend/schemas/export.yaml
+
+ExportFormat:
+  type: string
+  description: >
+    A file the server builds from a version or a result. `goptivum.gpf` holds
+    the school data and the timetable; `optivum.html` holds the timetable's
+    pages, so it needs a timetable.
+  enum: [goptivum.gpf, optivum.html]

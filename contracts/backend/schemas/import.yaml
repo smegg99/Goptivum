@@ -1,0 +1,92 @@
+# contracts/backend/schemas/import.yaml
+#
+# What an import made, and what a preview says a file holds before anything is
+# made.
+
+ImportResult:
+  type: object
+  required: [plan_id, version, importer, findings]
+  additionalProperties: false
+  properties:
+    plan_id:
+      type: string
+      description: Decimal string, as on Plan.
+    version:
+      type: integer
+      format: int64
+    importer:
+      type: string
+      description: Which importer claimed the file.
+      examples: [optivum.pla, optivum.html]
+    findings:
+      type: array
+      items:
+        $ref: './finding.yaml#/Finding'
+
+ImportPreview:
+  type: object
+  required: [importer, name, counts, findings]
+  additionalProperties: false
+  properties:
+    importer:
+      type: string
+      description: Which importer claimed the file, as on ImportResult.
+      examples: [optivum.pla, optivum.html, goptivum.gpf]
+    school:
+      type: string
+      description: >
+        The school's name as the file carries it. Absent when the file names
+        no school, as a single o*.html page or an Optivum export whose school
+        left the name blank.
+    name:
+      type: string
+      minLength: 1
+      maxLength: 200
+      description: >
+        The name importPlan gives the plan when the request names none: the
+        school's name, else the uploaded file name without its extension.
+    counts:
+      $ref: './import.yaml#/ImportCounts'
+    findings:
+      type: array
+      description: What did not map, merged as on ImportResult.
+      items:
+        $ref: './finding.yaml#/Finding'
+
+ImportCounts:
+  type: object
+  required: [days, periods, classes, groups, teachers, subjects, rooms, lessons, placed]
+  additionalProperties: false
+  description: How much of the school the file holds, counted in the school data the import would store.
+  properties:
+    days:
+      type: integer
+      minimum: 0
+    periods:
+      type: integer
+      minimum: 0
+    classes:
+      type: integer
+      minimum: 0
+    groups:
+      type: integer
+      minimum: 0
+    teachers:
+      type: integer
+      minimum: 0
+    subjects:
+      type: integer
+      minimum: 0
+    rooms:
+      type: integer
+      minimum: 0
+    lessons:
+      type: integer
+      minimum: 0
+      description: Lessons of the school data; one may span several periods.
+    placed:
+      type: integer
+      minimum: 0
+      description: >
+        Lessons the file's timetable places. Equal to lessons for a finished
+        Optivum timetable, 0 for a file that carries none.

@@ -7,7 +7,7 @@
 
 Finding:
   type: object
-  required: [kind, severity]
+  required: [kind, severity, count]
   additionalProperties: false
   properties:
     kind:
@@ -28,9 +28,13 @@ Finding:
         $ref: './finding.yaml#/EntityRef'
     count:
       type: integer
+      minimum: 1
       description: >
-        How many times this finding stands for, when the reader aggregated a
-        bulk loss rather than reporting one per row.
+        How many occurrences this one finding stands for. Findings that are
+        the same kind, severity and entities are merged into one and their
+        counts added, and a reader that tallied a bulk loss (80 lessons with
+        no placement) counts each item, so the same fact is listed once. 1
+        for a single occurrence.
 
 EntityRef:
   type: object
@@ -39,27 +43,10 @@ EntityRef:
   properties:
     kind:
       type: string
-      enum: [division, group, teacher, room, subject, year, external_block]
+      enum: [division, group, teacher, room, subject, year, external_block, split, link]
+      description: >
+        division is a class. split (a class's division into groups) and link
+        (a lesson link) appear only in check findings.
     id:
       type: integer
-      description: The entity id inside the imported document.
-
-ImportResult:
-  type: object
-  required: [plan_id, version, findings]
-  additionalProperties: false
-  properties:
-    plan_id:
-      type: string
-      description: Decimal string, as on Plan.
-    version:
-      type: integer
-      format: int64
-    importer:
-      type: string
-      description: Which importer claimed the file.
-      examples: [optivum.pla, optivum.html]
-    findings:
-      type: array
-      items:
-        $ref: './finding.yaml#/Finding'
+      description: The entity id inside the document.

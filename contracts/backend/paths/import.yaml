@@ -9,7 +9,20 @@ import:
       a .pla is recognisable by its own header. The winning importer maps what it
       can and returns the school plus typed findings for what it did not, because
       a file that fails wholesale teaches a secretary nothing. The imported school
-      is stored as the plan's first version.
+      is stored as the plan's first version, in one transaction with the plan,
+      and the plan is the caller's own. It reads the file exactly as
+      previewImport does, so what the preview showed is what is stored.
+
+      Without a `name`, the plan is named after the school the file names, or
+      else after the uploaded file name without its extension, cut to 200
+      letters.
+
+      A file that cannot be imported is 422: `error.validation` with
+      `file: required | unreadable`, `passphrase: too_long`,
+      `name: too_long` or `school_year: too_long`, or a `gpf.*` key with its
+      parameters for a .gpf that does not open (`gpf.passwordRequired`,
+      `gpf.wrongPassword`, `gpf.identityRequired`, `gpf.wrongRealm` and the
+      rest of the gpf catalogue).
     tags: [import]
     requestBody:
       required: true
@@ -22,12 +35,26 @@ import:
               file:
                 type: string
                 format: binary
-                description: The school's own file, as they have it.
+                description: >
+                  The school's own file, as they have it: a .pla, a .gpf, an
+                  Optivum HTML export zipped whole, or one o*.html page of it
+                  (which imports that one class).
+              passphrase:
+                type: string
+                maxLength: 1024
+                description: >
+                  Opens a .gpf locked with a password. Only the importer that
+                  claimed the file sees it, and it is never stored or logged.
+                  Absent or empty means none: a password-locked file is then
+                  refused with `gpf.passwordRequired`, a wrong one with
+                  `gpf.wrongPassword`. Ignored for every other file. Longer
+                  than 1024 letters is refused with `passphrase: too_long`.
               name:
                 type: string
                 maxLength: 200
                 description: >
-                  The plan name. Absent means the uploaded file name without its
+                  The plan name. Absent or blank means the school's name the
+                  file carries, else the uploaded file name without its
                   extension.
               school_year:
                 type: string
@@ -38,17 +65,71 @@ import:
         content:
           application/json:
             schema:
-              $ref: '../schemas/finding.yaml#/ImportResult'
+              $ref: '../schemas/import.yaml#/ImportResult'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
       '401':
         $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
       '413':
         $ref: '../responses/error.yaml#/TooLarge'
       '415':
-        description: No importer recognises the file.
+        $ref: '../responses/error.yaml#/UnsupportedFormat'
+      '422':
+        $ref: '../responses/error.yaml#/Validation'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+preview:
+  post:
+    operationId: previewImport
+    summary: Read a school file the way an import would, and store nothing.
+    description: >
+      A dry run of importPlan: the same detection, the same importer and the
+      same findings, and nothing is stored, stamped or audited. It answers
+      what the file holds, so a person confirms before a plan exists. The
+      confirming importPlan sends the same file again.
+
+      Refused exactly as importPlan refuses: 415 `import.unsupportedFormat`,
+      422 `error.validation` with `file: required | unreadable` or
+      `passphrase: too_long`, or a `gpf.*` key.
+    tags: [import]
+    requestBody:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required: [file]
+            properties:
+              file:
+                type: string
+                format: binary
+                description: The file importPlan would take.
+              passphrase:
+                type: string
+                maxLength: 1024
+                description: >
+                  As on importPlan: opens a password-locked .gpf, is never
+                  stored or logged, and is ignored for every other file.
+    responses:
+      '200':
+        description: What the file holds and what did not map.
         content:
           application/json:
             schema:
-              $ref: '../schemas/error.yaml#/Error'
+              $ref: '../schemas/import.yaml#/ImportPreview'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '413':
+        $ref: '../responses/error.yaml#/TooLarge'
+      '415':
+        $ref: '../responses/error.yaml#/UnsupportedFormat'
       '422':
         $ref: '../responses/error.yaml#/Validation'
       '503':

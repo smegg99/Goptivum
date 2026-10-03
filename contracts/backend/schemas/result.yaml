@@ -1,0 +1,194 @@
+# contracts/backend/schemas/result.yaml
+#
+# A timetable a solve kept. A result is a whole document: the school data the
+# solve read (a version's, or another result's) plus the timetable, so it
+# opens on its own and editing the main file never loses it. A solve on this
+# server's nodes keeps it with its job; a solve on a device's own node is
+# uploaded with the device's name instead.
+
+SolveResult:
+  type: object
+  required: [id, plan_id, source_version, object_key, size_bytes, created_at, started_by, pinned]
+  additionalProperties: false
+  properties:
+    id:
+      type: string
+      description: Decimal string, because a 64-bit id does not survive a JSON number.
+    plan_id:
+      type: string
+    job_id:
+      type: string
+      description: >
+        The solve on this server's nodes that found it. Absent for a result
+        solved on a device.
+    device:
+      type: string
+      minLength: 1
+      maxLength: 100
+      description: >
+        The name of the device that solved it on its own node and uploaded it
+        (uploadResult). Absent for a solve on this server's nodes.
+    source_version:
+      type: integer
+      format: int64
+      minimum: 1
+      description: >
+        The version of the main file whose school data the result carries: the
+        version the solve read, or the source version of the result it read.
+        The main file may have moved on since.
+    object_key:
+      type: string
+      description: Where the document sits in object storage, content-addressed.
+    size_bytes:
+      type: integer
+      format: int64
+      description: The compressed size of the stored document.
+    created_at:
+      type: string
+      format: date-time
+      description: >
+        When its solve ended: when a server solve kept it, or the device's
+        `solved_at`.
+    started_by:
+      $ref: './job.yaml#/Starter'
+    rule_profile:
+      $ref: './rules.yaml#/SolveRuleProfile'
+    quality:
+      type: number
+      format: double
+      description: >
+        The node's 0-100 rating of the timetable, where 100 is pristine. Absent
+        when the node sent no score with it.
+    verdict:
+      type: string
+      description: The node's tier over the timetable's errors and warnings, as its enum name.
+    name:
+      type: string
+      minLength: 1
+      maxLength: 200
+      description: The name someone gave it. Absent until then.
+    pinned:
+      type: boolean
+      description: >
+        A pinned result is never removed by the results cap. Only deleting it
+        (to Trash) removes it.
+
+SolveResultList:
+  type: object
+  required: [items]
+  additionalProperties: false
+  properties:
+    items:
+      type: array
+      items:
+        $ref: './result.yaml#/SolveResult'
+
+SolveResultUpdate:
+  type: object
+  additionalProperties: false
+  description: A field that is absent is left as it is.
+  properties:
+    name:
+      type: string
+      maxLength: 200
+      description: >
+        Trimmed. An empty string removes the name. Longer than 200 letters is
+        refused with `name: too_long`.
+    pinned:
+      type: boolean
+
+SolveResultUpload:
+  type: object
+  required: [document, source_version, upload_key, device]
+  additionalProperties: false
+  properties:
+    document:
+      type: string
+      format: binary
+      description: >
+        The encoded document: protobuf compressed with zstd, as uploadVersion
+        takes it, with a timetable. Absent is refused with
+        `document: required`, bytes that are not a document with
+        `document: unreadable`, a document without a timetable with
+        `document: no_timetable`.
+    source_version:
+      type: integer
+      format: int64
+      minimum: 1
+      description: >
+        The version of the main file whose school data the result carries. It
+        may have been removed by the backups cap since. Absent is refused with
+        `source_version: required`, a value below 1 or not a number with
+        `source_version: invalid`, a version above the plan's newest with
+        `source_version: unknown`.
+    upload_key:
+      type: string
+      pattern: '^[A-Za-z0-9_-]{16,64}$'
+      description: >
+        Random, chosen by the device for this one result and sent again
+        unchanged on a retry. Stored on the result, unique per plan. Absent is
+        refused with `upload_key: required`, a value outside the pattern with
+        `upload_key: invalid`, and a key already stored with another document
+        or source version with `upload_key: reused`.
+    device:
+      type: string
+      maxLength: 100
+      description: >
+        The name of the device that solved it. Trimmed; blank is refused with
+        `device: required`, longer than 100 letters with `device: too_long`.
+    solved_at:
+      type: string
+      format: date-time
+      description: >
+        When the solve ended on the device; the result's `created_at`. Absent,
+        or later than now on this server's clock, is now. A value that is not
+        a date and time is refused with `solved_at: invalid`.
+    quality:
+      type: number
+      format: double
+      minimum: 0
+      maximum: 100
+      description: >
+        The node's 0-100 rating of the timetable. Absent when the node sent no
+        score. Outside 0-100 or not a number is refused with
+        `quality: invalid`.
+    verdict:
+      type: string
+      enum: [TIER_PRISTINE, TIER_WARNINGS, TIER_ERRORS]
+      description: >
+        The node's tier over the timetable's errors and warnings. Any other
+        value is refused with `verdict: invalid`.
+    rule_profile:
+      $ref: './result.yaml#/SolveResultUploadProfile'
+
+SolveResultUploadProfile:
+  type: object
+  required: [name]
+  additionalProperties: false
+  description: >
+    The rule profile the solve used in place of the plan's own rules, as the
+    device sent it to its node; absent when it used the plan's rules. A
+    built-in is named alone. A school profile carries its id and the overrides
+    the solve was sent, which checkResult sends again whatever the profile
+    became since. Anything else, including JSON that does not read as this
+    object, is refused with `rule_profile: invalid`.
+  properties:
+    name:
+      type: string
+      minLength: 1
+      maxLength: 200
+      description: >
+        A built-in's name (`^[a-z][a-z0-9_]{0,63}$`) when `id` is absent,
+        otherwise the school profile's name when the solve started.
+    id:
+      type: string
+      pattern: '^[0-9]{1,19}$'
+      description: The school profile's id; absent for a built-in.
+    overrides:
+      type: array
+      maxItems: 64
+      description: >
+        The school profile's overrides as the solve was sent them, at most one
+        per rule. Required with `id`, refused without it.
+      items:
+        $ref: './rules.yaml#/RuleOverride'
