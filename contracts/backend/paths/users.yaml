@@ -1,0 +1,258 @@
+# contracts/backend/paths/users.yaml
+#
+# Administrator-only. Every route here answers 404 rather than 403 to a
+# signed-in caller who is not an administrator: a 403 confirms the route is
+# real, which tells a planner probing the back office exactly what to look for.
+#
+# There is no delete. Disabling leaves the credential in place and the plans an
+# account owns still resolve to a name; deleting an identity orphans them.
+
+users:
+  get:
+    operationId: listUsers
+    summary: List the school's accounts.
+    description: >
+      Every account, newest first, paged here rather than in Kratos: Kratos has
+      no filter for a trait, so the listing is read whole.
+    tags: [users]
+    parameters:
+      - name: q
+        in: query
+        required: false
+        description: >
+          Only accounts whose username, email or name contains this text,
+          ignoring case and the spaces around it. Absent or blank lists every
+          account. `total` counts the matches.
+        schema:
+          type: string
+          maxLength: 320
+      - $ref: '../parameters/pagination.yaml#/Page'
+      - $ref: '../parameters/pagination.yaml#/Limit'
+    responses:
+      '200':
+        description: A page of accounts.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/user.yaml#/UserPage'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+  post:
+    operationId: createUser
+    summary: Create an account with a generated password.
+    description: >
+      Self-service registration is disabled, so this is the only way an account
+      comes into being. The password is generated and returned once; it is held
+      nowhere afterwards and the account must change it at the first sign-in.
+    tags: [users]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/user.yaml#/UserCreate'
+    responses:
+      '201':
+        description: The account, and its password, once.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/user.yaml#/UserCreated'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '409':
+        description: >
+          An account already signs in with this username or email. Message
+          `users.alreadyExists`. Both are sign-in names and compared ignoring
+          case, the way Kratos compares them. Detail `Field` is `username` or
+          `email` when the server found which one is taken; it is absent when
+          Kratos refused a clash the server did not see first.
+        content:
+          application/json:
+            schema:
+              $ref: '../../shared/schemas/error.yaml#/Error'
+      '422':
+        $ref: '../responses/error.yaml#/Validation'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+user:
+  parameters:
+    - $ref: '../parameters/path.yaml#/UserID'
+  get:
+    operationId: getUser
+    summary: Read one account.
+    tags: [users]
+    responses:
+      '200':
+        description: The account.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/user.yaml#/User'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+  patch:
+    operationId: updateUser
+    summary: Set an account's role, or disable and re-enable it.
+    description: >
+      A partial update, so traits are left alone. Disabling stops the account
+      signing in and keeps the credential, which is what makes re-enabling free.
+      Disabling also signs the account out everywhere: every session it holds
+      is ended before this answers.
+
+      A change that would leave the school without an active administrator is
+      refused as a whole and changes nothing: demoting or disabling the last
+      account that is both an administrator and enabled.
+    tags: [users]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/user.yaml#/UserUpdate'
+    responses:
+      '200':
+        description: The account as it now is.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/user.yaml#/User'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '409':
+        description: >
+          Nothing was changed: the school would have no enabled administrator
+          left. Message `users.lastAdmin`.
+        content:
+          application/json:
+            schema:
+              $ref: '../../shared/schemas/error.yaml#/Error'
+      '422':
+        $ref: '../responses/error.yaml#/Validation'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+userPassword:
+  parameters:
+    - $ref: '../parameters/path.yaml#/UserID'
+  post:
+    operationId: resetUserPassword
+    summary: Replace an account's password with a generated one.
+    description: >
+      Answers with the new password once. It is a full replace of the identity
+      rather than a patch of the password field, because patching that field
+      answers 200 and leaves the account unable to sign in with either the old
+      password or the new one. Every session the account holds is ended before
+      this answers, so the old password stops working everywhere at once.
+    tags: [users]
+    responses:
+      '200':
+        description: The new password, once.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/user.yaml#/PasswordReset'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+userSessions:
+  parameters:
+    - $ref: '../parameters/path.yaml#/UserID'
+  get:
+    operationId: listUserSessions
+    summary: The sessions an account is signed in with.
+    description: >
+      Read from Kratos's admin API. Only sessions that still sign the account
+      in are listed: an ended or expired session is left out, and so is every
+      session of a disabled account.
+    tags: [users]
+    responses:
+      '200':
+        description: The account's live sessions, newest sign-in first.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/user.yaml#/UserSessionList'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+  delete:
+    operationId: revokeUserSessions
+    summary: Sign an account out everywhere.
+    description: >
+      Ends every session the account holds, through Kratos's admin API. The
+      account can sign in again at once; disable it to stop that. Used on the
+      caller's own account, this ends the caller's session too.
+    tags: [users]
+    responses:
+      '204':
+        description: Every session is ended.
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+userSession:
+  parameters:
+    - $ref: '../parameters/path.yaml#/UserID'
+    - $ref: '../parameters/path.yaml#/SessionID'
+  delete:
+    operationId: revokeUserSession
+    summary: Sign an account out of one session.
+    description: >
+      Ends one session through Kratos's admin API. A session that belongs to
+      another account, or does not exist, is 404.
+    tags: [users]
+    responses:
+      '204':
+        description: The session is ended.
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'

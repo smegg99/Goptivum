@@ -1,0 +1,93 @@
+# contracts/backend/paths/account.yaml
+#
+# What one signed-in account keeps on the server for itself: how its Library
+# is arranged. Every account reads and saves only its own; nothing here
+# changes a project.
+
+library:
+  get:
+    operationId: getAccountLibrary
+    summary: How the signed-in account arranges its Library.
+    description: >
+      Folders of projects, their order, pins and Recent, kept per account so
+      every window and device the account signs in on shows one arrangement.
+      An account that never saved one answers version 0 with every list
+      empty. A project removed for good is left out of the answer; one in
+      Trash stays, so restoring it, or undoing its delete, puts it back in its
+      folder, place and pin. The desktop shows only the projects it lists.
+    tags: [account]
+    responses:
+      '200':
+        description: The account's arrangement.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/account.yaml#/AccountLibrary'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+  put:
+    operationId: saveAccountLibrary
+    summary: Replace the signed-in account's Library arrangement.
+    description: >
+      The whole arrangement, carrying the `version` it was read at. A version
+      that is not the stored one is refused with 409, which carries the
+      arrangement as stored now, so two windows of one account never
+      overwrite each other: the client applies its change to that one and
+      saves again. A save whose answer was lost and is sent again meets its
+      own arrangement in that 409.
+
+      Deleting a folder is a save without it. Its projects stay: they go where
+      the save places them, and to the top level when it places them nowhere.
+      Its subfolders need a parent the save still has.
+
+      A save may name a project that is gone for good by then; it is stored
+      as sent and left out of every answer, including this one.
+
+      Refused with 422 `error.validation`, the field and the code in
+      `details`: `version: invalid` (below 0); `folders: too_many` (over 500);
+      `folders.id: invalid` or `duplicate`; `folders.name: required` or
+      `too_long` (over 200 letters, after trimming); `folders.accent:
+      invalid`; `folders.parent_id: unknown` (no such folder), `cycle`, or
+      `too_deep` (more than 8 folders deep); `projects`,
+      `folders.projects`, `pinned` or `recent: invalid` (not a project id);
+      `projects: duplicate` (a project placed twice: it sits in one folder or
+      in the top level's list, at most once); `pinned: duplicate`; `recent:
+      duplicate` or `too_many` (over 20); `projects: too_many` (over 5000
+      projects named in all); `body: too_large` (the arrangement over 256 KiB
+      as stored).
+    tags: [account]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/account.yaml#/AccountLibrary'
+    responses:
+      '200':
+        description: The arrangement now stored, with its new version.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/account.yaml#/AccountLibrary'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '409':
+        description: >
+          The version sent is not the stored one: another window or device
+          saved first. Message `account.libraryConflict`.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/account.yaml#/AccountLibraryConflict'
+      '422':
+        $ref: '../responses/error.yaml#/Validation'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'

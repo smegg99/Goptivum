@@ -1,0 +1,163 @@
+# contracts/backend/schemas/user.yaml
+#
+# An account as this server reports it. Kratos owns the identity; the role and
+# the password-change flag live in metadata_public, which only Kratos's admin
+# API can write, which is what makes them safe to authorize on.
+
+User:
+  type: object
+  required: [id, username, email, role, active, must_change_password]
+  additionalProperties: false
+  properties:
+    id:
+      type: string
+      description: Kratos's identity id, a UUID.
+      examples: ['03b1a366-d0b7-48d8-9e0d-c6520389c33c']
+    username:
+      type: string
+      description: A password identifier, so it signs in as well as the email.
+      examples: ['kowalski']
+    email:
+      type: string
+      format: email
+      description: Also a password identifier. Nothing is ever sent to it.
+    name:
+      type: string
+      description: Display name. Absent on an account that never set one.
+    role:
+      $ref: './user.yaml#/Role'
+    active:
+      type: boolean
+      description: >
+        False is disabled: the credential is left in place, so re-enabling
+        needs no new password.
+    must_change_password:
+      type: boolean
+      description: Raised at creation and cleared once the password is changed.
+
+Role:
+  type: string
+  enum: [admin, planner]
+  description: >
+    Stored in metadata_public, never in traits. A role in traits would be a
+    self-service promotion to administrator, because the settings flow writes
+    traits and the account owns them.
+
+UserCreate:
+  type: object
+  required: [username, email, role]
+  additionalProperties: false
+  properties:
+    username:
+      type: string
+      minLength: 1
+      maxLength: 64
+    email:
+      type: string
+      format: email
+      maxLength: 320
+    name:
+      type: string
+      maxLength: 128
+    role:
+      $ref: './user.yaml#/Role'
+
+UserUpdate:
+  type: object
+  description: >
+    Only what an administrator may change about somebody else. A password is
+    not here: it has its own endpoint because it answers with a secret.
+  additionalProperties: false
+  properties:
+    role:
+      $ref: './user.yaml#/Role'
+    active:
+      type: boolean
+
+UserCreated:
+  type: object
+  required: [user, password]
+  additionalProperties: false
+  description: >
+    The only response that carries a password, and the only time this one
+    exists anywhere. It is generated rather than chosen, because an
+    administrator typing passwords for a school picks the same one twice.
+  properties:
+    user:
+      $ref: './user.yaml#/User'
+    password:
+      type: string
+      description: >
+        Shown once and never retrievable. The account is flagged to require a
+        change at the first sign-in.
+
+PasswordReset:
+  type: object
+  required: [password]
+  additionalProperties: false
+  properties:
+    password:
+      type: string
+      description: A freshly generated password, shown once.
+
+UserPage:
+  type: object
+  required: [items, page, limit, total]
+  additionalProperties: false
+  properties:
+    items:
+      type: array
+      items:
+        $ref: './user.yaml#/User'
+    page:
+      type: integer
+    limit:
+      type: integer
+    total:
+      type: integer
+      description: >
+        Every account, not the page. Kratos has no filter for a trait, so the
+        listing is read whole and paged here.
+
+UserSession:
+  type: object
+  required: [id, current, authenticated_at, expires_at]
+  additionalProperties: false
+  description: >
+    One session an account signs in with, as Kratos's admin API reports it.
+  properties:
+    id:
+      type: string
+      description: Kratos's session id, a UUID.
+    current:
+      type: boolean
+      description: True for the session the request listing it was made with.
+    authenticated_at:
+      type: string
+      format: date-time
+      description: When the account signed in with this session.
+    expires_at:
+      type: string
+      format: date-time
+      description: When the session stops signing the account in by itself.
+    ip_address:
+      type: string
+      description: >
+        The client address Kratos recorded for the session, the newest when it
+        recorded several; usually where the account signed in from. Absent
+        when it recorded none.
+    user_agent:
+      type: string
+      description: >
+        The client program Kratos recorded with that address. Absent when it
+        recorded none.
+
+UserSessionList:
+  type: object
+  required: [items]
+  additionalProperties: false
+  properties:
+    items:
+      type: array
+      items:
+        $ref: './user.yaml#/UserSession'

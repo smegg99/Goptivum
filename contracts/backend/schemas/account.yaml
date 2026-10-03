@@ -1,0 +1,100 @@
+# contracts/backend/schemas/account.yaml
+
+AccountLibrary:
+  type: object
+  required: [version, folders, projects, pinned, recent]
+  additionalProperties: false
+  description: >
+    How one account arranges its Library. Only that account reads it. A
+    project is named by its id, as a decimal string like Plan.id; a project
+    the arrangement does not place sits at the top level after the ones
+    `projects` orders.
+  properties:
+    version:
+      type: integer
+      format: int64
+      minimum: 0
+      description: >
+        Counts the saves of this arrangement, 0 before the first. A save sends
+        the version it read; the answer carries the one it stored.
+    folders:
+      type: array
+      maxItems: 500
+      description: Every folder; siblings in the order shown.
+      items:
+        $ref: './account.yaml#/LibraryFolder'
+    projects:
+      type: array
+      maxItems: 5000
+      description: The top level's projects, in the order shown.
+      items:
+        type: string
+        pattern: '^[0-9]{1,19}$'
+    pinned:
+      type: array
+      maxItems: 5000
+      description: The projects kept at the front of wherever they sit.
+      items:
+        type: string
+        pattern: '^[0-9]{1,19}$'
+    recent:
+      type: array
+      maxItems: 20
+      description: The projects the account opened last, newest first.
+      items:
+        type: string
+        pattern: '^[0-9]{1,19}$'
+
+LibraryFolder:
+  type: object
+  required: [id, name, accent, pinned, projects]
+  additionalProperties: false
+  description: >
+    A folder of projects, this account's own. It holds project ids, never the
+    projects: deleting it deletes none of them.
+  properties:
+    id:
+      type: string
+      pattern: '^[A-Za-z0-9_-]{1,64}$'
+      description: Chosen by the client; unique in the arrangement.
+    name:
+      type: string
+      minLength: 1
+      maxLength: 200
+      description: Trimmed; required.
+    parent_id:
+      type: string
+      pattern: '^[A-Za-z0-9_-]{1,64}$'
+      description: >
+        The folder this one sits in; absent at the top level. At most 8
+        folders deep.
+    accent:
+      type: string
+      pattern: '^[a-z0-9-]{0,32}$'
+      description: The folder's tint, an accent name the desktop declares; empty is the default.
+    pinned:
+      type: boolean
+      description: Kept at the front of the folder it sits in.
+    projects:
+      type: array
+      maxItems: 5000
+      description: >
+        The projects in this folder, in the order shown. A project sits in
+        one place at most: one folder, or the top level's list.
+      items:
+        type: string
+        pattern: '^[0-9]{1,19}$'
+
+AccountLibraryConflict:
+  type: object
+  required: [code, message, current]
+  additionalProperties: false
+  properties:
+    code:
+      type: string
+      enum: [conflict]
+    message:
+      type: string
+      description: i18n key the client resolves.
+    current:
+      $ref: './account.yaml#/AccountLibrary'
