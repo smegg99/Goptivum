@@ -1,0 +1,48 @@
+# contracts/backend/schemas/logs.yaml
+
+LogLevel:
+  type: string
+  enum: [debug, info, warn, error]
+
+LogLine:
+  type: object
+  required: [time, level, event, message]
+  additionalProperties: false
+  properties:
+    time:
+      type: string
+      format: date-time
+    level:
+      $ref: './logs.yaml#/LogLevel'
+    event:
+      type: string
+      description: >
+        The line's stable event id, the same in every language, such as
+        `logs.serverStarted`.
+      examples: ['logs.serverStarted']
+    message:
+      type: string
+      description: The line's sentence, in the language asked for.
+    fields:
+      type: object
+      additionalProperties:
+        type: string
+      description: >
+        The line's values by name. A value that could be a secret (a password,
+        a token, a pairing link) reads `[redacted]`.
+
+LogLines:
+  type: object
+  required: [items, capacity]
+  additionalProperties: false
+  properties:
+    items:
+      type: array
+      items:
+        $ref: './logs.yaml#/LogLine'
+      description: Newest first.
+    capacity:
+      type: integer
+      description: >
+        How many recent lines the server holds, of every level it logs. Older
+        ones are only in the server's own log.

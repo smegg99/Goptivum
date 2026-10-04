@@ -1,0 +1,123 @@
+# contracts/backend/schemas/audit.yaml
+
+AuditKind:
+  type: string
+  enum: [project, user, node, setting, storage]
+  description: What an entry changed.
+
+AuditAction:
+  type: string
+  enum:
+    - project.created
+    - project.renamed
+    - project.changed
+    - project.deleted
+    - project.restored
+    - project.transferred
+    - user.created
+    - user.changed
+    - user.passwordReset
+    - user.signedOut
+    - user.sessionEnded
+    - node.paired
+    - node.changed
+    - node.revoked
+    - setting.changed
+    - storage.trashEmptied
+    - storage.backupsTrimmed
+    - storage.swept
+  description: >
+    What was done, with the `details` each carries:
+    `project.created` (`source`: `new`, `import`, `demo` or `fork`; a fork
+    also carries `origin`, the origin plan's id, `origin_name` and
+    `version`, the origin's version it copied);
+    `project.renamed` (`from`, `to`);
+    `project.changed` (each changed field of `school_year`, `backups_keep`,
+    `results_keep` with its new value; a cap of 0 follows the server's);
+    `project.deleted` (to Trash) and `project.restored` (from Trash), none;
+    `project.transferred` (`from_id`, `from`, `to_id`, `to`: the previous
+    and the new owner's identity ids and names; a name is empty when Kratos
+    did not know it);
+    `user.created` (`role`);
+    `user.changed` (`role`, `active` as `true` or `false`, as changed);
+    `user.passwordReset`, `user.signedOut` (every session), none;
+    `user.sessionEnded` (`session`, the session id);
+    `node.paired` (`address`);
+    `node.changed` (each changed field of `label`, `solves_at_once`,
+    `workers_per_solve` with its new value);
+    `node.revoked`, none;
+    `setting.changed` (each changed setting with its new value; a list is
+    comma-separated), target id `lockout` or `server`;
+    `storage.trashEmptied` (`projects`, `checkpoints`, `results`);
+    `storage.backupsTrimmed` (`versions`);
+    `storage.swept` (`deleted`, `waiting`).
+
+AuditEntry:
+  type: object
+  required: [id, at, actor, action, target, details]
+  additionalProperties: false
+  properties:
+    id:
+      type: string
+      description: A decimal string, like Plan.id.
+    at:
+      type: string
+      format: date-time
+    actor:
+      $ref: './audit.yaml#/AuditActor'
+    action:
+      $ref: './audit.yaml#/AuditAction'
+    target:
+      $ref: './audit.yaml#/AuditTarget'
+    details:
+      type: object
+      additionalProperties:
+        type: string
+
+AuditActor:
+  type: object
+  required: [id]
+  additionalProperties: false
+  description: Who did it, as the account was named then.
+  properties:
+    id:
+      type: string
+      description: Kratos's identity id.
+    name:
+      type: string
+      description: The account's name, or its username when it had none. Absent when neither was known.
+
+AuditTarget:
+  type: object
+  required: [kind, id]
+  additionalProperties: false
+  description: What it was done to, as it was named then.
+  properties:
+    kind:
+      $ref: './audit.yaml#/AuditKind'
+    id:
+      type: string
+      description: >
+        The plan id, the identity id, the node id, `lockout` or `server` for a
+        setting, or `server` for storage.
+    name:
+      type: string
+      description: The project's name, the username or the node's label then.
+
+AuditPage:
+  type: object
+  required: [items, page, limit, total]
+  additionalProperties: false
+  properties:
+    items:
+      type: array
+      items:
+        $ref: './audit.yaml#/AuditEntry'
+      description: Newest first.
+    page:
+      type: integer
+    limit:
+      type: integer
+    total:
+      type: integer
+      description: Every matching entry, not the page.

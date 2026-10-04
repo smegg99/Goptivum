@@ -1,0 +1,44 @@
+# contracts/backend/paths/audit.yaml
+#
+# Administrator-only: 404 rather than 403 to anybody else, like users.
+
+audit:
+  get:
+    operationId: listAudit
+    summary: Who changed which project, account, node or setting, and when.
+    description: >
+      Written by the server as each change succeeds, from the day it started
+      keeping them; nothing earlier is there. Covers what an account changed
+      through this API: not autosaved versions, checkpoints, results or
+      solves, and not what the server does by itself, such as the hourly Trash
+      purge. A project, node or setting change that changed no value and a
+      storage action that removed nothing are not written.
+    tags: [audit]
+    parameters:
+      - name: kind
+        in: query
+        required: false
+        description: Only entries about this kind of thing. Absent lists every kind.
+        schema:
+          $ref: '../schemas/audit.yaml#/AuditKind'
+      - $ref: '../parameters/pagination.yaml#/Page'
+      - $ref: '../parameters/pagination.yaml#/Limit'
+    responses:
+      '200':
+        description: A page of entries, newest first.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/audit.yaml#/AuditPage'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '422':
+        $ref: '../responses/error.yaml#/Validation'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'

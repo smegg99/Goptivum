@@ -1,0 +1,61 @@
+# contracts/backend/paths/logs.yaml
+#
+# Administrator-only: 404 rather than 403 to anybody else, like users.
+
+logs:
+  get:
+    operationId: listLogs
+    summary: The server's recent log lines.
+    description: >
+      The newest lines the server logged since it started, held in memory, so
+      a restart clears them. Only lines at or above the server's own log level
+      (`logging.level` in its configuration) are there.
+    tags: [logs]
+    parameters:
+      - name: level
+        in: query
+        required: false
+        description: >
+          The lowest level to list: `warn` lists warnings and errors. Absent
+          lists every line held. Another value is refused with `level:
+          invalid`.
+        schema:
+          $ref: '../schemas/logs.yaml#/LogLevel'
+      - name: lang
+        in: query
+        required: false
+        description: >
+          The language of each `message`. Absent is the language the server
+          logs in (`application.language`). Another value is refused with
+          `lang: invalid`.
+        schema:
+          type: string
+          enum: [en, pl]
+      - name: limit
+        in: query
+        required: false
+        description: How many lines at most. A value over the capacity is clamped.
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          default: 200
+    responses:
+      '200':
+        description: The newest matching lines.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/logs.yaml#/LogLines'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '422':
+        $ref: '../responses/error.yaml#/Validation'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
