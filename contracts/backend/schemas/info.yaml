@@ -32,3 +32,32 @@ Info:
       type: string
       description: This build, for support and logs.
       examples: [0.1.0]
+    addresses:
+      type: array
+      items:
+        type: string
+      description: >
+        Every other address this same server answers on, as the school
+        configured them. A client that reached the school over its local
+        network learns the public address here and keeps both, so a laptop
+        carried out of the building reconnects without anyone typing it. Empty
+        or absent means the school published none, which is what a deployment
+        reachable at one address looks like.
+      examples: [['https://plan.szkola.edu.pl']]
+    maximum_upload_bytes:
+      type: integer
+      format: int64
+      minimum: 1
+      description: >
+        The largest upload this server accepts, in bytes: an import, a new
+        version or a result, as the server enforces it now (a changed
+        server setting applies after a restart). A client checks a file
+        against it before sending, and names it when an upload is refused
+        with 413, which does not always carry it.
+      examples: [16777216]
+    max_solve_seconds:
+      type: number
+      format: double
+      minimum: 0
+      maximum: 86400
+      description: Largest ceiling reported by an active solver node for this server; zero when none can be reached.

@@ -1,0 +1,55 @@
+# contracts/backend/schemas/trash.yaml
+
+TrashItem:
+  type: object
+  required: [kind, plan_id, name, school_year, deleted_at, removes_at]
+  additionalProperties: false
+  properties:
+    kind:
+      type: string
+      enum: [project, checkpoint, result]
+      description: >
+        What was deleted. A `project` is a whole plan with its versions,
+        results and jobs, restored with restorePlan. A `checkpoint` is the name
+        of one version of a live plan, restored with restoreCheckpoint. A
+        `result` is one result of a live plan, restored with restoreResult.
+    plan_id:
+      type: string
+      description: The plan, as a decimal string like Plan.id.
+    name:
+      type: string
+      description: >
+        The plan's name: for a project, the name it had when it was deleted.
+    school_year:
+      type: string
+      description: The plan's school year.
+    version:
+      type: integer
+      format: int64
+      minimum: 1
+      description: The named version. Present on a checkpoint only.
+    checkpoint:
+      type: string
+      description: The checkpoint's name. Present on a checkpoint only.
+    result:
+      $ref: './result.yaml#/SolveResult'
+    deleted_at:
+      type: string
+      format: date-time
+    removes_at:
+      type: string
+      format: date-time
+      description: >
+        When it is removed for good: `deleted_at` plus the server's
+        `trash_days` setting. The server purges once an hour, so it can go up to
+        an hour after this.
+
+TrashList:
+  type: object
+  required: [items]
+  additionalProperties: false
+  properties:
+    items:
+      type: array
+      items:
+        $ref: './trash.yaml#/TrashItem'

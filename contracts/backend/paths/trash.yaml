@@ -1,0 +1,29 @@
+# contracts/backend/paths/trash.yaml
+
+trash:
+  get:
+    operationId: listTrash
+    summary: List what the caller has in Trash.
+    description: >
+      Only the caller's own: the plans it owns, and the checkpoints and
+      results of live plans it owns; an administrator sees every owner's in
+      Backend > Storage. Most recently deleted first. Each item says what kind of thing it is, when
+      it was deleted and when it is removed for good; an item of kind `project`
+      is restored with restorePlan, one of kind `checkpoint` with
+      restoreCheckpoint, one of kind `result` (which carries the result) with
+      restoreResult. Checkpoints and results of a plan in Trash are not
+      listed: they are inside the project item.
+    tags: [trash]
+    responses:
+      '200':
+        description: Everything in the caller's Trash.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/trash.yaml#/TrashList'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'

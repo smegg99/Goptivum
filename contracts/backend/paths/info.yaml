@@ -6,10 +6,8 @@ info:
   # route. At /api/v1/info a client would have to guess v1 to ask what version
   # to use, and when the server stops serving v1 that guess returns 404 without
   # saying whether it reached the wrong version or something that is not a
-  # Goptivum Server at all.
-  servers:
-    - url: /api
-      description: Unversioned, and frozen.
+  # Goptivum Server at all. It sits at the root server, /api, and every other
+  # path carries its version, so no path needs a server of its own.
   get:
     operationId: getInfo
     summary: Identify the server and the API version it serves.
