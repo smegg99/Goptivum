@@ -1,0 +1,101 @@
+# contracts/backend/paths/storage.yaml
+#
+# Administrator-only, and over every owner's projects: 404 rather than 403 to
+# anybody else, like users. Each action takes effect at once and answers what
+# it did.
+
+storage:
+  get:
+    operationId: getStorage
+    summary: What every project stores, and what waits to be deleted.
+    tags: [storage]
+    responses:
+      '200':
+        description: Usage per project.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/storage.yaml#/StorageUsage'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+emptyTrash:
+  post:
+    operationId: emptyTrash
+    summary: Remove everything in every owner's Trash for good.
+    description: >
+      Projects in Trash go with their versions, results and jobs; checkpoints
+      in Trash lose their name and their version is kept or removed by its
+      project's backups cap, as when their time in Trash is up; results in
+      Trash go. A result a running solve reads stays until the solve ends.
+    tags: [storage]
+    responses:
+      '200':
+        description: What was removed.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/storage.yaml#/TrashEmptied'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+trimBackups:
+  post:
+    operationId: trimBackups
+    summary: Apply every project's backups cap now.
+    description: >
+      Removes for good the older versions beyond each project's cap, every
+      owner's projects and those in Trash included, as a new version would. A
+      version a running solve reads stays until the solve ends.
+    tags: [storage]
+    responses:
+      '200':
+        description: How many versions were removed.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/storage.yaml#/BackupsTrimmed'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+sweep:
+  post:
+    operationId: sweepObjects
+    summary: Delete now the stored objects nothing names any more.
+    description: >
+      The same clean-up the server runs every hour. It deletes only objects
+      that have waited an hour; the rest wait for a later one.
+    tags: [storage]
+    responses:
+      '200':
+        description: What the clean-up deleted and what still waits.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/storage.yaml#/ObjectsSwept'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'

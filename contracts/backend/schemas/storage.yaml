@@ -1,0 +1,128 @@
+# contracts/backend/schemas/storage.yaml
+#
+# Sizes are the sizes of the stored files each row names. Stored objects are
+# keyed by their content, so two versions or two projects with identical bytes
+# share one object: the per-project sizes can add up to more than
+# `stored_bytes`, which counts each object once.
+
+StorageUsage:
+  type: object
+  required: [projects, stored_bytes, stored_objects, waiting_objects]
+  additionalProperties: false
+  properties:
+    projects:
+      type: array
+      items:
+        $ref: './storage.yaml#/ProjectStorage'
+      description: Every owner's projects, those in Trash included, largest first.
+    stored_bytes:
+      type: integer
+      format: int64
+      description: Every stored object that a version or a result names, each counted once.
+    stored_objects:
+      type: integer
+      description: How many objects `stored_bytes` counts.
+    waiting_objects:
+      type: integer
+      description: >
+        Objects nothing names any more, waiting for the clean-up that deletes
+        them. It runs every hour and deletes an object once it has waited an
+        hour.
+
+ProjectStorage:
+  type: object
+  required: [plan_id, name, owner, main_file, backups, results, trash]
+  additionalProperties: false
+  properties:
+    plan_id:
+      type: string
+      description: The plan, as a decimal string like Plan.id.
+    name:
+      type: string
+    owner:
+      $ref: './storage.yaml#/Owner'
+    deleted_at:
+      type: string
+      format: date-time
+      description: >
+        Present when the whole project is in Trash; then everything it holds
+        goes when Trash is emptied.
+    main_file:
+      $ref: './storage.yaml#/StoredFiles'
+    backups:
+      $ref: './storage.yaml#/StoredFiles'
+    results:
+      $ref: './storage.yaml#/StoredFiles'
+    trash:
+      $ref: './storage.yaml#/StoredFiles'
+
+StoredFiles:
+  type: object
+  required: [count, bytes]
+  additionalProperties: false
+  description: >
+    A part of a project. `main_file` is the newest version. `backups` are the
+    older versions, named checkpoints included and checkpoints in Trash not.
+    `results` are the results not in Trash. `trash` is the checkpoints and
+    results in Trash; a project in Trash keeps its other parts where they are
+    and says so with `deleted_at`.
+  properties:
+    count:
+      type: integer
+    bytes:
+      type: integer
+      format: int64
+
+Owner:
+  type: object
+  required: [id]
+  additionalProperties: false
+  description: The account that owns a project.
+  properties:
+    id:
+      type: string
+      description: Kratos's identity id.
+    name:
+      type: string
+      description: >
+        The account's name, or its username when it has none. Absent when the
+        account is gone or Kratos did not answer.
+
+TrashEmptied:
+  type: object
+  required: [projects, checkpoints, results]
+  additionalProperties: false
+  description: >
+    What left Trash for good. Their stored objects wait for the hourly clean-up
+    like any other removed object.
+  properties:
+    projects:
+      type: integer
+    checkpoints:
+      type: integer
+    results:
+      type: integer
+
+BackupsTrimmed:
+  type: object
+  required: [versions]
+  additionalProperties: false
+  properties:
+    versions:
+      type: integer
+      description: How many older versions were removed for good.
+
+ObjectsSwept:
+  type: object
+  required: [deleted, waiting]
+  additionalProperties: false
+  properties:
+    deleted:
+      type: integer
+      description: How many objects this clean-up deleted.
+    waiting:
+      type: integer
+      description: >
+        How many are still waiting: an object is deleted only after it has
+        waited an hour, which covers an upload that stores its object before
+        the row naming it.

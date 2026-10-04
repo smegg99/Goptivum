@@ -1,0 +1,63 @@
+# contracts/backend/paths/school.yaml
+#
+# The school's own key. One key for the whole school was the decision: anyone
+# signed in opens any of its files, so these routes need a session and no role.
+
+key:
+  get:
+    operationId: getSchoolKey
+    summary: What this school's files are encrypted to.
+    description: >
+      The public half only, which is not a secret. A client reads this to know
+      whether the deployment holds a key at all before it offers to export an
+      encrypted file. It is read without unlocking the key, so it answers at
+      once and still answers when the escrow passphrase no longer opens it.
+    tags: [school]
+    responses:
+      '200':
+        description: The key, or a statement that there is not one.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/school.yaml#/SchoolKey'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+release:
+  post:
+    operationId: releaseSchoolKey
+    summary: Hand the private half to this machine.
+    description: >
+      **This returns the secret that opens every file the school has
+      encrypted.** A POST rather than a GET deliberately: a private key must
+      never sit in a response a proxy or a browser might cache, and releasing
+      it is an act rather than a read.
+
+      Any signed-in member of the school may ask, because one key for the whole
+      school was the decision and a planner who cannot open the school's files
+      cannot do their work. A deployment that holds no key answers 404, and one
+      whose escrow passphrase no longer opens the key answers 503.
+
+      The desktop keeps the released key on the device, in a place only the
+      signed-in user reads. Its local copies of the school's projects are .gpf
+      files encrypted to this key (identity mode), so they open offline.
+    tags: [school]
+    responses:
+      '200':
+        description: The key.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/school.yaml#/SchoolKeyRelease'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'

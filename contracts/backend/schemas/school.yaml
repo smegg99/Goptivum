@@ -1,0 +1,45 @@
+# contracts/backend/schemas/school.yaml
+
+SchoolKey:
+  type: object
+  required: [configured]
+  additionalProperties: false
+  description: >
+    The school's own key for encrypted project files. The public half is not a
+    secret: it is what a file is encrypted to.
+  properties:
+    configured:
+      type: boolean
+      description: >
+        False when this deployment holds no key, which is what not setting an
+        escrow passphrase means. Files are then written unencrypted unless the
+        person opening them supplies their own key.
+    recipient:
+      type: string
+      description: >
+        The age recipient new files are encrypted to. Absent when `configured`
+        is false.
+      examples: [age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p]
+    created_at:
+      type: string
+      format: date-time
+      description: >
+        When the key was made, on this server's first start with an escrow
+        passphrase. Absent when `configured` is false.
+
+SchoolKeyRelease:
+  type: object
+  required: [identity, recipient]
+  additionalProperties: false
+  description: >
+    The private half, handed to a signed-in member of this school so their
+    machine can open the school's files without sending them to the server.
+  properties:
+    identity:
+      type: string
+      description: >
+        The age identity. **This is the secret.** Anyone holding it opens every
+        file this school has ever encrypted.
+      examples: [AGE-SECRET-KEY-1QQPQQ...]
+    recipient:
+      type: string
