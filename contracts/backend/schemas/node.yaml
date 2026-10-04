@@ -1,0 +1,197 @@
+# contracts/backend/schemas/node.yaml
+#
+# A solving node this deployment has paired with. Trust is a pinned
+# certificate, not a CA: the fingerprint is the identity and the address is
+# only where it was last reached.
+
+Node:
+  type: object
+  required: [id, label, address, fingerprint, paired_at, active, solves_at_once, workers_per_solve]
+  additionalProperties: false
+  properties:
+    id:
+      type: string
+      description: Decimal string, because a 64-bit id does not survive a JSON number.
+      examples: ['4611686018427387904']
+    label:
+      type: string
+      description: What this deployment calls the node. Local, not the node's own name.
+      examples: ['school-node']
+    address:
+      type: string
+      description: >
+        Where it was last reached. Changing it needs no re-pairing, because the
+        pin is the certificate.
+      examples: ['127.0.0.1:9443']
+    fingerprint:
+      type: string
+      description: >
+        SHA-256 of the node's certificate, base32 in groups of four. This is the
+        identity: a node presenting anything else is refused as an impostor,
+        including the same node after its certificate was regenerated.
+      examples: ['7YRR-VPVG-QOH5-626M-23QG-Q554-ZICU-ANHS-2YQQ-UDZ5-QN3Y-G7PJ-S7NQ']
+    paired_at:
+      type: string
+      format: date-time
+    revoked_at:
+      type: string
+      format: date-time
+      description: Absent while the node is still trusted.
+    active:
+      type: boolean
+      description: False once revoked. A revoked node is refused before anything is dialled.
+    solves_at_once:
+      type: integer
+      minimum: 1
+      maximum: 64
+      description: >
+        This server's own limit: how many of its solves may run on the node at
+        once. A further solve is refused as busy. It never exceeds the node's
+        own ceiling for this server: admission also checks that ceiling live.
+    workers_per_solve:
+      type: integer
+      minimum: 1
+      maximum: 64
+      description: >
+        This server's own limit: the workers each solve on the node gets, fewer
+        when the solve asks for fewer or the node's free memory covers fewer.
+
+NodePair:
+  type: object
+  required: [uri]
+  additionalProperties: false
+  properties:
+    uri:
+      type: string
+      description: >
+        The arrango:// URI the node printed. It carries the fingerprint to pin
+        and a one-time token, both in the fragment, which never reaches a
+        server. This server verifies the presented certificate against the
+        fingerprint before the token travels.
+      examples: ['arrango://10.0.0.5:9443#fp=7YRR-VPVG-QOH5-626M&t=ABCD-EFGH-IJKL-MNOP']
+    label:
+      type: string
+      maxLength: 64
+      description: What to call it locally. Absent means the node's own label.
+
+NodePaired:
+  type: object
+  required: [node, node_api_version, solver_version, min_client_version]
+  additionalProperties: false
+  properties:
+    node:
+      $ref: './node.yaml#/Node'
+    node_api_version:
+      type: string
+      description: The node's API version, read during the pairing call itself.
+    solver_version:
+      type: string
+    min_client_version:
+      type: string
+      description: >
+        The oldest caller this node accepts. It is checked on every call, not
+        only at pairing, so a node upgrade can turn away a peer already on its
+        list.
+
+NodeList:
+  type: object
+  required: [items]
+  additionalProperties: false
+  properties:
+    items:
+      type: array
+      description: Revoked nodes included, so an operator can see what was removed.
+      items:
+        $ref: './node.yaml#/Node'
+
+NodeUpdate:
+  type: object
+  additionalProperties: false
+  description: At least one field. An absent field is left as it is.
+  properties:
+    label:
+      type: string
+      maxLength: 64
+      description: The new local name, trimmed. Jobs and the node's history read it from here.
+    solves_at_once:
+      type: integer
+      minimum: 1
+      maximum: 64
+    workers_per_solve:
+      type: integer
+      minimum: 1
+      maximum: 64
+
+NodeStatus:
+  type: object
+  required: [node_id, reachable, running_solves]
+  additionalProperties: false
+  description: >
+    The node as it answered just now. Every field but node_id, reachable,
+    problem and running_solves is absent when it did not answer.
+  properties:
+    node_id:
+      type: string
+    reachable:
+      type: boolean
+      description: >
+        True when the node answered both GetNodeInfo and GetNodeStatus within 3
+        seconds. False for a revoked node, which is not asked.
+    problem:
+      type: string
+      enum: [node.unreachable, node.fingerprintMismatch, node.notPaired, node.clientTooOld]
+      description: >
+        Why an unrevoked node is not reachable, as a message key:
+        `node.unreachable` (it could not be reached or did not answer),
+        `node.fingerprintMismatch` (its address presented another certificate:
+        another machine, or the node's identity was replaced; pair it again),
+        `node.notPaired` (it no longer accepts this server, usually because its
+        operator revoked it there; pair it again), `node.clientTooOld` (it needs
+        a newer version of this server). Absent when reachable or revoked.
+    running_solves:
+      type: integer
+      description: >
+        This server's solves on the node that are pending or running, from its
+        own jobs. Not the node's own count, which also holds checks and other
+        deployments' solves.
+    node_api_version:
+      type: string
+    solver_version:
+      type: string
+    min_client_version:
+      type: string
+      description: The oldest version of this server the node accepts.
+    cores:
+      type: integer
+    free_memory_bytes:
+      type: integer
+      format: int64
+      description: >
+        The memory a new solve can plan against: what the node has available
+        less what its running solves reserved.
+    ceilings:
+      $ref: './node.yaml#/NodeCeilings'
+
+NodeCeilings:
+  type: object
+  required: [workers_per_solve, max_solve_seconds]
+  additionalProperties: false
+  description: >
+    The node's own limits for this server, set by its operator when it was
+    paired (`arrango-node pair --max-solves --worker-ceiling`). Absent from a
+    status when the node's build does not report them.
+  properties:
+    max_solve_seconds:
+      type: number
+      format: double
+      minimum: 0
+      maximum: 86400
+      description: Longest solve allowed for this server by this node's pairing policy.
+    solves_at_once:
+      type: integer
+      description: Absent when the node sets no limit of its own on this server's solves at once.
+    workers_per_solve:
+      type: integer
+      description: >
+        The node's worker ceiling for this server, or its core count when it
+        sets none.

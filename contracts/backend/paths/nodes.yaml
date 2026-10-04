@@ -1,0 +1,236 @@
+# contracts/backend/paths/nodes.yaml
+#
+# Administrator-only, same 404-not-403 rule as the account routes. Pairing
+# hands a node the right to receive a school's whole timetable, names included,
+# so it is not something a planner does.
+
+nodes:
+  get:
+    operationId: listNodes
+    summary: List the solving nodes this deployment has paired with.
+    description: Revoked nodes included, so an operator can see what was removed.
+    tags: [nodes]
+    responses:
+      '200':
+        description: Every node.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/node.yaml#/NodeList'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+  post:
+    operationId: pairNode
+    summary: Pair with a node from the URI it printed.
+    description: >
+      The server verifies the certificate the address presents against the
+      fingerprint in the URI before the one-time token travels, so an impostor
+      at that address learns nothing, not even that a token existed. Pairing a
+      node already on the list updates its address and clears a revocation
+      rather than adding a second entry, because the fingerprint is the
+      identity: the node keeps its id, and its name when the request gives
+      none.
+
+      A new node's limits start at the node's own ceilings for this server
+      (its `max_concurrent_solves`, or 1 when it sets none, and 4 workers per
+      solve, lower when its worker ceiling is lower). Pairing an existing node
+      again keeps its limits and lowers any above the node's ceilings.
+
+      A refusal is 422 with one of these messages: `node.notALink` (the text is
+      not an arrango:// pairing link), `node.unreachable` (nothing answered at
+      its address), `node.fingerprintMismatch` (the address presented another
+      certificate than the link names), `node.linkSpent` (the node refused the
+      link: expired, already used or never issued, which the node answers
+      alike on purpose), `node.clientTooOld` (the node needs a newer version
+      of this server), `node.pairingFailed` (the node answered with any other
+      error).
+    tags: [nodes]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/node.yaml#/NodePair'
+    responses:
+      '201':
+        description: The node, and the versions it reported while pairing.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/node.yaml#/NodePaired'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '422':
+        $ref: '../responses/error.yaml#/Validation'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+node:
+  parameters:
+    - $ref: '../parameters/path.yaml#/NodeID'
+  get:
+    operationId: getNode
+    summary: Read one node.
+    tags: [nodes]
+    responses:
+      '200':
+        description: The node.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/node.yaml#/Node'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+  patch:
+    operationId: updateNode
+    summary: Rename a node or set this server's limits on it.
+    description: >
+      An absent field is left as it is. The name is local and needs no call
+      to the node. A limit is checked against the node's own ceiling for this
+      server, read from the node now, because a limit above it would queue a
+      solve on the node instead of refusing it here: 422 `node.solvesAboveCeiling`
+      or `node.workersAboveCeiling` with detail `Ceiling`. When the node's
+      ceiling cannot be read the limits are not changed: 409 with the reason
+      as the message (`node.unreachable`, `node.fingerprintMismatch`,
+      `node.notPaired`, `node.clientTooOld`), `node.outdated` (detail
+      `Capability: peer_policy`) for a node whose build does not report its
+      ceilings, or `node.revoked`. 422 `error.validation` covers a blank or
+      too long `label` (`required`, `too_long`), a limit outside 1 to 64
+      (`invalid`) and a body with no field (`body: empty`).
+    tags: [nodes]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/node.yaml#/NodeUpdate'
+    responses:
+      '200':
+        description: The node as it now is.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/node.yaml#/Node'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '409':
+        description: >
+          The node's ceilings could not be read, so no limit was changed. The
+          message says why; see the operation's description.
+        content:
+          application/json:
+            schema:
+              $ref: '../../shared/schemas/error.yaml#/Error'
+      '422':
+        $ref: '../responses/error.yaml#/Validation'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+  delete:
+    operationId: revokeNode
+    summary: Stop dispatching to a node.
+    description: >
+      One side only. The node forgets this deployment when an operator revokes
+      it there, and revocation there is deleting a line. The row is kept rather
+      than removed, so a job that names a revoked node still reads.
+
+      No new solve is admitted on the node once this starts. Its running
+      solves are cancelled and this answers once their jobs are closed, each
+      keeping the best timetable it had as a result, the same as a stop.
+    tags: [nodes]
+    responses:
+      '204':
+        description: Revoked, or already revoked.
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+nodeStatus:
+  parameters:
+    - $ref: '../parameters/path.yaml#/NodeID'
+  get:
+    operationId: getNodeStatus
+    summary: Ask a node now what it is and what it can take.
+    description: >
+      Dials the node and asks GetNodeInfo and GetNodeStatus, within 3 seconds,
+      the same bound a solve's admission uses. A node that does not answer is
+      a 200 with `reachable` false, not an error of this server. A revoked
+      node is not asked. `running_solves` is read from this server's own jobs
+      in either case.
+    tags: [nodes]
+    responses:
+      '200':
+        description: What the node said, or why it said nothing.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/node.yaml#/NodeStatus'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+nodeJobs:
+  parameters:
+    - $ref: '../parameters/path.yaml#/NodeID'
+  get:
+    operationId: listNodeJobs
+    summary: List the solves this server ran on one node, newest first.
+    description: >
+      The node's solve history, from this server's own jobs: every owner's,
+      projects in Trash included, because it describes the node and not a
+      project. Each job carries its workers, its peak memory and CPU time (when
+      the node reported them) and its outcome.
+    tags: [nodes]
+    parameters:
+      - $ref: '../parameters/pagination.yaml#/Page'
+      - $ref: '../parameters/pagination.yaml#/Limit'
+    responses:
+      '200':
+        description: One page of the node's jobs.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/job.yaml#/JobPage'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'

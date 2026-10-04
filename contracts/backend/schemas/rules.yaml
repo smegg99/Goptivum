@@ -1,0 +1,213 @@
+# contracts/backend/schemas/rules.yaml
+#
+# The solver's rule table and its built-in profiles, as the node reports them,
+# and the school's own profiles, which this server stores. The client words
+# every rule from its key; there is no prose here.
+
+RuleCatalogue:
+  type: object
+  required: [rules, profiles]
+  additionalProperties: false
+  properties:
+    rules:
+      type: array
+      description: Every rule a plan's `rule_config` may name, in the solver's table order.
+      items:
+        $ref: './rules.yaml#/RuleDefinition'
+    profiles:
+      type: array
+      description: >
+        The built-in profiles, `default` first. A plan's `rule_config.profile`
+        names one; an empty name means `default`.
+      items:
+        $ref: './rules.yaml#/RuleProfile'
+
+RuleDefinition:
+  type: object
+  required: [key, default_mode, hardable, by_year, by_division, by_subject, by_teacher, default_weight, default_param, param_kind]
+  additionalProperties: false
+  properties:
+    key:
+      type: string
+      pattern: '^[a-z][a-z0-9_]*$'
+      description: The name a rule override uses (`RuleOverride.rule` in the document).
+      examples: [teacher_gaps, subject_once, stability]
+    default_mode:
+      $ref: './rules.yaml#/RuleMode'
+    default_weight:
+      type: integer
+      format: int64
+      minimum: 1
+      description: The solver's soft cost when no profile or plan override supplies a weight.
+    default_param:
+      type: integer
+      minimum: 0
+      description: The built-in rule parameter. Zero means none or a required explicit value.
+    param_kind:
+      type: string
+      enum: [none, spread, edge_periods, days, latest_first_period]
+      description: What the rule's parameter counts; none means the rule has no parameter.
+    hardable:
+      type: boolean
+      description: The rule may be set to hard. The node refuses hard on a rule that may not.
+    by_year:
+      type: boolean
+      description: An override may name a year.
+    by_division:
+      type: boolean
+      description: An override may name a class (a division, as in EntityRef).
+    by_subject:
+      type: boolean
+      description: An override may name a subject.
+    by_teacher:
+      type: boolean
+      description: >
+        An override may name a teacher. A rule with no scope at all is set for
+        the whole school only.
+
+RuleProfile:
+  type: object
+  required: [name, overrides]
+  additionalProperties: false
+  properties:
+    name:
+      type: string
+      examples: [default, dobry_plan, relaxed]
+    overrides:
+      type: array
+      description: >
+        Applied in order over the rules' defaults, before the plan's own
+        overrides. They name no year, class, subject or teacher.
+      items:
+        $ref: './rules.yaml#/RuleOverride'
+
+RuleOverride:
+  type: object
+  required: [rule]
+  additionalProperties: false
+  properties:
+    rule:
+      type: string
+      pattern: '^[a-z][a-z0-9_]*$'
+      maxLength: 64
+      description: A RuleDefinition key.
+    mode:
+      $ref: './rules.yaml#/RuleMode'
+    weight:
+      type: integer
+      format: int64
+      minimum: 1
+      description: The soft weight. Absent keeps the solver's built-in weight.
+    param:
+      type: integer
+      minimum: 1
+      description: >
+        The rule's own number, such as `anti_split_shift`'s edge periods.
+        Absent keeps the built-in value.
+
+RuleMode:
+  type: string
+  enum: [hard, soft, off]
+  description: >
+    hard: a solve never breaks it, and breaking it is an error. soft: breaking
+    it costs its weight. off: the rule does not exist for this school. On a
+    RuleOverride an absent mode keeps the mode the rule already has.
+
+SchoolRuleProfile:
+  type: object
+  required: [id, name, overrides, created_by, created_at, updated_at, editable]
+  additionalProperties: false
+  description: >
+    A rule profile of the school's own, shared by every account. A solve that
+    picks it uses its overrides in place of every rule of the plan.
+  properties:
+    id:
+      type: string
+      description: Decimal string, because a 64-bit id does not survive a JSON number.
+    name:
+      type: string
+      minLength: 1
+      maxLength: 200
+    overrides:
+      type: array
+      description: >
+        Applied in order over the rules' defaults. They name no year, class,
+        subject or teacher: a profile serves every plan of the school, and
+        those ids belong to one plan.
+      items:
+        $ref: './rules.yaml#/RuleOverride'
+    created_by:
+      $ref: './job.yaml#/Starter'
+    created_at:
+      type: string
+      format: date-time
+    updated_at:
+      type: string
+      format: date-time
+    editable:
+      type: boolean
+      description: >
+        The caller may change and delete it: the caller created it, or is an
+        administrator.
+
+SchoolRuleProfileList:
+  type: object
+  required: [items]
+  additionalProperties: false
+  properties:
+    items:
+      type: array
+      items:
+        $ref: './rules.yaml#/SchoolRuleProfile'
+
+SchoolRuleProfileCreate:
+  type: object
+  required: [name, overrides]
+  additionalProperties: false
+  properties:
+    name:
+      type: string
+      maxLength: 200
+      description: Trimmed; required and unique among the school's profiles.
+    overrides:
+      type: array
+      maxItems: 64
+      description: At most one override per rule. Empty is the solver's defaults.
+      items:
+        $ref: './rules.yaml#/RuleOverride'
+
+SchoolRuleProfileUpdate:
+  type: object
+  additionalProperties: false
+  description: A field that is absent is left as it is.
+  properties:
+    name:
+      type: string
+      maxLength: 200
+      description: Trimmed; required and unique among the school's profiles.
+    overrides:
+      type: array
+      maxItems: 64
+      description: Replaces every override of the profile.
+      items:
+        $ref: './rules.yaml#/RuleOverride'
+
+SolveRuleProfile:
+  type: object
+  required: [name]
+  additionalProperties: false
+  description: >
+    The rule profile a solve used in place of the plan's own rules, as it was
+    when the solve started. A job or a result without one used the plan's own
+    rules.
+  properties:
+    name:
+      type: string
+      description: >
+        A built-in profile's name (`default`, `dobry_plan`, ...) when `id` is
+        absent; otherwise the school profile's name when the solve started.
+    id:
+      type: string
+      description: >
+        The school profile's id, absent for a built-in. The profile may have
+        been renamed or deleted since.

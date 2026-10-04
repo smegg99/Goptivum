@@ -1,0 +1,175 @@
+# contracts/backend/paths/rules.yaml
+#
+# The solver's rule table and the school's own rule profiles. A planner writes
+# a plan's rules into its own document; the catalogue only says which rules
+# exist and what each one allows. A school profile is a set of rules a solve
+# can use in place of a plan's own (createJob's school_rule_profile_id).
+
+rules:
+  get:
+    operationId: getRuleCatalogue
+    summary: Every rule a plan may set, and the built-in rule profiles.
+    description: >
+      Asked of the first paired, unrevoked node each time; nothing is stored
+      and nothing is cached here. The node answers from its own build, so a
+      node update can change the list.
+
+      The node answers in a child process that waits, without saying so, until
+      the node has memory for it. The call gives up after 20 s, dialling
+      included, and answers 504 `rules.waitingForSolver`.
+    tags: [rules]
+    responses:
+      '200':
+        description: The rules in the solver's table order, then the built-in profiles.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/rules.yaml#/RuleCatalogue'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '409':
+        description: >
+          No node answered. Message `solve.nodeUnavailable`: no node is paired
+          and unrevoked, the node did not answer, or it has no room for the
+          call. Message `node.outdated`: the node answers but cannot list its
+          rules (details `Capability: rule_catalogue`); it needs an update.
+        content:
+          application/json:
+            schema:
+              $ref: '../../shared/schemas/error.yaml#/Error'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+      '504':
+        description: >
+          The node did not answer within 20 s, usually because it is waiting
+          for memory to start the call. Message `rules.waitingForSolver`.
+        content:
+          application/json:
+            schema:
+              $ref: '../../shared/schemas/error.yaml#/Error'
+
+profiles:
+  get:
+    operationId: listRuleProfiles
+    summary: The school's own rule profiles, oldest first.
+    description: >
+      Every school profile, whoever created it: the school shares them. The
+      built-in profiles are not listed here; getRuleCatalogue lists them, and
+      no route changes them.
+    tags: [rules]
+    responses:
+      '200':
+        description: The school's profiles, oldest first, so renaming one does not move it.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/rules.yaml#/SchoolRuleProfileList'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+  post:
+    operationId: createRuleProfile
+    summary: Create a school rule profile.
+    description: >
+      Anyone signed in may create one; it is shared with the whole school at
+      once. A copy of a built-in profile sends that profile's overrides. The
+      rules are checked for their shape only: a rule the solver does not know,
+      or hard on a rule that cannot be hard, is refused by the node when a
+      solve or a check uses the profile.
+
+      422 `error.validation` details: `name: required`, `name: too_long` (over
+      200 letters), `name: taken` (another school profile has this name after
+      trimming), `overrides: required` (the list is absent; send `[]` for the
+      solver's defaults), `overrides: too_many` (over 64), `overrides: invalid`
+      (a rule key, mode, weight or param outside its schema),
+      `overrides: duplicate` (one rule named twice).
+    tags: [rules]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/rules.yaml#/SchoolRuleProfileCreate'
+    responses:
+      '201':
+        description: The profile as stored.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/rules.yaml#/SchoolRuleProfile'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '422':
+        $ref: '../responses/error.yaml#/Validation'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+profile:
+  parameters:
+    - $ref: '../parameters/path.yaml#/RuleProfileID'
+  patch:
+    operationId: updateRuleProfile
+    summary: Rename a school rule profile or replace its rules.
+    description: >
+      Only the account that created the profile and administrators may change
+      it; anyone else gets 403 `rules.profileNotYours`. The last write wins.
+      A solve already started keeps the rules it was sent, and its job and
+      result keep the name the profile had then. 422 details as on
+      createRuleProfile.
+    tags: [rules]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/rules.yaml#/SchoolRuleProfileUpdate'
+    responses:
+      '200':
+        description: The profile as it now is.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/rules.yaml#/SchoolRuleProfile'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '422':
+        $ref: '../responses/error.yaml#/Validation'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+  delete:
+    operationId: deleteRuleProfile
+    summary: Delete a school rule profile for good.
+    description: >
+      Only the account that created the profile and administrators may delete
+      it; anyone else gets 403 `rules.profileNotYours`. There is no Trash for
+      profiles. Jobs and results solved with it keep its name and the rules
+      they were sent, so their checks still judge them the same way.
+    tags: [rules]
+    responses:
+      '204':
+        description: Deleted.
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
