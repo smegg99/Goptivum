@@ -21,55 +21,228 @@ info:
     name: MIT
     url: https://opensource.org/license/mit/
 servers:
-  - url: /api/v1
-    description: The versioned API. Every path below is relative to it.
-# Every operation needs a signed-in Kratos session unless it opts out with its
-# own `security: []`. The session is a cookie because the clients are browser
-# contexts: the Wails desktop shell renders a webview, so Kratos browser flows
-# apply.
+  - url: /api
+    description: >
+      Every path below is relative to it. /info is unversioned, because a
+      client reads it to learn the version; everything else carries its
+      version in the path.
+# Every operation needs a signed-in session unless it opts out with its own
+# `security: []`.
 security:
-  - kratosSession: []
+  - sessionToken: []
 tags:
   - name: discovery
     description: What a client reads before it has a session or knows the version.
   - name: plans
-    description: The plans an owner has.
+    description: >
+      The school's plans. A plan is one project: every signed-in account reads
+      and forks every one, and only its owner changes it.
+  - name: trash
+    description: >
+      What an owner deleted, kept for the server's `trash_days` and restorable until
+      then. Each account's Trash holds only what it owns.
   - name: versions
     description: One plan's timeline of documents.
+  - name: results
+    description: The timetables a plan's solves kept, each a whole document.
+  - name: check
+    description: What a solve's input checks say about a version or a result, without solving it.
+  - name: rules
+    description: >
+      The rules a plan may set, as the solver defines them, and the rule
+      profiles the school shares.
   - name: import
     description: Turning a school's own file into a plan.
+  - name: export
+    description: >
+      A version or a result as a file for someone else: a .gpf or an Optivum
+      HTML export, built once and kept.
+  - name: account
+    description: >
+      What one signed-in account keeps on the server for itself: how its
+      Library is arranged.
+  - name: users
+    description: The school's accounts and their sessions. Administrator-only.
+  - name: security
+    description: >
+      How signing in is protected: the sign-in lockout and Kratos's password
+      rules. Administrator-only.
+  - name: nodes
+    description: The solving nodes this deployment trusts. Administrator-only.
+  - name: jobs
+    description: Solves dispatched to a node, and their progress.
+  - name: school
+    description: >
+      What belongs to the school rather than to one person: its own key for
+      encrypted project files.
+  - name: server
+    description: >
+      The settings an administrator changes while the server runs.
+      Administrator-only.
+  - name: health
+    description: >
+      What the server is and whether it can serve. No session needed.
+  - name: storage
+    description: >
+      What every project stores, and emptying Trash, trimming backups and
+      deleting unused objects now. Administrator-only.
+  - name: logs
+    description: The server's recent log lines. Administrator-only.
+  - name: audit
+    description: >
+      Who changed which project, account, node or setting.
+      Administrator-only.
 paths:
   /info:
     $ref: './paths/info.yaml#/info'
-  /plans:
+  /v1/plans:
     $ref: './paths/plans.yaml#/plans'
-  /plans/{planId}:
+  /v1/plans/demo:
+    $ref: './paths/plans.yaml#/demo'
+  /v1/plans/{planId}:
     $ref: './paths/plans.yaml#/plan'
-  /plans/{planId}/versions:
+  /v1/plans/{planId}/restore:
+    $ref: './paths/plans.yaml#/restore'
+  /v1/plans/{planId}/fork:
+    $ref: './paths/plans.yaml#/fork'
+  /v1/plans/{planId}/owner:
+    $ref: './paths/plans.yaml#/owner'
+  /v1/plans/{planId}/versions:
     $ref: './paths/versions.yaml#/versions'
-  /plans/{planId}/versions/{version}:
+  /v1/plans/{planId}/versions/{version}:
     $ref: './paths/versions.yaml#/version'
-  /import:
+  /v1/plans/{planId}/versions/{version}/check:
+    $ref: './paths/check.yaml#/check'
+  /v1/plans/{planId}/versions/{version}/checkpoint:
+    $ref: './paths/checkpoints.yaml#/checkpoint'
+  /v1/plans/{planId}/versions/{version}/checkpoint/restore:
+    $ref: './paths/checkpoints.yaml#/restore'
+  /v1/plans/{planId}/versions/{version}/export/{format}:
+    $ref: './paths/exports.yaml#/version'
+  /v1/plans/{planId}/results:
+    $ref: './paths/results.yaml#/results'
+  /v1/plans/{planId}/results/{resultId}:
+    $ref: './paths/results.yaml#/result'
+  /v1/plans/{planId}/results/{resultId}/restore:
+    $ref: './paths/results.yaml#/restore'
+  /v1/plans/{planId}/results/{resultId}/check:
+    $ref: './paths/results.yaml#/check'
+  /v1/plans/{planId}/results/{resultId}/export/{format}:
+    $ref: './paths/exports.yaml#/result'
+  /v1/rules:
+    $ref: './paths/rules.yaml#/rules'
+  /v1/rules/profiles:
+    $ref: './paths/rules.yaml#/profiles'
+  /v1/rules/profiles/{profileId}:
+    $ref: './paths/rules.yaml#/profile'
+  /v1/trash:
+    $ref: './paths/trash.yaml#/trash'
+  /v1/changes:
+    $ref: './paths/changes.yaml#/changes'
+  /v1/import:
     $ref: './paths/import.yaml#/import'
+  /v1/import/preview:
+    $ref: './paths/import.yaml#/preview'
+  /v1/account/library:
+    $ref: './paths/account.yaml#/library'
+  /v1/users:
+    $ref: './paths/users.yaml#/users'
+  /v1/users/{userId}:
+    $ref: './paths/users.yaml#/user'
+  /v1/users/{userId}/password:
+    $ref: './paths/users.yaml#/userPassword'
+  /v1/users/{userId}/sessions:
+    $ref: './paths/users.yaml#/userSessions'
+  /v1/users/{userId}/sessions/{sessionId}:
+    $ref: './paths/users.yaml#/userSession'
+  /v1/security/lockout:
+    $ref: './paths/security.yaml#/lockout'
+  /v1/security/password-rules:
+    $ref: './paths/security.yaml#/passwordRules'
+  /v1/nodes:
+    $ref: './paths/nodes.yaml#/nodes'
+  /v1/nodes/{nodeId}:
+    $ref: './paths/nodes.yaml#/node'
+  /v1/nodes/{nodeId}/status:
+    $ref: './paths/nodes.yaml#/nodeStatus'
+  /v1/nodes/{nodeId}/jobs:
+    $ref: './paths/nodes.yaml#/nodeJobs'
+  /v1/plans/{planId}/jobs:
+    $ref: './paths/jobs.yaml#/jobs'
+  /v1/jobs:
+    $ref: './paths/jobs.yaml#/allJobs'
+  /v1/jobs/{jobId}:
+    $ref: './paths/jobs.yaml#/job'
+  /v1/jobs/{jobId}/preview:
+    $ref: './paths/jobs.yaml#/jobPreview'
+  /v1/jobs/{jobId}/events:
+    $ref: './paths/jobs.yaml#/jobEvents'
+  /v1/school/key:
+    $ref: './paths/school.yaml#/key'
+  /v1/school/key/release:
+    $ref: './paths/school.yaml#/release'
+  /v1/server/settings:
+    $ref: './paths/server.yaml#/settings'
+  /v1/version:
+    $ref: './paths/server.yaml#/version'
+  /v1/ready:
+    $ref: './paths/server.yaml#/ready'
+  /v1/storage:
+    $ref: './paths/storage.yaml#/storage'
+  /v1/storage/trash/empty:
+    $ref: './paths/storage.yaml#/emptyTrash'
+  /v1/storage/backups/trim:
+    $ref: './paths/storage.yaml#/trimBackups'
+  /v1/storage/sweep:
+    $ref: './paths/storage.yaml#/sweep'
+  /v1/logs:
+    $ref: './paths/logs.yaml#/logs'
+  /v1/audit:
+    $ref: './paths/audit.yaml#/audit'
 components:
   securitySchemes:
-    # Set by Ory Kratos on a successful browser login flow and sent by the
-    # browser context. The server validates it against Kratos; an unreachable
-    # Kratos is a 503 outage, never an anonymous session.
-    kratosSession:
-      type: apiKey
-      in: cookie
-      name: ory_kratos_session
-      description: Ory Kratos browser session cookie.
+    # The desktop's Go half is the HTTP client, never the webview, so it runs
+    # Kratos's native API flow and carries the token that flow returns.
+    sessionToken:
+      type: http
+      scheme: bearer
+      description: >
+        The session token Ory Kratos returns from its native API login flow.
+        The server validates it against Kratos; an unreachable Kratos is a 503
+        outage, never an anonymous session.
   schemas:
     Error:
-      $ref: './schemas/error.yaml#/Error'
+      $ref: '../shared/schemas/error.yaml#/Error'
     Info:
       $ref: './schemas/info.yaml#/Info'
+    SchoolKey:
+      $ref: './schemas/school.yaml#/SchoolKey'
+    SchoolKeyRelease:
+      $ref: './schemas/school.yaml#/SchoolKeyRelease'
     Plan:
       $ref: './schemas/plan.yaml#/Plan'
     PlanCreate:
       $ref: './schemas/plan.yaml#/PlanCreate'
+    PlanUpdate:
+      $ref: './schemas/plan.yaml#/PlanUpdate'
+    PlanOrigin:
+      $ref: './schemas/plan.yaml#/PlanOrigin'
+    PlanFork:
+      $ref: './schemas/plan.yaml#/PlanFork'
+    PlanTransfer:
+      $ref: './schemas/plan.yaml#/PlanTransfer'
+    TrashItem:
+      $ref: './schemas/trash.yaml#/TrashItem'
+    TrashList:
+      $ref: './schemas/trash.yaml#/TrashList'
+    ChangeList:
+      $ref: './schemas/changes.yaml#/ChangeList'
+    PlanChange:
+      $ref: './schemas/changes.yaml#/PlanChange'
+    PlanState:
+      $ref: './schemas/changes.yaml#/PlanState'
+    ChangedPart:
+      $ref: './schemas/changes.yaml#/ChangedPart'
     PlanPage:
       $ref: './schemas/plan.yaml#/PlanPage'
     Version:
@@ -78,6 +251,10 @@ components:
       $ref: './schemas/version.yaml#/VersionList'
     VersionUpload:
       $ref: './schemas/version.yaml#/VersionUpload'
+    VersionSummary:
+      $ref: './schemas/version.yaml#/VersionSummary'
+    CheckpointName:
+      $ref: './schemas/version.yaml#/CheckpointName'
     Conflict:
       $ref: './schemas/version.yaml#/Conflict'
     Finding:
@@ -85,4 +262,158 @@ components:
     EntityRef:
       $ref: './schemas/finding.yaml#/EntityRef'
     ImportResult:
-      $ref: './schemas/finding.yaml#/ImportResult'
+      $ref: './schemas/import.yaml#/ImportResult'
+    ImportPreview:
+      $ref: './schemas/import.yaml#/ImportPreview'
+    ImportCounts:
+      $ref: './schemas/import.yaml#/ImportCounts'
+    Check:
+      $ref: './schemas/check.yaml#/Check'
+    CheckFinding:
+      $ref: './schemas/check.yaml#/CheckFinding'
+    CheckLesson:
+      $ref: './schemas/check.yaml#/CheckLesson'
+    CheckSpan:
+      $ref: './schemas/check.yaml#/CheckSpan'
+    CheckScore:
+      $ref: './schemas/check.yaml#/CheckScore'
+    CheckMetric:
+      $ref: './schemas/check.yaml#/CheckMetric'
+    CheckEntityScore:
+      $ref: './schemas/check.yaml#/CheckEntityScore'
+    CheckScoreItem:
+      $ref: './schemas/check.yaml#/CheckScoreItem'
+    RuleCatalogue:
+      $ref: './schemas/rules.yaml#/RuleCatalogue'
+    RuleDefinition:
+      $ref: './schemas/rules.yaml#/RuleDefinition'
+    RuleProfile:
+      $ref: './schemas/rules.yaml#/RuleProfile'
+    RuleOverride:
+      $ref: './schemas/rules.yaml#/RuleOverride'
+    RuleMode:
+      $ref: './schemas/rules.yaml#/RuleMode'
+    SchoolRuleProfile:
+      $ref: './schemas/rules.yaml#/SchoolRuleProfile'
+    SchoolRuleProfileList:
+      $ref: './schemas/rules.yaml#/SchoolRuleProfileList'
+    SchoolRuleProfileCreate:
+      $ref: './schemas/rules.yaml#/SchoolRuleProfileCreate'
+    SchoolRuleProfileUpdate:
+      $ref: './schemas/rules.yaml#/SchoolRuleProfileUpdate'
+    SolveRuleProfile:
+      $ref: './schemas/rules.yaml#/SolveRuleProfile'
+    AccountLibrary:
+      $ref: './schemas/account.yaml#/AccountLibrary'
+    LibraryFolder:
+      $ref: './schemas/account.yaml#/LibraryFolder'
+    AccountLibraryConflict:
+      $ref: './schemas/account.yaml#/AccountLibraryConflict'
+    User:
+      $ref: './schemas/user.yaml#/User'
+    Role:
+      $ref: './schemas/user.yaml#/Role'
+    UserCreate:
+      $ref: './schemas/user.yaml#/UserCreate'
+    UserUpdate:
+      $ref: './schemas/user.yaml#/UserUpdate'
+    UserCreated:
+      $ref: './schemas/user.yaml#/UserCreated'
+    PasswordReset:
+      $ref: './schemas/user.yaml#/PasswordReset'
+    UserPage:
+      $ref: './schemas/user.yaml#/UserPage'
+    UserSession:
+      $ref: './schemas/user.yaml#/UserSession'
+    UserSessionList:
+      $ref: './schemas/user.yaml#/UserSessionList'
+    SettingApplies:
+      $ref: './schemas/security.yaml#/SettingApplies'
+    Lockout:
+      $ref: './schemas/security.yaml#/Lockout'
+    LockoutUpdate:
+      $ref: './schemas/security.yaml#/LockoutUpdate'
+    PasswordRules:
+      $ref: './schemas/security.yaml#/PasswordRules'
+    Node:
+      $ref: './schemas/node.yaml#/Node'
+    NodePair:
+      $ref: './schemas/node.yaml#/NodePair'
+    NodePaired:
+      $ref: './schemas/node.yaml#/NodePaired'
+    NodeList:
+      $ref: './schemas/node.yaml#/NodeList'
+    NodeUpdate:
+      $ref: './schemas/node.yaml#/NodeUpdate'
+    NodeStatus:
+      $ref: './schemas/node.yaml#/NodeStatus'
+    NodeCeilings:
+      $ref: './schemas/node.yaml#/NodeCeilings'
+    Job:
+      $ref: './schemas/job.yaml#/Job'
+    JobStatus:
+      $ref: './schemas/job.yaml#/JobStatus'
+    JobCreate:
+      $ref: './schemas/job.yaml#/JobCreate'
+    JobList:
+      $ref: './schemas/job.yaml#/JobList'
+    JobPage:
+      $ref: './schemas/job.yaml#/JobPage'
+    JobPreview:
+      $ref: './schemas/job.yaml#/JobPreview'
+    PreviewLesson:
+      $ref: './schemas/job.yaml#/PreviewLesson'
+    Starter:
+      $ref: './schemas/job.yaml#/Starter'
+    JobEvent:
+      $ref: './schemas/job.yaml#/JobEvent'
+    SolveResult:
+      $ref: './schemas/result.yaml#/SolveResult'
+    SolveResultList:
+      $ref: './schemas/result.yaml#/SolveResultList'
+    SolveResultUpdate:
+      $ref: './schemas/result.yaml#/SolveResultUpdate'
+    ServerSettingName:
+      $ref: './schemas/server.yaml#/ServerSettingName'
+    ServerSettings:
+      $ref: './schemas/server.yaml#/ServerSettings'
+    ServerSettingsApplies:
+      $ref: './schemas/server.yaml#/ServerSettingsApplies'
+    ServerSettingsUpdate:
+      $ref: './schemas/server.yaml#/ServerSettingsUpdate'
+    BuildVersion:
+      $ref: './schemas/server.yaml#/BuildVersion'
+    Readiness:
+      $ref: './schemas/server.yaml#/Readiness'
+    StorageUsage:
+      $ref: './schemas/storage.yaml#/StorageUsage'
+    ProjectStorage:
+      $ref: './schemas/storage.yaml#/ProjectStorage'
+    StoredFiles:
+      $ref: './schemas/storage.yaml#/StoredFiles'
+    Owner:
+      $ref: './schemas/storage.yaml#/Owner'
+    TrashEmptied:
+      $ref: './schemas/storage.yaml#/TrashEmptied'
+    BackupsTrimmed:
+      $ref: './schemas/storage.yaml#/BackupsTrimmed'
+    ObjectsSwept:
+      $ref: './schemas/storage.yaml#/ObjectsSwept'
+    LogLevel:
+      $ref: './schemas/logs.yaml#/LogLevel'
+    LogLine:
+      $ref: './schemas/logs.yaml#/LogLine'
+    LogLines:
+      $ref: './schemas/logs.yaml#/LogLines'
+    AuditKind:
+      $ref: './schemas/audit.yaml#/AuditKind'
+    AuditAction:
+      $ref: './schemas/audit.yaml#/AuditAction'
+    AuditEntry:
+      $ref: './schemas/audit.yaml#/AuditEntry'
+    AuditActor:
+      $ref: './schemas/audit.yaml#/AuditActor'
+    AuditTarget:
+      $ref: './schemas/audit.yaml#/AuditTarget'
+    AuditPage:
+      $ref: './schemas/audit.yaml#/AuditPage'

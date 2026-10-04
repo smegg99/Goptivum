@@ -4,8 +4,10 @@ apis:
     root: ./openapi.yaml
 extends:
   - recommended-strict
-# One operation is ignored in .redocly.lint-ignore.yaml: /api/info has no 4xx
-# because it has no failure mode. It is registered on the bare engine before
+# Three operations are ignored in .redocly.lint-ignore.yaml because they have
+# no 4xx failure mode. /api/info is registered on the bare engine before
 # apimount.Mount, so it carries no session middleware and no rate limiter, it
-# takes no input, and it touches no dependency. The rule stays on for
-# everything else.
+# takes no input, and it touches no dependency. /api/v1/version and
+# /api/v1/ready are apihealth's probes: registered before the session
+# middleware, exempt from the rate limiter, and taking no input. The rule
+# stays on for everything else.

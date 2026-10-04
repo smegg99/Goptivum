@@ -3,3 +3,7 @@
 paths/info.yaml:
   operation-4xx-response:
     - '#/info/get/responses'
+paths/server.yaml:
+  operation-4xx-response:
+    - '#/version/get/responses'
+    - '#/ready/get/responses'
