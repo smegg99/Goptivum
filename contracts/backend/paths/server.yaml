@@ -1,0 +1,109 @@
+# contracts/backend/paths/server.yaml
+#
+# The server itself: what build it is, whether it can serve, and the settings
+# an administrator changes while it runs. The settings routes are
+# administrator-only and answer 404 rather than 403 to anybody else, like
+# users.
+
+settings:
+  get:
+    operationId: getServerSettings
+    summary: The server settings, and when a change to each takes effect.
+    tags: [server]
+    responses:
+      '200':
+        description: The stored settings.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/server.yaml#/ServerSettings'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+  patch:
+    operationId: updateServerSettings
+    summary: Change server settings.
+    description: >
+      Stored in the settings file beside the server's configuration file and
+      checked against the same schema before it is written, so a refused value
+      changes nothing. The answer's `applies` says when each takes effect:
+      `public_addresses`, `trash_days`, `backups_keep` and `results_keep` at
+      the next request; `maximum_upload_bytes` and `rate_limit_per_minute` when
+      the server next starts, listed in `restart_pending` until then.
+    tags: [server]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/server.yaml#/ServerSettingsUpdate'
+    responses:
+      '200':
+        description: The settings now stored.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/server.yaml#/ServerSettings'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '422':
+        $ref: '../responses/error.yaml#/Validation'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+# The two probes below are served by the shared health package, registered
+# before sessions and outside the generated boundary. They are here so the
+# client is generated against them.
+version:
+  get:
+    operationId: getBuildVersion
+    summary: What this server binary is.
+    description: >
+      Needs no session and touches no dependency. Not limited by the request
+      rate limit.
+    tags: [health]
+    security: []
+    responses:
+      '200':
+        description: The build.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/server.yaml#/BuildVersion'
+
+ready:
+  get:
+    operationId: getReadiness
+    summary: Whether every dependency the server needs answers.
+    description: >
+      Needs no session. Probes the database, object storage and Kratos
+      together within 5 seconds. Not limited by the request rate limit.
+    tags: [health]
+    security: []
+    responses:
+      '200':
+        description: Every dependency answered.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/server.yaml#/Readiness'
+      '503':
+        description: >
+          At least one dependency did not answer. Message `error.notReady`;
+          `details` names each one that failed (`database`, `storage`,
+          `kratos`) with the value `unavailable`.
+        content:
+          application/json:
+            schema:
+              $ref: '../../shared/schemas/error.yaml#/Error'

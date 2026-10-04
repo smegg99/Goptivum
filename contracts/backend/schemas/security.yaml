@@ -1,0 +1,85 @@
+# contracts/backend/schemas/security.yaml
+
+SettingApplies:
+  type: string
+  enum: [now, restart]
+  description: >
+    When a change to a setting takes effect: `now`, on the next request, or
+    `restart`, once the server is restarted.
+
+Lockout:
+  type: object
+  required: [account_failures, address_failures, block_minutes, applies]
+  additionalProperties: false
+  description: The sign-in lockout the server's /kratos proxy enforces.
+  properties:
+    account_failures:
+      type: integer
+      minimum: 1
+      maximum: 100
+      description: Failed sign-ins with one sign-in name before that name is blocked.
+    address_failures:
+      type: integer
+      minimum: 1
+      maximum: 1000
+      description: >
+        Failed sign-ins from one client address, with any names, before that
+        address is blocked.
+    block_minutes:
+      type: integer
+      minimum: 1
+      maximum: 1440
+      description: >
+        How long a block lasts. Failures older than this are forgotten, so the
+        limits count failures within this many minutes.
+    applies:
+      $ref: './security.yaml#/SettingApplies'
+
+LockoutUpdate:
+  type: object
+  additionalProperties: false
+  description: >
+    The limits to change. An absent field keeps its value; an empty body is
+    refused as `body: empty`. A value outside its range is refused with that
+    field and `invalid`.
+  properties:
+    account_failures:
+      type: integer
+      minimum: 1
+      maximum: 100
+    address_failures:
+      type: integer
+      minimum: 1
+      maximum: 1000
+    block_minutes:
+      type: integer
+      minimum: 1
+      maximum: 1440
+
+PasswordRules:
+  type: object
+  required: [known]
+  additionalProperties: false
+  description: >
+    Kratos's password rules. Every other field is present only when `known` is
+    true.
+  properties:
+    known:
+      type: boolean
+      description: False when the server has no readable Kratos configuration file.
+    min_length:
+      type: integer
+      description: The shortest password Kratos accepts.
+    identifier_similarity:
+      type: boolean
+      description: Whether Kratos refuses a password too similar to the username or email.
+    breach_check:
+      type: boolean
+      description: >
+        Whether Kratos asks the Have I Been Pwned service about each new
+        password. On, it needs internet access.
+    max_breaches:
+      type: integer
+      description: >
+        How many known breaches a password may appear in before Kratos refuses
+        it, when `breach_check` is on.

@@ -1,0 +1,96 @@
+# contracts/backend/paths/security.yaml
+#
+# Administrator-only, like users: every route answers 404 rather than 403 to a
+# signed-in caller who is not an administrator.
+
+lockout:
+  get:
+    operationId: getLockout
+    summary: How failed sign-ins lock an account or an address out.
+    description: >
+      The server's /kratos proxy counts failed sign-ins twice: per sign-in
+      name, whether or not an account has it, and per client address. A name or
+      an address that reaches its limit is blocked for `block_minutes`; a
+      successful sign-in clears its name's count. A blocked sign-in is not
+      passed to Kratos and answers 429 with code `rate_limited`, message
+      `auth.signInBlocked` and detail `Seconds`, the whole seconds left, plus a
+      Retry-After header. The answer is the same for a name no account has, so
+      the block says nothing about which accounts exist. Counts and blocks live
+      in the server's memory and a restart clears them.
+    tags: [security]
+    responses:
+      '200':
+        description: The limits in force.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/security.yaml#/Lockout'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+  patch:
+    operationId: updateLockout
+    summary: Change the sign-in lockout limits.
+    description: >
+      Stored in the settings file beside the server's configuration file and
+      checked against the same schema before it is written. An absent field is
+      left as it is. `applies` in the answer says when the change takes effect.
+      A block already running keeps the length it started with.
+    tags: [security]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/security.yaml#/LockoutUpdate'
+    responses:
+      '200':
+        description: The limits now in force.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/security.yaml#/Lockout'
+      '400':
+        $ref: '../responses/error.yaml#/BadRequest'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '422':
+        $ref: '../responses/error.yaml#/Validation'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'
+
+passwordRules:
+  get:
+    operationId: getPasswordRules
+    summary: The password rules Kratos enforces, read-only.
+    description: >
+      Read from the Kratos configuration file named by
+      `identity.kratos_config`, with Kratos's own defaults for what it leaves
+      out. Kratos offers no way to read or change these while it runs, so they
+      are shown and never set here. `known` is false when no file is named or
+      it cannot be read; the server's log says why.
+    tags: [security]
+    responses:
+      '200':
+        description: The rules, or a statement that they are not known.
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/security.yaml#/PasswordRules'
+      '401':
+        $ref: '../responses/error.yaml#/Unauthorized'
+      '403':
+        $ref: '../responses/error.yaml#/Forbidden'
+      '404':
+        $ref: '../responses/error.yaml#/NotFound'
+      '503':
+        $ref: '../responses/error.yaml#/Unavailable'

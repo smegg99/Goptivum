@@ -1,0 +1,182 @@
+# contracts/backend/schemas/server.yaml
+
+ServerSettingName:
+  type: string
+  enum:
+    - public_addresses
+    - maximum_upload_bytes
+    - rate_limit_per_minute
+    - trash_days
+    - backups_keep
+    - results_keep
+  description: One of the settings on Backend > Server, by its wire name.
+
+ServerSettings:
+  type: object
+  required:
+    - public_addresses
+    - maximum_upload_bytes
+    - rate_limit_per_minute
+    - trash_days
+    - backups_keep
+    - results_keep
+    - applies
+    - restart_pending
+  additionalProperties: false
+  description: >
+    The server settings an administrator changes while the server runs, as
+    stored in the settings file beside the server's configuration file. A
+    setting whose `applies` is `restart` is stored at once and takes effect
+    when the server next starts; until then `restart_pending` names it and the
+    server keeps the value it started with.
+  properties:
+    public_addresses:
+      type: array
+      maxItems: 16
+      items:
+        type: string
+        maxLength: 255
+      description: >
+        The other addresses this server answers on, published at /api/info as
+        `addresses`. Each is an absolute http or https URL with a host and no
+        user, query or fragment, such as `https://plan.szkola.edu.pl`.
+      examples: [['http://192.0.2.10:8833']]
+    maximum_upload_bytes:
+      type: integer
+      format: int64
+      minimum: 1024
+      maximum: 268435456
+      description: >
+        The largest upload the server takes: a whole request on the upload
+        routes, and each part of it. Over it, 413 `error.requestTooLarge`.
+    rate_limit_per_minute:
+      type: integer
+      minimum: 0
+      maximum: 100000
+      description: >
+        Requests one client address may make to /api/v1 per minute. 0 turns
+        the limit off. The sign-in proxy has its own limit, set in the
+        configuration file.
+    trash_days:
+      type: integer
+      minimum: 1
+      maximum: 3650
+      description: >
+        How long a deleted project, checkpoint or result stays in Trash. Every
+        removal date moves with it, including those already in Trash.
+    backups_keep:
+      type: integer
+      minimum: 1
+      maximum: 10000
+      description: >
+        The backups cap of a project without its own: how many older versions
+        of the main file Backups/ keeps, checkpoints not counted. A lower cap
+        removes nothing until the project's next version, or until Storage
+        trims the backups.
+    results_keep:
+      type: integer
+      minimum: 1
+      maximum: 10000
+      description: >
+        The results cap of a project without its own: how many unpinned
+        results it keeps. A lower cap removes nothing until the project's next
+        result.
+    applies:
+      $ref: './server.yaml#/ServerSettingsApplies'
+    restart_pending:
+      type: array
+      items:
+        $ref: './server.yaml#/ServerSettingName'
+      description: >
+        The settings whose stored value is not in force yet because they apply
+        at a restart. Empty when the server runs with every stored value.
+
+ServerSettingsApplies:
+  type: object
+  required:
+    - public_addresses
+    - maximum_upload_bytes
+    - rate_limit_per_minute
+    - trash_days
+    - backups_keep
+    - results_keep
+  additionalProperties: false
+  description: When a change to each setting takes effect.
+  properties:
+    public_addresses:
+      $ref: './security.yaml#/SettingApplies'
+    maximum_upload_bytes:
+      $ref: './security.yaml#/SettingApplies'
+    rate_limit_per_minute:
+      $ref: './security.yaml#/SettingApplies'
+    trash_days:
+      $ref: './security.yaml#/SettingApplies'
+    backups_keep:
+      $ref: './security.yaml#/SettingApplies'
+    results_keep:
+      $ref: './security.yaml#/SettingApplies'
+
+ServerSettingsUpdate:
+  type: object
+  additionalProperties: false
+  description: >
+    The settings to change. An absent field keeps its value; an empty body is
+    refused as `body: empty`. A value outside its range is refused with that
+    field and `invalid`. An address is refused by its position,
+    `public_addresses[N]`, with `invalid` or `duplicate`; more than 16 with
+    `public_addresses: too_many`. Addresses are trimmed, and `[]` removes
+    every one.
+  properties:
+    public_addresses:
+      type: array
+      items:
+        type: string
+    maximum_upload_bytes:
+      type: integer
+      format: int64
+      minimum: 1024
+      maximum: 268435456
+    rate_limit_per_minute:
+      type: integer
+      minimum: 0
+      maximum: 100000
+    trash_days:
+      type: integer
+      minimum: 1
+      maximum: 3650
+    backups_keep:
+      type: integer
+      minimum: 1
+      maximum: 10000
+    results_keep:
+      type: integer
+      minimum: 1
+      maximum: 10000
+
+BuildVersion:
+  type: object
+  required: [version, commit, build_time]
+  additionalProperties: false
+  description: >
+    What this server binary is. An empty field means the build did not record
+    it, as in a development run.
+  properties:
+    version:
+      type: string
+      examples: ['0.1.0']
+    commit:
+      type: string
+      examples: ['0429258']
+    build_time:
+      type: string
+      description: UTC, as the build wrote it.
+      examples: ['2026-09-27T08:36:58Z']
+
+Readiness:
+  type: object
+  required: [ready]
+  additionalProperties: false
+  properties:
+    ready:
+      type: boolean
+      description: Always true; a server that is not ready answers 503.
