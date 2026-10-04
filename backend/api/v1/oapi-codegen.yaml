@@ -8,9 +8,14 @@ generate:
   strict-server: true
 output-options:
   # The discovery endpoint is registered by hand on the bare engine before
-  # apimount.Mount, so generating a handler for it would register the route
-  # twice and panic gin. The contract still documents it.
-  exclude-tags: [discovery]
+  # apimount.Mount, and the health probes by apihealth inside it, so
+  # generating a handler for either would register the route twice and panic
+  # gin. The contract still documents them.
+  exclude-tags: [discovery, health]
+  # The event stream writes text/event-stream rather than a JSON body, so the
+  # strict handler's one-response-object shape does not fit it. It is registered
+  # by hand beside the routes it belongs to, and the contract still documents it.
+  exclude-operation-ids: [watchJob]
   # Without this, excluding an operation also prunes the models it was the only
   # user of. The Info type this package exists to carry survives only because
   # pruning is off.
