@@ -14,11 +14,19 @@ import (
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 	"github.com/smegg99/s99ab/auth/kratosauth"
+	"github.com/smegg99/s99ab/net/httpmw"
+
+	arrangov1 "github.com/smegg99/arrango/backend/gen/arrangov1"
 
 	"github.com/smegg99/goptivum/backend/api/v1/gen"
+	"github.com/smegg99/goptivum/backend/arrango"
+	"github.com/smegg99/goptivum/backend/common/messages"
+	"github.com/smegg99/goptivum/backend/core/audit"
 	"github.com/smegg99/goptivum/backend/core/documents"
 	"github.com/smegg99/goptivum/backend/core/plans"
 	"github.com/smegg99/goptivum/backend/formats"
+	"github.com/smegg99/goptivum/backend/identity"
+	"github.com/smegg99/goptivum/document"
 )
 
 // defaultLimit and maxLimit mirror apipage, which the contract's pagination
@@ -35,20 +43,76 @@ type API struct {
 	plans     *plans.Repository
 	documents *documents.Store
 	importers *formats.Registry
+	// runner is nil when no node can be reached, and then no solve runs that
+	// a delete would have to stop.
+	runner *arrango.Runner
+	// trashDays reads how long a deleted plan, checkpoint or result stays in
+	// Trash, at each use.
+	trashDays func() int
+	// uploadLimit bounds each part of a multipart body.
+	uploadLimit int64
+	// trail records who created, changed, deleted, restored, forked and
+	// transferred which plan; nil records nothing.
+	trail *audit.Log
+	// accounts names the plans' owners and checks the account a plan is
+	// transferred to; nil leaves owners other than the caller unnamed and
+	// answers a transfer with 404.
+	accounts *identity.Admin
+	// language is what the server renders in: a fork with no name is named
+	// in it.
+	language string
 }
 
-// NewAPI wires the handlers. Every argument is required.
-func NewAPI(index *plans.Repository, store *documents.Store, importers *formats.Registry) (*API, error) {
+// Settings are the parts of the server configuration the handlers act on.
+type Settings struct {
+	// TrashDays reads how long a deleted plan, checkpoint or result stays in
+	// Trash. It is read at each use, so a change applies at once. Required.
+	TrashDays func() int
+	// MaxUploadSize bounds each part of a multipart body, and should be the
+	// cap the upload routes carry. Zero is this package's MaxUploadSize.
+	MaxUploadSize int64
+	// Language is the server's own, application.language; empty is the
+	// catalogue's default.
+	Language string
+}
+
+// NewAPI wires the handlers. The index, the store, the importers and
+// TrashDays are required, and runner may be nil.
+func NewAPI(index *plans.Repository, store *documents.Store, importers *formats.Registry,
+	runner *arrango.Runner, settings Settings) (*API, error) {
 	if index == nil || store == nil || importers == nil {
 		return nil, fmt.Errorf("api: the plan index, the document store and the importers are all required")
 	}
-	return &API{plans: index, documents: store, importers: importers}, nil
+	if settings.TrashDays == nil {
+		return nil, fmt.Errorf("api: no Trash days")
+	}
+	return &API{plans: index, documents: store, importers: importers,
+		runner: runner, trashDays: settings.TrashDays,
+		uploadLimit: orDefault(settings.MaxUploadSize, MaxUploadSize), language: settings.Language}, nil
 }
 
-// owner is the signed-in identity. Every route that reaches a handler has
+// WithAudit records plan changes in trail.
+func (a *API) WithAudit(trail *audit.Log) *API {
+	a.trail = trail
+	return a
+}
+
+// WithAccounts names the plans' owners from accounts, and lets an
+// administrator transfer a plan to one of them.
+func (a *API) WithAccounts(accounts *identity.Admin) *API {
+	a.accounts = accounts
+	return a
+}
+
+// planTarget is a plan as the audit trail names it.
+func planTarget(plan plans.Plan) audit.Target {
+	return audit.Target{Kind: audit.Project, ID: strconv.FormatInt(plan.ID, 10), Name: plan.Name}
+}
+
+// callerID is the signed-in identity. Every route that reaches a handler has
 // passed kratosauth.Require, so an absent identity is a wiring mistake rather
 // than an anonymous caller.
-func owner(ctx context.Context) (string, bool) {
+func callerID(ctx context.Context) (string, bool) {
 	identity, ok := kratosauth.FromContext(ctx)
 	if !ok || identity.ID == "" {
 		return "", false
@@ -57,22 +121,61 @@ func owner(ctx context.Context) (string, bool) {
 }
 
 func unauthorized() gen.Error {
-	return gen.Error{Code: "unauthorized", Message: "error.unauthorized"}
+	return gen.Error{Code: "unauthorized", Message: messages.KeyErrorUnauthorized}
 }
 
 func notFound() gen.Error {
-	return gen.Error{Code: "not_found", Message: "error.notFound"}
+	return gen.Error{Code: "not_found", Message: messages.KeyErrorNotFound}
+}
+
+// refused turns a domain refusal into the envelope.
+//
+// A keyed error already carries the key the desktop resolves and the
+// parameters that key needs, so a refusal the domain worded carefully reaches
+// the person who caused it instead of collapsing into one generic reason.
+func refused(err error) (gen.Error, bool) {
+	var keyed messages.Keyed
+	if !errors.As(err, &keyed) {
+		return gen.Error{}, false
+	}
+	out := gen.Error{Code: "validation", Message: keyed.Key()}
+	if data := keyed.Data(); len(data) > 0 {
+		details := make(map[string]string, len(data))
+		for name, value := range data {
+			details[name] = fmt.Sprint(value)
+		}
+		out.Details = &details
+	}
+	return out, true
 }
 
 func validation(field, code string) gen.Error {
 	return gen.Error{
-		Code: "validation", Message: "error.validation",
+		Code: "validation", Message: messages.KeyErrorValidation,
 		Details: &map[string]string{field: code},
 	}
 }
 
 func unavailable() gen.Error {
-	return gen.Error{Code: "unavailable", Message: "error.unavailable"}
+	return gen.Error{Code: "unavailable", Message: messages.KeyErrorUnavailable}
+}
+
+// tooLarge refuses an upload over limit, naming the limit in bytes.
+func tooLarge(limit int64) gen.Error {
+	return gen.Error{
+		Code: "too_large", Message: messages.KeyErrorRequestTooLarge,
+		Details: &map[string]string{"Limit": strconv.FormatInt(limit, 10)},
+	}
+}
+
+// invalid turns a field the plan index refused into the envelope. The second
+// value is false when err is not such a refusal.
+func invalid(err error) (gen.Error, bool) {
+	var refusal *plans.Invalid
+	if !errors.As(err, &refusal) {
+		return gen.Error{}, false
+	}
+	return validation(refusal.Field, refusal.Code), true
 }
 
 // planID reads the decimal string a path carries. The id is 64-bit, and a JSON
@@ -83,16 +186,6 @@ func planID(raw string) (int64, bool) {
 		return 0, false
 	}
 	return id, true
-}
-
-func planBody(plan plans.Plan) gen.Plan {
-	return gen.Plan{
-		Id:         strconv.FormatInt(plan.ID, 10),
-		Name:       plan.Name,
-		SchoolYear: plan.SchoolYear,
-		CreatedAt:  plan.CreatedAt,
-		UpdatedAt:  plan.UpdatedAt,
-	}
 }
 
 func versionBody(version plans.Version) gen.Version {
@@ -114,26 +207,38 @@ func versionBody(version plans.Version) gen.Version {
 	if !version.ValidTo.IsZero() {
 		body.ValidTo = &openapi_types.Date{Time: version.ValidTo}
 	}
+	if len(version.Summary) > 0 {
+		summary := gen.VersionSummary(version.Summary)
+		body.Summary = &summary
+	}
+	// A checkpoint in Trash is listed as the plain version it now is.
+	if version.Checkpoint != "" && version.CheckpointDeletedAt.IsZero() {
+		body.Checkpoint = pointerTo(version.Checkpoint)
+	}
 	return body
 }
 
-// ListPlans returns one page of the caller's plans.
+// ListPlans returns one page of the school's live plans.
 func (a *API) ListPlans(ctx context.Context, request gen.ListPlansRequestObject) (gen.ListPlansResponseObject, error) {
-	identity, ok := owner(ctx)
-	if !ok {
+	if _, ok := callerID(ctx); !ok {
 		return gen.ListPlans401JSONResponse{UnauthorizedJSONResponse: gen.UnauthorizedJSONResponse(unauthorized())}, nil
 	}
 
-	all, err := a.plans.List(ctx, identity)
+	all, err := a.plans.List(ctx)
 	if err != nil {
 		return gen.ListPlans503JSONResponse{UnavailableJSONResponse: gen.UnavailableJSONResponse(unavailable())}, nil
 	}
 
 	matched := search(all, request.Params.Q)
 	page, limit := pageOf(request.Params.Page, request.Params.Limit)
-	items := make([]gen.Plan, 0, limit)
-	for _, plan := range window(matched, page, limit) {
-		items = append(items, planBody(plan))
+	shown := window(matched, page, limit)
+	view, err := a.viewOf(ctx, shown...)
+	if err != nil {
+		return gen.ListPlans503JSONResponse{UnavailableJSONResponse: gen.UnavailableJSONResponse(unavailable())}, nil
+	}
+	items := make([]gen.Plan, 0, len(shown))
+	for _, plan := range shown {
+		items = append(items, a.planBody(plan, view))
 	}
 	return gen.ListPlans200JSONResponse{
 		Items: items, Page: page, Limit: limit, Total: len(matched),
@@ -187,98 +292,215 @@ func window(all []plans.Plan, page, limit int) []plans.Plan {
 	return all[start:end]
 }
 
-// CreatePlan makes an empty plan. Its first document arrives as an upload or
-// as an import.
+// CreatePlan makes a plan together with its version 1: the document sent, or
+// an empty school named after the plan.
 func (a *API) CreatePlan(ctx context.Context, request gen.CreatePlanRequestObject) (gen.CreatePlanResponseObject, error) {
-	identity, ok := owner(ctx)
+	identity, ok := callerID(ctx)
 	if !ok {
 		return gen.CreatePlan401JSONResponse{UnauthorizedJSONResponse: gen.UnauthorizedJSONResponse(unauthorized())}, nil
 	}
-	if request.Body == nil || strings.TrimSpace(request.Body.Name) == "" {
-		return gen.CreatePlan422JSONResponse{ValidationJSONResponse: gen.ValidationJSONResponse(validation("name", "required"))}, nil
+	form, err := readForm(request.Body, "document", a.uploadLimit)
+	if errors.Is(err, errTooLarge) {
+		return gen.CreatePlan413JSONResponse{TooLargeJSONResponse: gen.TooLargeJSONResponse(tooLarge(a.uploadLimit))}, nil
+	}
+	if err != nil {
+		return gen.CreatePlan422JSONResponse{ValidationJSONResponse: gen.ValidationJSONResponse(validation("document", "unreadable"))}, nil
+	}
+	// Checked before anything is stored, so a refused name leaves no object.
+	name, year, err := plans.Clean(form.fields["name"], form.fields["school_year"])
+	if refusal, ok := invalid(err); ok {
+		return gen.CreatePlan422JSONResponse{ValidationJSONResponse: gen.ValidationJSONResponse(refusal)}, nil
 	}
 
-	plan, err := a.plans.Create(ctx, plans.Plan{
-		OwnerIdentityID: identity,
-		Name:            strings.TrimSpace(request.Body.Name),
-		SchoolYear:      schoolYear(request.Body.SchoolYear),
-	})
+	var encoded document.Encoded
+	if form.hasFile {
+		encoded, err = document.FromBytes(form.file)
+		if err != nil {
+			return gen.CreatePlan422JSONResponse{ValidationJSONResponse: gen.ValidationJSONResponse(validation("document", "unreadable"))}, nil
+		}
+	} else {
+		// No week yet, so it cannot be checked or solved until one is added.
+		encoded, err = document.Encode(document.New(&arrangov1.SchoolModel{Name: name}))
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	plan, _, err := a.createWith(ctx, identity, name, year, encoded, sourceNew)
+	if refusal, ok := invalid(err); ok {
+		return gen.CreatePlan422JSONResponse{ValidationJSONResponse: gen.ValidationJSONResponse(refusal)}, nil
+	}
 	if err != nil {
 		return gen.CreatePlan503JSONResponse{UnavailableJSONResponse: gen.UnavailableJSONResponse(unavailable())}, nil
 	}
-	return gen.CreatePlan201JSONResponse(planBody(plan)), nil
+	body, err := a.planAnswer(ctx, plan)
+	if err != nil {
+		return gen.CreatePlan503JSONResponse{UnavailableJSONResponse: gen.UnavailableJSONResponse(unavailable())}, nil
+	}
+	return gen.CreatePlan201JSONResponse(body), nil
+}
+
+// Where a new plan's first document came from, as the audit trail says it.
+const (
+	sourceNew    = "new"
+	sourceImport = "import"
+	sourceDemo   = "demo"
+	sourceFork   = "fork"
+)
+
+// createWith stores a document and makes it version 1 of a new plan, in one
+// transaction with the plan row. A document stored for a plan that then fails
+// goes to object_garbage for the sweep; a plan without a version would be a
+// bug.
+func (a *API) createWith(ctx context.Context, identity, name, schoolYear string,
+	encoded document.Encoded, source string) (plans.Plan, plans.Version, error) {
+	key, err := a.documents.Put(ctx, encoded)
+	if err != nil {
+		return plans.Plan{}, plans.Version{}, err
+	}
+	plan, version, err := a.plans.Create(ctx, plans.Plan{
+		OwnerIdentityID: identity, Name: name, SchoolYear: schoolYear,
+	}, plans.Upload{ObjectKey: key, SizeBytes: encoded.Size, CreatedBy: identity})
+	if err != nil {
+		_ = a.plans.Discard(ctx, key)
+		return plan, version, err
+	}
+	audited(ctx, a.trail, audit.ProjectCreated, planTarget(plan), map[string]string{"source": source})
+	return plan, version, nil
 }
 
 func schoolYear(value *string) string {
 	if value == nil {
 		return ""
 	}
-	return strings.TrimSpace(*value)
+	return *value
 }
 
-// GetPlan reads one plan the caller owns.
+// GetPlan reads one live plan, whoever owns it.
 func (a *API) GetPlan(ctx context.Context, request gen.GetPlanRequestObject) (gen.GetPlanResponseObject, error) {
-	identity, ok := owner(ctx)
-	if !ok {
+	if _, ok := callerID(ctx); !ok {
 		return gen.GetPlan401JSONResponse{UnauthorizedJSONResponse: gen.UnauthorizedJSONResponse(unauthorized())}, nil
 	}
-	plan, err := a.owned(ctx, request.PlanId, identity)
+	plan, err := a.readable(ctx, request.PlanId)
 	if err != nil {
 		if errors.Is(err, plans.ErrNotFound) {
 			return gen.GetPlan404JSONResponse{NotFoundJSONResponse: gen.NotFoundJSONResponse(notFound())}, nil
 		}
 		return gen.GetPlan503JSONResponse{UnavailableJSONResponse: gen.UnavailableJSONResponse(unavailable())}, nil
 	}
-	return gen.GetPlan200JSONResponse(planBody(plan)), nil
+	body, err := a.planAnswer(ctx, plan)
+	if err != nil {
+		return gen.GetPlan503JSONResponse{UnavailableJSONResponse: gen.UnavailableJSONResponse(unavailable())}, nil
+	}
+	return gen.GetPlan200JSONResponse(body), nil
 }
 
-// DeletePlan removes a plan and its whole timeline.
+// UpdatePlan renames a plan, changes its school year or sets one of its caps.
+func (a *API) UpdatePlan(ctx context.Context, request gen.UpdatePlanRequestObject) (gen.UpdatePlanResponseObject, error) {
+	identity, ok := callerID(ctx)
+	if !ok {
+		return gen.UpdatePlan401JSONResponse{UnauthorizedJSONResponse: gen.UnauthorizedJSONResponse(unauthorized())}, nil
+	}
+	if request.Body == nil {
+		return gen.UpdatePlan422JSONResponse{ValidationJSONResponse: gen.ValidationJSONResponse(validation("body", "required"))}, nil
+	}
+	before, err := a.editable(ctx, request.PlanId, identity)
+	var plan plans.Plan
+	if err == nil {
+		plan, err = a.plans.Update(ctx, before.ID, plans.Change{
+			Name: request.Body.Name, SchoolYear: request.Body.SchoolYear,
+			BackupsKeep: request.Body.BackupsKeep, ResultsKeep: request.Body.ResultsKeep,
+		})
+	}
+	if refusal, ok := invalid(err); ok {
+		return gen.UpdatePlan422JSONResponse{ValidationJSONResponse: gen.ValidationJSONResponse(refusal)}, nil
+	}
+	switch {
+	case errors.Is(err, errNotYours):
+		return gen.UpdatePlan403JSONResponse{ForbiddenJSONResponse: gen.ForbiddenJSONResponse(planNotYours())}, nil
+	case errors.Is(err, plans.ErrNotFound):
+		return gen.UpdatePlan404JSONResponse{NotFoundJSONResponse: gen.NotFoundJSONResponse(notFound())}, nil
+	case err != nil:
+		return gen.UpdatePlan503JSONResponse{UnavailableJSONResponse: gen.UnavailableJSONResponse(unavailable())}, nil
+	}
+	a.auditUpdate(ctx, before, plan)
+	body, err := a.planAnswer(ctx, plan)
+	if err != nil {
+		return gen.UpdatePlan503JSONResponse{UnavailableJSONResponse: gen.UnavailableJSONResponse(unavailable())}, nil
+	}
+	return gen.UpdatePlan200JSONResponse(body), nil
+}
+
+// auditUpdate records a rename, and any other change of the same request as
+// a second entry.
+func (a *API) auditUpdate(ctx context.Context, before, after plans.Plan) {
+	if before.Name != after.Name {
+		audited(ctx, a.trail, audit.ProjectRenamed, planTarget(after),
+			map[string]string{"from": before.Name, "to": after.Name})
+	}
+	changed := map[string]string{}
+	if before.SchoolYear != after.SchoolYear {
+		changed["school_year"] = after.SchoolYear
+	}
+	if before.BackupsKeep != after.BackupsKeep {
+		changed["backups_keep"] = strconv.Itoa(after.BackupsKeep)
+	}
+	if before.ResultsKeep != after.ResultsKeep {
+		changed["results_keep"] = strconv.Itoa(after.ResultsKeep)
+	}
+	if len(changed) > 0 {
+		audited(ctx, a.trail, audit.ProjectChanged, planTarget(after), changed)
+	}
+}
+
+// DeletePlan stops the plan's solves, waits for their jobs to close, and then
+// moves the plan to Trash.
+//
+// The order matters. A cancelled solve that had found a timetable keeps it as
+// one of the plan's results before the plan leaves the listings, so its job
+// answers with the result it kept. A solve that started while the first cancel
+// waited is stopped after the move; what it found is kept with the plan in
+// Trash. One the runner takes only after the second cancel never reaches its
+// node: the dispatcher checks the plan is live before it dials.
 func (a *API) DeletePlan(ctx context.Context, request gen.DeletePlanRequestObject) (gen.DeletePlanResponseObject, error) {
-	identity, ok := owner(ctx)
+	identity, ok := callerID(ctx)
 	if !ok {
 		return gen.DeletePlan401JSONResponse{UnauthorizedJSONResponse: gen.UnauthorizedJSONResponse(unauthorized())}, nil
 	}
-	plan, err := a.owned(ctx, request.PlanId, identity)
-	if err != nil {
+	plan, err := a.editable(ctx, request.PlanId, identity)
+	switch {
+	case errors.Is(err, errNotYours):
+		return gen.DeletePlan403JSONResponse{ForbiddenJSONResponse: gen.ForbiddenJSONResponse(planNotYours())}, nil
+	case errors.Is(err, plans.ErrNotFound):
+		return gen.DeletePlan404JSONResponse{NotFoundJSONResponse: gen.NotFoundJSONResponse(notFound())}, nil
+	case err != nil:
+		return gen.DeletePlan503JSONResponse{UnavailableJSONResponse: gen.UnavailableJSONResponse(unavailable())}, nil
+	}
+	if a.runner != nil {
+		if err := a.runner.CancelPlan(ctx, plan.ID); err != nil {
+			return gen.DeletePlan503JSONResponse{UnavailableJSONResponse: gen.UnavailableJSONResponse(unavailable())}, nil
+		}
+	}
+	if err := a.plans.Trash(ctx, plan.ID); err != nil {
 		if errors.Is(err, plans.ErrNotFound) {
 			return gen.DeletePlan404JSONResponse{NotFoundJSONResponse: gen.NotFoundJSONResponse(notFound())}, nil
 		}
 		return gen.DeletePlan503JSONResponse{UnavailableJSONResponse: gen.UnavailableJSONResponse(unavailable())}, nil
 	}
-	if err := a.plans.Delete(ctx, plan.ID); err != nil {
-		if errors.Is(err, plans.ErrNotFound) {
-			return gen.DeletePlan404JSONResponse{NotFoundJSONResponse: gen.NotFoundJSONResponse(notFound())}, nil
-		}
-		return gen.DeletePlan503JSONResponse{UnavailableJSONResponse: gen.UnavailableJSONResponse(unavailable())}, nil
+	audited(ctx, a.trail, audit.ProjectDeleted, planTarget(plan), nil)
+	if a.runner != nil {
+		// The plan is in Trash whatever this wait says: the cancel went out.
+		_ = a.runner.CancelPlan(ctx, plan.ID)
 	}
 	return gen.DeletePlan204Response{}, nil
 }
 
-// owned resolves a plan id from a path and refuses one the caller does not
-// own. Another owner's plan is not found rather than forbidden: whether it
-// exists is not this caller's business.
-func (a *API) owned(ctx context.Context, raw string, identity string) (plans.Plan, error) {
-	id, ok := planID(raw)
-	if !ok {
-		return plans.Plan{}, fmt.Errorf("%w: %q", plans.ErrNotFound, raw)
-	}
-	plan, err := a.plans.Get(ctx, id)
-	if err != nil {
-		return plans.Plan{}, err
-	}
-	if plan.OwnerIdentityID != identity {
-		return plans.Plan{}, fmt.Errorf("%w: %d", plans.ErrNotFound, id)
-	}
-	return plan, nil
-}
-
 // ListVersions returns the plan's timeline.
 func (a *API) ListVersions(ctx context.Context, request gen.ListVersionsRequestObject) (gen.ListVersionsResponseObject, error) {
-	identity, ok := owner(ctx)
-	if !ok {
+	if _, ok := callerID(ctx); !ok {
 		return gen.ListVersions401JSONResponse{UnauthorizedJSONResponse: gen.UnauthorizedJSONResponse(unauthorized())}, nil
 	}
-	plan, err := a.owned(ctx, request.PlanId, identity)
+	plan, err := a.readable(ctx, request.PlanId)
 	if err != nil {
 		if errors.Is(err, plans.ErrNotFound) {
 			return gen.ListVersions404JSONResponse{NotFoundJSONResponse: gen.NotFoundJSONResponse(notFound())}, nil
@@ -299,11 +521,10 @@ func (a *API) ListVersions(ctx context.Context, request gen.ListVersionsRequestO
 
 // DownloadVersion returns the stored document as it was written.
 func (a *API) DownloadVersion(ctx context.Context, request gen.DownloadVersionRequestObject) (gen.DownloadVersionResponseObject, error) {
-	identity, ok := owner(ctx)
-	if !ok {
+	if _, ok := callerID(ctx); !ok {
 		return gen.DownloadVersion401JSONResponse{UnauthorizedJSONResponse: gen.UnauthorizedJSONResponse(unauthorized())}, nil
 	}
-	plan, err := a.owned(ctx, request.PlanId, identity)
+	plan, err := a.readable(ctx, request.PlanId)
 	if err != nil {
 		if errors.Is(err, plans.ErrNotFound) {
 			return gen.DownloadVersion404JSONResponse{NotFoundJSONResponse: gen.NotFoundJSONResponse(notFound())}, nil
@@ -332,54 +553,67 @@ func (a *API) DownloadVersion(ctx context.Context, request gen.DownloadVersionRe
 }
 
 // UploadVersion stores a document the client encoded, if the parent it names
-// is still the newest version.
+// is still the newest version. A retry with an upload key the plan already
+// stored is answered with that version, 201 like the first time.
 func (a *API) UploadVersion(ctx context.Context, request gen.UploadVersionRequestObject) (gen.UploadVersionResponseObject, error) {
-	identity, ok := owner(ctx)
+	identity, ok := callerID(ctx)
 	if !ok {
 		return gen.UploadVersion401JSONResponse{UnauthorizedJSONResponse: gen.UnauthorizedJSONResponse(unauthorized())}, nil
 	}
-	plan, err := a.owned(ctx, request.PlanId, identity)
-	if err != nil {
-		if errors.Is(err, plans.ErrNotFound) {
-			return gen.UploadVersion404JSONResponse{NotFoundJSONResponse: gen.NotFoundJSONResponse(notFound())}, nil
-		}
+	plan, err := a.editable(ctx, request.PlanId, identity)
+	switch {
+	case errors.Is(err, errNotYours):
+		return gen.UploadVersion403JSONResponse{ForbiddenJSONResponse: gen.ForbiddenJSONResponse(planNotYours())}, nil
+	case errors.Is(err, plans.ErrNotFound):
+		return gen.UploadVersion404JSONResponse{NotFoundJSONResponse: gen.NotFoundJSONResponse(notFound())}, nil
+	case err != nil:
 		return gen.UploadVersion503JSONResponse{UnavailableJSONResponse: gen.UnavailableJSONResponse(unavailable())}, nil
 	}
 
-	form, err := readForm(request.Body, "document")
+	form, err := readForm(request.Body, "document", a.uploadLimit)
+	if errors.Is(err, errTooLarge) {
+		return gen.UploadVersion413JSONResponse{TooLargeJSONResponse: gen.TooLargeJSONResponse(tooLarge(a.uploadLimit))}, nil
+	}
 	if err != nil {
 		return gen.UploadVersion422JSONResponse{ValidationJSONResponse: gen.ValidationJSONResponse(validation("document", "unreadable"))}, nil
 	}
 	if len(form.file) == 0 {
 		return gen.UploadVersion422JSONResponse{ValidationJSONResponse: gen.ValidationJSONResponse(validation("document", "required"))}, nil
 	}
-	parent, ok := parentOf(form.fields["parent"])
-	if !ok {
-		return gen.UploadVersion422JSONResponse{ValidationJSONResponse: gen.ValidationJSONResponse(validation("parent", "invalid"))}, nil
+	upload, err := uploadOf(form)
+	if err != nil {
+		if refusal, ok := invalid(err); ok {
+			return gen.UploadVersion422JSONResponse{ValidationJSONResponse: gen.ValidationJSONResponse(refusal)}, nil
+		}
+		return nil, err
 	}
 
-	doc, err := documents.FromBytes(form.file)
+	// Everything the form carries is checked before anything is stored, so a
+	// refused upload leaves no object behind.
+	encoded, err := document.FromBytes(form.file)
 	if err != nil {
 		return gen.UploadVersion422JSONResponse{ValidationJSONResponse: gen.ValidationJSONResponse(validation("document", "unreadable"))}, nil
 	}
-	if err := a.documents.Put(ctx, doc); err != nil {
+	key, err := a.documents.Put(ctx, encoded)
+	if err != nil {
 		return gen.UploadVersion503JSONResponse{UnavailableJSONResponse: gen.UnavailableJSONResponse(unavailable())}, nil
 	}
 
-	version, err := a.plans.AddVersion(ctx, plans.Upload{
-		PlanID: plan.ID, Parent: parent, ObjectKey: doc.Key, SizeBytes: doc.Size,
-		CreatedBy: identity,
-		ValidFrom: dateOf(form.fields["valid_from"]),
-		ValidTo:   dateOf(form.fields["valid_to"]),
-	})
+	upload.PlanID, upload.ObjectKey, upload.SizeBytes, upload.CreatedBy = plan.ID, key, encoded.Size, identity
+	version, err := a.plans.AddVersion(ctx, upload)
 	if err != nil {
+		// Best effort: a key that stays unlisted is only an object kept.
+		_ = a.plans.Discard(ctx, key)
 		var conflict *plans.Conflict
 		if errors.As(err, &conflict) {
 			return gen.UploadVersion409JSONResponse{
 				Code:           gen.ConflictCodeConflict,
-				Message:        "plan.staleParent",
+				Message:        messages.KeyPlansVersionConflict,
 				CurrentVersion: conflict.Current,
 			}, nil
+		}
+		if refusal, ok := invalid(err); ok {
+			return gen.UploadVersion422JSONResponse{ValidationJSONResponse: gen.ValidationJSONResponse(refusal)}, nil
 		}
 		if errors.Is(err, plans.ErrNotFound) {
 			return gen.UploadVersion404JSONResponse{NotFoundJSONResponse: gen.NotFoundJSONResponse(notFound())}, nil
@@ -389,122 +623,24 @@ func (a *API) UploadVersion(ctx context.Context, request gen.UploadVersionReques
 	return gen.UploadVersion201JSONResponse(versionBody(version)), nil
 }
 
-// ImportPlan turns a school's own file into a plan and its first version.
-func (a *API) ImportPlan(ctx context.Context, request gen.ImportPlanRequestObject) (gen.ImportPlanResponseObject, error) {
-	identity, ok := owner(ctx)
-	if !ok {
-		return gen.ImportPlan401JSONResponse{UnauthorizedJSONResponse: gen.UnauthorizedJSONResponse(unauthorized())}, nil
-	}
-
-	form, err := readForm(request.Body, "file")
-	if err != nil {
-		return gen.ImportPlan422JSONResponse{ValidationJSONResponse: gen.ValidationJSONResponse(validation("file", "unreadable"))}, nil
-	}
-	if len(form.file) == 0 {
-		return gen.ImportPlan422JSONResponse{ValidationJSONResponse: gen.ValidationJSONResponse(validation("file", "required"))}, nil
-	}
-
-	// Detection is by content: the uploaded name only names the plan.
-	source := formats.Open(form.filename, form.file)
-	importer, err := a.importers.Best(source)
-	if err != nil {
-		return gen.ImportPlan415JSONResponse{Code: "unsupported_format", Message: "import.unsupportedFormat"}, nil
-	}
-	result, err := importer.Import(ctx, source)
-	if err != nil {
-		return gen.ImportPlan422JSONResponse{ValidationJSONResponse: gen.ValidationJSONResponse(validation("file", "unreadable"))}, nil
-	}
-
-	doc, err := documents.Encode(result.Model)
-	if err != nil {
-		return gen.ImportPlan422JSONResponse{ValidationJSONResponse: gen.ValidationJSONResponse(validation("file", "unreadable"))}, nil
-	}
-	if err := a.documents.Put(ctx, doc); err != nil {
-		return gen.ImportPlan503JSONResponse{UnavailableJSONResponse: gen.UnavailableJSONResponse(unavailable())}, nil
-	}
-
-	plan, err := a.plans.Create(ctx, plans.Plan{
-		OwnerIdentityID: identity,
-		Name:            planName(form, result.Model.GetName()),
-		SchoolYear:      strings.TrimSpace(form.fields["school_year"]),
-	})
-	if err != nil {
-		return gen.ImportPlan503JSONResponse{UnavailableJSONResponse: gen.UnavailableJSONResponse(unavailable())}, nil
-	}
-	version, err := a.plans.AddVersion(ctx, plans.Upload{
-		PlanID: plan.ID, ObjectKey: doc.Key, SizeBytes: doc.Size, CreatedBy: identity,
-	})
-	if err != nil {
-		return gen.ImportPlan503JSONResponse{UnavailableJSONResponse: gen.UnavailableJSONResponse(unavailable())}, nil
-	}
-
-	return gen.ImportPlan201JSONResponse{
-		PlanId:   strconv.FormatInt(plan.ID, 10),
-		Version:  version.Version,
-		Importer: pointerTo(importer.ID()),
-		Findings: findingBodies(result.Findings),
-	}, nil
-}
-
-// planName prefers what the user typed, then what the file says the school is,
-// then the file name without its extension.
-func planName(form uploadForm, school string) string {
-	if name := strings.TrimSpace(form.fields["name"]); name != "" {
-		return name
-	}
-	if school = strings.TrimSpace(school); school != "" {
-		return school
-	}
-	name := form.filename
-	if dot := strings.LastIndex(name, "."); dot > 0 {
-		name = name[:dot]
-	}
-	if name = strings.TrimSpace(name); name != "" {
-		return name
-	}
-	return "Import"
-}
-
-func findingBodies(findings []formats.Finding) []gen.Finding {
-	out := make([]gen.Finding, 0, len(findings))
-	for _, finding := range findings {
-		body := gen.Finding{
-			Kind:     string(finding.Kind),
-			Severity: gen.FindingSeverity(finding.Severity.String()),
-		}
-		if len(finding.Entities) > 0 {
-			refs := make([]gen.EntityRef, 0, len(finding.Entities))
-			for _, ref := range finding.Entities {
-				refs = append(refs, gen.EntityRef{
-					Kind: gen.EntityRefKind(entityKindName(ref.GetKind().String())),
-					Id:   int(ref.GetId()),
-				})
-			}
-			body.Entities = &refs
-		}
-		out = append(out, body)
-	}
-	return out
-}
-
-// entityKindName turns ENTITY_KIND_DIVISION into division, which is what the
-// contract carries.
-func entityKindName(enum string) string {
-	return strings.ToLower(strings.TrimPrefix(enum, "ENTITY_KIND_"))
-}
-
 func pointerTo[T any](value T) *T { return &value }
 
 // uploadForm is one multipart body: the file part and every plain field.
+// hasFile tells an absent file part from an empty one.
 type uploadForm struct {
 	file     []byte
 	filename string
+	hasFile  bool
 	fields   map[string]string
 }
 
+// errTooLarge is a multipart body or part over the upload limit.
+var errTooLarge = errors.New("api: upload over the limit")
+
 // readForm reads a multipart body, taking the named part as the file. The
-// group this runs on caps the body, so the read is already bounded.
-func readForm(reader *multipart.Reader, fileField string) (uploadForm, error) {
+// group this runs on caps the whole body, and each part is held to limit as
+// well; either one tripping is errTooLarge, never a silently cut part.
+func readForm(reader *multipart.Reader, fileField string, limit int64) (uploadForm, error) {
 	form := uploadForm{fields: map[string]string{}}
 	if reader == nil {
 		return form, fmt.Errorf("api: no body")
@@ -514,52 +650,93 @@ func readForm(reader *multipart.Reader, fileField string) (uploadForm, error) {
 		if errors.Is(err, io.EOF) {
 			return form, nil
 		}
+		if httpmw.TooLarge(err) {
+			return form, errTooLarge
+		}
 		if err != nil {
 			return form, err
 		}
-		value, err := io.ReadAll(io.LimitReader(part, MaxUploadSize))
+		value, err := io.ReadAll(io.LimitReader(part, limit+1))
 		part.Close()
+		if httpmw.TooLarge(err) || int64(len(value)) > limit {
+			return form, errTooLarge
+		}
 		if err != nil {
 			return form, err
 		}
 		if part.FormName() == fileField {
 			form.file = value
 			form.filename = part.FileName()
+			form.hasFile = true
 			continue
 		}
 		form.fields[part.FormName()] = string(value)
 	}
 }
 
-// parentOf reads the version an upload was derived from. Absent means the
-// first version, which is 0.
-func parentOf(raw string) (int64, bool) {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return 0, true
+// uploadOf reads what an upload form says besides the document, refusing a
+// field with an *plans.Invalid.
+func uploadOf(form uploadForm) (plans.Upload, error) {
+	parent, code := parentOf(form.fields)
+	if code != "" {
+		return plans.Upload{}, &plans.Invalid{Field: "parent", Code: code}
 	}
-	parent, err := strconv.ParseInt(raw, 10, 64)
-	if err != nil || parent < 0 {
-		return 0, false
+	key := form.fields["upload_key"]
+	if err := plans.CheckUploadKey(key); err != nil {
+		return plans.Upload{}, err
 	}
-	return parent, true
+	summary, err := plans.ParseSummary([]byte(form.fields["summary"]))
+	if err != nil {
+		return plans.Upload{}, err
+	}
+	validFrom, err := dateOf(form.fields, "valid_from")
+	if err != nil {
+		return plans.Upload{}, err
+	}
+	validTo, err := dateOf(form.fields, "valid_to")
+	if err != nil {
+		return plans.Upload{}, err
+	}
+	return plans.Upload{Parent: parent, UploadKey: key, Summary: summary,
+		ValidFrom: validFrom, ValidTo: validTo}, nil
 }
 
-// dateOf reads a schedule validity date. An unreadable one is no date rather
-// than an error: validity is optional and a wrong value must not lose an
-// upload.
-func dateOf(raw string) time.Time {
+// parentOf reads the version an upload was derived from, or the code that
+// refuses it. Every plan is created with version 1, so an upload always names
+// one.
+func parentOf(fields map[string]string) (int64, string) {
+	raw, ok := fields["parent"]
+	if !ok || strings.TrimSpace(raw) == "" {
+		return 0, "required"
+	}
+	parent, err := strconv.ParseInt(strings.TrimSpace(raw), 10, 64)
+	if err != nil || parent < 1 {
+		return 0, "invalid"
+	}
+	return parent, ""
+}
+
+// dateOf reads a schedule validity date: absent is nil, which keeps the
+// parent's; empty is a zero date, which clears it; anything that is not a date
+// is refused, because a mistyped date must not vanish silently.
+func dateOf(fields map[string]string, field string) (*time.Time, error) {
+	raw, sent := fields[field]
+	if !sent {
+		return nil, nil
+	}
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
-		return time.Time{}
+		return &time.Time{}, nil
 	}
 	date, err := time.Parse(time.DateOnly, raw)
 	if err != nil {
-		return time.Time{}
+		return nil, &plans.Invalid{Field: field, Code: "invalid"}
 	}
-	return date.UTC()
+	date = date.UTC()
+	return &date, nil
 }
 
 // The generated contract is the boundary: this assertion is what makes a
-// contract change a compile error here rather than a runtime surprise.
-var _ gen.StrictServerInterface = (*API)(nil)
+// contract change a compile error here rather than a runtime surprise. It is
+// on Handlers, because neither half implements the whole contract alone.
+var _ gen.StrictServerInterface = (*Handlers)(nil)
