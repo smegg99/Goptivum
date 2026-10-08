@@ -22,7 +22,7 @@ func (s *server) initLocale(root *cobra.Command) {
 		cmd.RunE = func(cmd *cobra.Command, args []string) error {
 			target, remaining, err := root.Find(args)
 			if err != nil || len(remaining) != 0 {
-				return usageError(messages.CliCommandUnknownCommand(s.say(), messages.CliCommandUnknownCommandParams{Command: strings.Join(args, " ")}))
+				return usageError(messages.KeyCliCommandUnknownCommand, map[string]any{"Command": strings.Join(args, " ")})
 			}
 			return target.Help()
 		}
@@ -66,6 +66,11 @@ func (s *server) localize(root *cobra.Command, language string) {
 		case "status":
 			cmd.Short = messages.CliCommandStatusShort(words)
 			cmd.Long = messages.CliCommandStatusLong(words)
+		case "users":
+			cmd.Short = messages.CliUsersShort(words)
+		case "set-role":
+			cmd.Short = messages.CliUsersSetRoleShort(words)
+			cmd.Long = messages.CliUsersSetRoleLong(words)
 		case "help":
 			cmd.Short = messages.CliCommandHelpShort(words)
 			cmd.Long = cmd.Short

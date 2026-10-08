@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/smegg99/goptivum/backend/common/messages"
 )
 
 func TestLocaleBeforeCommandExecution(t *testing.T) {
@@ -61,6 +63,9 @@ func TestHelpDetectsShellLanguage(t *testing.T) {
 	}
 }
 
+// A usage error carries a message key, not a sentence. It is rendered by the
+// edge that knows which language the reader chose, which is what makes the same
+// error readable in Polish and in English without two code paths.
 func TestLocalizedUsageErrors(t *testing.T) {
 	t.Setenv("GOPTIVUM_LANG", "pl")
 	for _, test := range []struct {
@@ -75,8 +80,14 @@ func TestLocalizedUsageErrors(t *testing.T) {
 		{[]string{"--lang=de"}, "Wybierz en lub pl"},
 	} {
 		_, err := run(t, test.args...)
-		if !errors.Is(err, errUsage) || !strings.Contains(err.Error(), test.want) {
-			t.Errorf("%v: %v, want usage error containing %q", test.args, err, test.want)
+		said := messages.Say(messages.Localizer("pl"), err)
+		if !errors.Is(err, errUsage) || !strings.Contains(said, test.want) {
+			t.Errorf("%v: %q, want usage error containing %q", test.args, said, test.want)
+		}
+		// The error itself is the key, so a log has something stable to grep
+		// and nothing here decides what language a reader gets.
+		if strings.Contains(err.Error(), test.want) {
+			t.Errorf("%v: the error carries rendered text: %q", test.args, err.Error())
 		}
 	}
 }

@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/smegg99/goptivum/backend/api/v1/gen"
+	"github.com/smegg99/goptivum/backend/common/config"
 	"github.com/smegg99/goptivum/backend/version"
 )
 
@@ -121,6 +122,58 @@ func TestTheConfigurationFileOwnsTheSettings(t *testing.T) {
 
 	if s.settings.Server.Address != "127.0.0.1:19222" {
 		t.Errorf("address = %q, want the flag to win for one run", s.settings.Server.Address)
+	}
+}
+
+// An installed configuration written before a block existed still loads, with
+// that block at its defaults: the demo route is off.
+func TestDevDefaultsWhenTheFileSaysNothing(t *testing.T) {
+	cases := []struct {
+		name    string
+		written string
+		demo    bool
+	}{
+		{"absent", "server:\n  address: 127.0.0.1:19111\n", false},
+		{"set", "dev:\n  demo_school: true\n", true},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "config.yaml")
+			if err := os.WriteFile(path, []byte(test.written), 0o600); err != nil {
+				t.Fatalf("write config: %v", err)
+			}
+			root, s := newRootCmd()
+			root.SetOut(&bytes.Buffer{})
+			root.SetErr(&bytes.Buffer{})
+			root.SetArgs([]string{"status", "--config", path, "--addr", "127.0.0.1:1"})
+			_ = root.ExecuteContext(context.Background())
+
+			if s.settings.Dev.DemoSchool != test.demo {
+				t.Errorf("demo_school = %v, want %v", s.settings.Dev.DemoSchool, test.demo)
+			}
+		})
+	}
+}
+
+// The settings an administrator changes on Backend > Server live in
+// settings.yaml now. A config.yaml that still sets one is refused rather than
+// half read, so the value cannot be believed in force from the wrong file.
+func TestAConfigurationWithAMovedSettingIsRefused(t *testing.T) {
+	for name, written := range map[string]string{
+		"projects":         "projects:\n  trash_days: 7\n",
+		"public addresses": "server:\n  public_addresses: []\n",
+		"upload limit":     "security:\n  maximum_upload_bytes: 16777216\n",
+		"rate limit":       "security:\n  rate_limit_per_minute: 600\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "config.yaml")
+			if err := os.WriteFile(path, []byte(written), 0o600); err != nil {
+				t.Fatalf("write config: %v", err)
+			}
+			if _, _, err := config.Load(path); err == nil {
+				t.Errorf("%q loaded", written)
+			}
+		})
 	}
 }
 
