@@ -27,6 +27,8 @@ dev:
 # Unit tests. Corpus and integration tests skip when their inputs are absent.
 test:
 	go test ./...
+	cd document && go test ./...
+	cd solveclient && go test ./...
 
 # Tests including the real-file corpus, verbose about what it found or skipped.
 test-corpus:
@@ -48,6 +50,12 @@ infra-logs:
 infra-reset:
 	docker compose down --volumes --remove-orphans
 
+# Tests the first-sign-in loop against a real Kratos. Point it at a disposable
+# one: the test creates and deletes identities in whatever it is given.
+test-kratos ADMIN="http://127.0.0.1:14434" PUBLIC="http://127.0.0.1:14433":
+	GOPTIVUM_TEST_KRATOS_ADMIN={{ADMIN}} GOPTIVUM_TEST_KRATOS_PUBLIC={{PUBLIC}} \
+		go test ./backend/identity/ -run Infra -v -count 1
+
 # Tests against the real Postgres and MinIO that infra-up starts.
 test-infra:
 	#!/usr/bin/env bash
@@ -59,8 +67,24 @@ test-infra:
 	export GOPTIVUM_TEST_MINIO_BUCKET="goptivum-plans"
 	go test ./backend/core/... -run Infra -v -count 1
 
+# Copy s99ab's shared OpenAPI fragments into contracts/shared/. The error
+# envelope is the shape every s99ab client is generated against, so it is
+# sourced rather than retyped.
+shared-contracts:
+	python3 scripts/shared-contracts.py
+
+# Fails when a shared fragment no longer matches the s99ab in go.mod.
+check-shared-contracts:
+	python3 scripts/shared-contracts.py --check
+
+# Drive the whole server end to end against a real Optivum file and a
+# disposable Kratos. Creates nothing outside a temp directory and one container
+# named goptivum-smoke-kratos, and removes both on the way out.
+smoke:
+	./scripts/smoke.sh
+
 # Lint the authored contract tree and bundle it for the generators.
-contracts:
+contracts: check-shared-contracts
 	./contracts/node_modules/.bin/redocly lint --config contracts/backend/redocly.yaml backend@v1
 	./contracts/node_modules/.bin/redocly bundle --config contracts/backend/redocly.yaml backend@v1 --component-renaming-conflicts-severity=error -o contracts/backend/dist/openapi.yaml
 
@@ -72,6 +96,16 @@ generate-backend: contracts
 generate-config:
 	cd backend/common/config && go tool cue exp gengotypes ./...
 
+# Generate the Go protobuf bindings from proto/ into the document module. Needs
+# the Arrango checkout beside this one, the same coupling go.mod's replace
+# already imposes.
+proto-go:
+	python3 scripts/proto-go.py
+
+# Fails when the bindings do not match proto/.
+proto-check:
+	python3 scripts/proto-go.py --check
+
 # Generate the locale catalogs and copy them to the Go consumer.
 locales:
 	python3 scripts/locales.py
@@ -80,26 +114,36 @@ locales:
 check-locales:
 	python3 scripts/locales.py --check
 
-generate: locales generate-config generate-backend
+generate: locales shared-contracts generate-config generate-backend proto-go
 
 # Fails when a generated file does not match the authored source it came from.
 check-generated: generate
-	git diff --exit-code -- contracts/backend/dist/openapi.yaml backend/api/v1/gen backend/common/config/cue_types_config_gen.go
+	git diff --exit-code -- contracts/backend/dist/openapi.yaml contracts/shared backend/api/v1/gen backend/common/config/cue_types_config_gen.go document/gen
 
 fmt:
-	gofmt -s -w backend tools
+	gofmt -s -w backend tools document solveclient
 
 fmt-check:
 	#!/usr/bin/env bash
 	set -euo pipefail
-	files="$(gofmt -l backend tools)"
+	files="$(gofmt -l backend tools document solveclient)"
 	if [[ -n "$files" ]]; then printf '%s\n' "$files"; exit 1; fi
 
 vet:
 	go vet ./...
+	cd document && go vet ./...
+	cd solveclient && go vet ./...
 
 tidy:
 	go mod tidy
+
+# Solve on a real Arrango Node. Mint the URI on the node itself, over a tunnel:
+#   ssh -N -L 19443:127.0.0.1:9443 <user>@<host>
+#   arrango-node pair --host 127.0.0.1:19443 --label goptivum-test --ttl 15m
+#   just test-arrango "arrango://..."
+# A token is one-time, so every run needs a fresh URI.
+test-arrango URI:
+	GOPTIVUM_TEST_ARRANGO_URI="{{URI}}" go test ./backend/arrango/... -run Infra -v -count 1
 
 # Look inside a real .pla without printing a school into a terminal log.
 #   just pla-probe census tests/data/school.pla   elements and attribute names

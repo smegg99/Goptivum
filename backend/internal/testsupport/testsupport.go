@@ -42,6 +42,18 @@ func Fixture(t *testing.T, name string) string {
 	return path
 }
 
+// WritableFixture returns where a fixture that a test writes lives, creating
+// its directory.
+func WritableFixture(t *testing.T, name string) string {
+	t.Helper()
+
+	path := filepath.Join(root(t), "tests", "fixtures", name)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("fixture directory for %s: %v", name, err)
+	}
+	return path
+}
+
 // Golden returns a path under tests/golden.
 func Golden(t *testing.T, name string) string {
 	t.Helper()

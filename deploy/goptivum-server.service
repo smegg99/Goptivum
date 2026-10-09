@@ -1,0 +1,18 @@
+# deploy/goptivum-server.service
+[Unit]
+Description=Goptivum local school server
+After=network.target
+
+[Service]
+Type=exec
+WorkingDirectory=%h/.local/share/goptivum-server
+ExecStart=%h/.local/lib/goptivum-server/goptivum-server serve --config %h/.config/goptivum-server/config.yaml
+EnvironmentFile=%h/.config/goptivum-server/service.env
+UMask=0077
+NoNewPrivileges=yes
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=25
+
+[Install]
+WantedBy=default.target

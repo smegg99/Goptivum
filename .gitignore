@@ -3,12 +3,18 @@ bin/
 tmp/
 logs/
 .env
-config.yaml
+/config.yaml
+# What an administrator changes while the server runs, written beside
+# config.yaml by the server itself.
+/settings.yaml
 # The daemon's own defaults when nothing configures it: a local database and a
 # local object directory.
 goptivum.db
 goptivum.db-*
-documents/
+/documents/
+# This deployment's own keypair for the solving nodes. A node pins the
+# certificate in here, so it is local state and never shared.
+arrango-identity/
 
 node_modules/
 __pycache__/
