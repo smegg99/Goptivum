@@ -1,89 +1,132 @@
 # Goptivum Server
 
-The daemon that owns identity and all application data for one school. It
-takes a school's existing Optivum (VULCAN) files, keeps each timetable as a
-versioned document, and hands work to an Arrango node.
+The daemon that owns one school's accounts and data. It imports the school's
+Optivum (VULCAN) files and `.gpf` project files, keeps each timetable project
+as versioned documents, and sends solves to Arrango nodes. Goptivum Desktop is
+its only client today.
 
-Module `github.com/smegg99/goptivum`. Binary `goptivum-server`.
+```
+Goptivum Desktop --HTTP + bearer token--> Goptivum Server --gRPC + pinned mTLS--> Arrango node
+  (../Goptivum-Desktop)                   (this repo)                             (../Arrango)
+```
 
 ## Prerequisites
 
 | Tool | Needed for |
 |---|---|
-| Go 1.27 | everything |
-| pnpm | `just contracts`, and therefore `just check` |
-| Docker | `just infra-up`, and therefore `just test-infra` |
+| Go 1.27 | everything; `cue`, `oapi-codegen` and `loc` run as `go tool` from `go.mod` |
+| a `../Arrango` checkout | building at all (`go.mod` replaces `github.com/smegg99/arrango` with it), and `just proto-go`, which reads its `proto/` |
+| pnpm, then `cd contracts && pnpm install` | Redocly, for `just contracts`, `just generate` and `just check-generated` |
+| Python 3 | `scripts/*.py`: `just locales`, `check-locales`, `proto-go`, `shared-contracts` |
+| protoc 33.1 at `~/.local/opt/or-tools` (or `GOPTIVUM_PROTOC_PREFIX`) and `protoc-gen-go` v1.36.11 | `just proto-go` and `proto-check`, so `just generate` too; the script checks both versions |
+| Docker | `just infra-up`, `test-infra`, a disposable Kratos for `test-kratos` |
 
-The contract tooling lives in its own workspace, so a fresh checkout runs:
-
-```sh
-cd contracts && pnpm install
-```
-
-Without it `just check` stops at `check-generated`, because the Redocly CLI is
-not there to bundle the contract.
-
-## The three verbs
+## Build and run
 
 ```sh
-just build   # bin/goptivum-server, stamped with VERSION and the commit
-just run     # run what build produced
-just dev     # go run, no artifact
+just build   # bin/goptivum-server, stamped with VERSION, the commit and the build time
+just run     # build, then serve
+just dev     # go run ./backend serve, no artifact
 ```
 
-## goptivum-server
+## Commands
 
 ```
-goptivum-server serve      run until SIGINT or SIGTERM
-goptivum-server status     ask a running server what it is and whether it is ready
-goptivum-server --version  what this build serves and what it demands of a client
+goptivum-server serve                              run until SIGINT or SIGTERM
+goptivum-server status                             ask a running server what it is and whether it is ready
+goptivum-server arrango pair URI [--label NAME]    pair an Arrango node from its one-time link
+goptivum-server arrango nodes                      list the paired nodes
+goptivum-server arrango revoke LABEL-OR-FINGERPRINT
+goptivum-server users set-role IDENTIFIER admin|planner
+goptivum-server --version                          this build, its API version and the oldest client it accepts
 ```
 
-A misuse exits 2 and a failure of the work itself exits 1, so a script can tell
-them apart.
+`users set-role` is the operator's way back in: it changes an account's role
+through the same last-admin guard as the Users page.
 
-### Configuration
+A misuse exits 2 and a failure of the work itself exits 1, so a script can
+tell them apart.
 
-`config.yaml` owns the settings. It is validated against the CUE schema in
-`backend/common/config/config.cue`, and a first run writes the defaults so a
-fresh install has a file to edit rather than an error to read. The Go types are
-generated from that schema and are never hand-edited.
-
-```sh
-goptivum-server serve --config /etc/goptivum/config.yaml
-```
-
-Secrets are references, not values in the file. `storage.database.dsn` and the
-bucket keys default to `@{env?:GOPTIVUM_DATABASE_URL}`,
-`@{env?:GOPTIVUM_STORAGE_ACCESS_KEY}` and `@{env?:GOPTIVUM_STORAGE_SECRET_KEY}`,
-and a `.env` beside the binary is read on start. None of them is a flag,
-because a command line is visible in the process list and in shell history.
-
-Four flags exist, for what someone changes for one run. A flag wins only when
+Five flags exist, for what someone changes for one run. A flag wins only when
 it is given, so a default never replaces a value the school wrote down:
 
 | Flag | Overrides |
 |---|---|
-| `--config` | where the file is; `GOPTIVUM_CONFIG` names it too |
+| `--config` | where `config.yaml` is; `GOPTIVUM_CONFIG` names it too; default `./config.yaml` |
 | `--addr` | `server.address` |
 | `--verbose` | `logging.verbose` |
 | `--no-color` | `logging.no_color` |
+| `--lang en\|pl` | `application.language`, for this run's output and logs |
 
-Documents live in a bucket when `storage.documents.endpoint` is set and in
-`storage.documents.dir` otherwise, which is what a single-box or air-gapped
-school runs.
+## Configuration
 
-Logs go to stderr through S99Logger: coloured when stderr is a terminal, plain
-when it is a pipe or a journal, and optionally to a rotating file when
-`logging.enable_files` is on. Every line carries a stable event id beside the
-sentence, so `id=logs.serverStarted` is what a log search matches whatever
-language the sentence is in.
+Two files, both validated against CUE schemas in `backend/common/config/`:
 
-There is no identity provider yet. Until one is configured every route that
-needs a session stays unregistered, which is deliberate: mounting them without
-a session check would mount them open to anyone who can reach the port.
-`/api/info`, `/api/v1/health`, `/api/v1/ready` and `/api/v1/version` answer
-today.
+- `config.yaml` (`config.cue`) holds the settings a person writes: address,
+  database, document storage, Kratos, logging. A first run writes the
+  defaults. Unknown keys are refused.
+- `settings.yaml` (`settings.cue`) holds the runtime settings an
+  administrator changes from the desktop (Backend > Server and Security):
+  sign-in lockout, public addresses, upload size, request rate, Trash days,
+  Backups and results caps. The server creates it beside `config.yaml` and
+  rewrites it on each change. It reads the file at start only, so edit it by
+  hand only while the server is stopped.
+
+Secrets are references, not values: `storage.database.dsn`, the bucket keys
+and the escrow passphrase default to `@{env?:GOPTIVUM_DATABASE_URL}`,
+`@{env?:GOPTIVUM_STORAGE_ACCESS_KEY}`, `@{env?:GOPTIVUM_STORAGE_SECRET_KEY}`
+and `@{env?:GOPTIVUM_ESCROW_PASSPHRASE}`. They resolve from the environment,
+a `.env` in the working directory, or the keyring. None of them is a flag,
+because a command line is visible in the process list and in shell history.
+
+## What it keeps
+
+- **Projects**: a school's timetable plan. Every account reads every live
+  project; only its owner changes or solves it, anyone may fork it, and an
+  administrator can give it to another account.
+- **Versions**: each save of a project is a new version, kept up to the
+  project's Backups cap. A named checkpoint is a version that is kept.
+- **Trash**: a deleted project, checkpoint or result goes to Trash, where its
+  owner can restore it; an hourly purge removes what is older than the Trash
+  days setting (30 by default).
+- **Results**: a finished solve is kept as a result of its project, not as a
+  new version.
+- **Exports**: a version or result as `.gpf` or Optivum HTML, built once and
+  kept.
+
+## Identity
+
+Accounts live in Ory Kratos. The server proxies Kratos at `/kratos/*`, so a
+school exposes one port, and the desktop signs in through it. **Kratos's
+`serve.public.base_url` must be this server's public origin with a trailing
+`/kratos/`**; a mismatch shows up as a 404 on submit.
+
+`identity.admin_url` must never be reachable beyond loopback: anything that
+reaches it can read and modify every identity in the school. An empty
+`identity.public_url` turns identity off, and every route that needs a
+session stays unregistered.
+
+On first boot, when no account holds the `admin` role, the server creates one
+from `identity.bootstrap` and prints a generated password once. The account
+must change it at first sign-in. There is no default password.
+
+## Solving nodes
+
+A solve runs on an Arrango node, reached over gRPC with mutual TLS and no CA:
+each side pins the other's self-signed certificate by its SHA-256
+fingerprint. This server's keypair is in `arrango.identity_dir`; replacing it
+means every node must pair again.
+
+Pairing is one paste. On the node, `arrango-node pair --host <address this
+server dials> ...` prints a one-time `arrango://` link; here,
+`goptivum-server arrango pair "<link>" --label <name>` (or Backend > Nodes in
+the desktop). The token is sent only after the node's certificate has
+matched the fingerprint in the link. The link is a secret until it is used.
+
+Each node carries this server's own limits, solves at once and workers per
+solve, never above the ceilings the node's operator granted at pairing. A
+solve is never dispatched with `num_workers = 0`, which means every core to
+the solver at about 0.9 GB of memory each.
 
 ## plaprobe
 
@@ -95,8 +138,8 @@ plaprobe tree FILE     where each element sits and what type each attribute hold
 plaprobe xml FILE      the decoded document, and nothing else, for a redirect
 ```
 
-`census` and `tree` report shape and never a value, so their output can go in a
-bug report. `xml` writes what is inside, which for a real file is a school's
+`census` and `tree` report shape and never a value, so their output can go in
+a bug report. `xml` writes what is inside, which for a real file is a school's
 personal data.
 
 ```sh
@@ -106,79 +149,49 @@ just pla-probe census tests/data/plan.pla
 ## Checks
 
 ```sh
-just check    # fmt-check, vet, test, check-generated
+just check    # fmt-check, vet, test, check-locales, check-generated
 ```
-
-`just test` alone runs the Go tests. Two families of test skip rather than fail
-when their inputs are absent:
-
-- **Corpus tests** read real school files from `tests/data/`, which is
-  gitignored and empty in a clean checkout. A real Optivum export carries
-  teacher names, and a git history is forever.
-- **Integration tests** (`-run Infra`) need Postgres and MinIO. Start them with
-  `just infra-up` and run `just test-infra`.
 
 ## Language
 
-Everything this server writes for a person to read is localized with
-S99Locale: its log and what its command line prints. `application.language`
-picks it, `en` and `pl` exist, and `i18n/locales/` is where the messages are
-written.
+What the server writes for a person to read (its log and its command line)
+is localized with S99Locale, in `en` and `pl`. `application.language` picks
+it; `--lang` overrides it for one run. Help, version output and early usage
+errors use `--lang`, else `GOPTIVUM_LANG`, `LC_ALL`, `LC_MESSAGES`, `LANG`,
+else English; `plaprobe` uses the same environment. Help never loads or
+creates a configuration file. Sources are in `i18n/locales/`; `just locales`
+regenerates the catalogs.
 
-```sh
-just locales        # build the catalogs and copy them to the Go consumer
-just check-locales  # fails when a catalog or its copy is stale
-```
-
-Use `--lang en|pl` to override the server command's language for one run,
-including its logs. Help, version output, and early usage errors use
-`GOPTIVUM_LANG`, then `LC_ALL`, `LC_MESSAGES`, `LANG`, and finally English
-when no `--lang` is given. `plaprobe` uses the same environment detection.
-`C` and `POSIX` select English; unsupported locales fall back to English.
-Help does not load or create configuration files.
-
-```sh
-go run ./backend --lang pl --help
-go run ./backend --lang en status
-```
-
-A response never carries a sentence. `Error.message` is a key such as
-`error.notFound`, and the client resolves it from its own catalogue in the
-language the person reading it chose. Command names and flag names remain
-stable in every language. Original dependency diagnostics retain their text
-inside localized error messages.
+A response never carries a sentence: `Error.message` is a key such as
+`error.notFound`, and the client words it in its own language.
 
 ## The contract
 
-`contracts/backend/` is the source of truth. Nothing downstream is ever
-hand-edited: the bundle, the generated Go boundary and any client are
-regenerated from the authored tree.
+`contracts/backend/` is the source of truth for the HTTP API. The bundle and
+the generated Go boundary are regenerated from it, never edited.
 
 ```sh
 just contracts        # lint the authored tree, bundle it to dist/openapi.yaml
-just generate         # the configuration types and the Go server boundary
+just generate         # locales, shared contracts, config types, server boundary, protobuf
 just check-generated  # fails when a generated file does not match its source
 ```
 
-`/api/info` is unversioned and frozen. A client has to learn which version a
-server speaks before it can call a versioned route, so the discovery path
-cannot itself carry a version. Its four fields are `product`, `api_version`,
-`min_client_version` and `server_version`, and `product` is `goptivum`.
+`/api/info` is unversioned and frozen: a client has to learn which version a
+server speaks before it can call a versioned route. Its four required fields
+are `product` (always `goptivum`), `api_version`, `min_client_version` and
+`server_version`; `addresses` and `maximum_upload_bytes` are optional.
 
 ## Layout
 
 ```
-backend/cmd/           the command tree; one file per command
-backend/common/config/ the CUE schema and the types generated from it
-backend/common/logger/ the logger and its event catalog
-backend/common/messages/ the generated locale catalogs and accessors
-i18n/                  the canonical locale sources, one file per namespace
-backend/ui/            one palette, one set of styles, every line the programs print
-backend/api/v1/        the HTTP boundary; gen/ is generated, never edited
-backend/core/plans/    which plans exist and the timeline of versions each has
-backend/core/documents/ protobuf, then zstd, addressed by the hash of the bytes
-backend/formats/       a school's own files in, a solvable model out
-backend/migrations/    one migration, edited in place
-contracts/backend/     the authored OpenAPI tree and its bundle
-tests/                 data/ is real and gitignored; fixtures/ and golden/ are committed
+backend/       the server: commands, HTTP API, node policy, core stores, identity, formats, config
+document/      nested module: the plan document, its codec and the .gpf container
+solveclient/   nested module: the client side of the link to an Arrango node, shared with the desktop
+proto/         the document's .proto, generated into document/gen
+contracts/     the authored OpenAPI tree and its bundle
+i18n/          S99Locale sources
+deploy/        systemd user unit; Kratos config and identity schema
+scripts/       locale, protobuf, shared-contract and password helpers (Python)
+tools/         plaprobe
+tests/         fixtures/ and golden/ are synthetic; data/ is real and gitignored
 ```
