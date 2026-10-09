@@ -61,6 +61,74 @@ services:
         mc mb --ignore-existing local/goptivum-plans
     restart: on-failure
 
+  # Kratos owns its own database on the same server. Its migrations and
+  # Goptivum's must never share a schema.
+  kratos-db-init:
+    image: postgres:17-alpine
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: goptivum-development
+    entrypoint:
+      - sh
+      - -c
+      - |
+        psql -h postgres -U goptivum -d postgres -tc \
+          "select 1 from pg_roles where rolname = 'kratos'" | grep -q 1 || \
+          psql -h postgres -U goptivum -d postgres -c \
+          "create role kratos login password 'kratos-development'"
+        psql -h postgres -U goptivum -d postgres -tc \
+          "select 1 from pg_database where datname = 'kratos'" | grep -q 1 || \
+          psql -h postgres -U goptivum -d postgres -c \
+          "create database kratos owner kratos"
+    restart: on-failure
+
+  # Kratos refuses to serve against an unmigrated database, so this runs to
+  # completion first.
+  kratos-migrate:
+    image: oryd/kratos:v1.3.1
+    depends_on:
+      kratos-db-init:
+        condition: service_completed_successfully
+    environment:
+      DSN: postgres://kratos:kratos-development@postgres:5432/kratos?sslmode=disable
+    volumes:
+      - ./deploy/kratos:/etc/kratos:ro
+    command: migrate sql -e --yes --config /etc/kratos/kratos.yml
+    restart: on-failure
+
+  kratos:
+    image: oryd/kratos:v1.3.1
+    depends_on:
+      kratos-migrate:
+        condition: service_completed_successfully
+    ports:
+      # Both loopback. A school exposes one port, the server's, and the server
+      # proxies Kratos at /kratos/*. A second LAN door would bypass the
+      # server's rate limiter, and the admin API can read and modify every
+      # identity in the school.
+      - "127.0.0.1:4833:4433"
+      - "127.0.0.1:4834:4434"
+    environment:
+      DSN: postgres://kratos:kratos-development@postgres:5432/kratos?sslmode=disable
+      # Development values. A real deployment supplies its own; changing the
+      # cookie secret invalidates every live session. Both must be 32 bytes.
+      SECRETS_COOKIE: goptivum-development-cookie-0001
+      SECRETS_CIPHER: goptivum-development-cipher-0001
+    volumes:
+      - ./deploy/kratos:/etc/kratos:ro
+    # --sqa-opt-out: no telemetry leaves the box. No --dev: the desktop uses
+    # native API flows, so nothing here depends on a relaxed cookie.
+    command: serve --config /etc/kratos/kratos.yml --sqa-opt-out
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4433/health/ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+    restart: unless-stopped
+
 volumes:
   postgres-data:
   minio-data:

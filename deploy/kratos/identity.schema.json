@@ -1,0 +1,46 @@
+{
+  "$id": "https://schemas.goptivum/identity.schema.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Goptivum account",
+  "type": "object",
+  "properties": {
+    "traits": {
+      "type": "object",
+      "properties": {
+        "username": {
+          "title": "Username",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "ory.sh/kratos": {
+            "credentials": {
+              "password": {
+                "identifier": true
+              }
+            }
+          }
+        },
+        "email": {
+          "title": "Email",
+          "type": "string",
+          "format": "email",
+          "maxLength": 320,
+          "ory.sh/kratos": {
+            "credentials": {
+              "password": {
+                "identifier": true
+              }
+            }
+          }
+        },
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "maxLength": 128
+        }
+      },
+      "required": ["username", "email"],
+      "additionalProperties": false
+    }
+  }
+}

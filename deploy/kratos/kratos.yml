@@ -1,0 +1,61 @@
+# deploy/kratos/kratos.yml
+#
+# The desktop runs Kratos's native API flow and carries the returned session
+# token, so no cookie, no CSRF token and no browser redirect is ever exercised.
+version: v1.3.0
+
+serve:
+  public:
+    port: 4433
+    # Must end in /kratos/. Every ui.action a flow returns is this base joined
+    # to the flow's own path, so without the prefix a client submits to a route
+    # the server's proxy does not serve.
+    base_url: http://127.0.0.1:8833/kratos/
+  admin:
+    port: 4434
+    # Loopback only. Anything reaching this port can read and modify every
+    # identity in the school.
+    base_url: http://127.0.0.1:4434/
+
+selfservice:
+  # Required by Kratos and never reached: a native flow returns JSON.
+  default_browser_return_url: http://127.0.0.1:8833/
+  flows:
+    registration:
+      # Only an admin creates accounts. A LAN box with self-service open lets
+      # anyone on the school network mint themselves an identity.
+      enabled: false
+    login:
+      ui_url: http://127.0.0.1:8833/kratos-ui/login
+    settings:
+      ui_url: http://127.0.0.1:8833/kratos-ui/settings
+      # A password change must be as strong as the session asking for it.
+      required_aal: highest_available
+    error:
+      ui_url: http://127.0.0.1:8833/kratos-ui/error
+  methods:
+    password:
+      enabled: true
+      config:
+        # Internet-optional: no request leaves the school LAN.
+        haveibeenpwned_enabled: false
+    code:
+      enabled: false
+    link:
+      enabled: false
+
+identity:
+  default_schema_id: default
+  schemas:
+    - id: default
+      url: file:///etc/kratos/identity.schema.json
+    # The existing local identity still names this schema ID.
+    - id: staff
+      url: file:///etc/kratos/identity.schema.json
+
+session:
+  lifespan: 24h
+
+log:
+  level: info
+  format: json
