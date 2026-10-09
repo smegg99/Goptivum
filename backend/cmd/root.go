@@ -50,14 +50,17 @@ func Execute() int {
 	err := root.Execute()
 	if err != nil {
 		if s.logging {
-			logger.Log.Error(s99logger.NewEvent(logger.EventRunFailed, s99logger.Err(err)))
+			// Rendered, so a refusal a person caused reads as its sentence
+			// with its parameters rather than as a bare message key.
+			logger.Log.Error(s99logger.NewEvent(logger.EventRunFailed,
+				s99logger.String("error", messages.Say(s.say(), err))))
 		} else {
-			root.PrintErrln(messages.CliCommandError(s.say(), messages.CliCommandErrorParams{Detail: err.Error()}))
+			root.PrintErrln(messages.CliCommandError(s.say(), messages.CliCommandErrorParams{Detail: messages.Say(s.say(), err)}))
 		}
 	}
 	if closeErr := logger.Close(); closeErr != nil && err == nil {
 		err = closeErr
-		root.PrintErrln(messages.CliCommandError(s.say(), messages.CliCommandErrorParams{Detail: err.Error()}))
+		root.PrintErrln(messages.CliCommandError(s.say(), messages.CliCommandErrorParams{Detail: messages.Say(s.say(), err)}))
 	}
 	if err == nil {
 		return 0
@@ -82,7 +85,7 @@ func newRootCmd() (*cobra.Command, *server) {
 		// Replaces Cobra's own unknown-command error so a misuse exits 2.
 		Args: func(cmd *cobra.Command, args []string) error {
 			if err := cobra.NoArgs(cmd, args); err != nil {
-				return usageError(messages.CliCommandUnknownCommand(s.say(), messages.CliCommandUnknownCommandParams{Command: args[0]}))
+				return usageError(messages.KeyCliCommandUnknownCommand, map[string]any{"Command": args[0]})
 			}
 			return nil
 		},
@@ -116,12 +119,14 @@ func newRootCmd() (*cobra.Command, *server) {
 
 	// A flag or argument mistake is a usage error, and exits 2.
 	root.SetFlagErrorFunc(func(_ *cobra.Command, err error) error {
-		return usageError(messages.CliCommandInvalidFlag(s.say(), messages.CliCommandInvalidFlagParams{Detail: err.Error()}))
+		return usageError(messages.KeyCliCommandInvalidFlag, map[string]any{"Detail": err})
 	})
 
 	root.AddCommand(
 		newServeCmd(s),
 		newStatusCmd(s),
+		newArrangoCmd(s),
+		newUsersCmd(s),
 	)
 	s.initLocale(root)
 	return root, s
@@ -133,7 +138,7 @@ func newRootCmd() (*cobra.Command, *server) {
 func (s *server) load(cmd *cobra.Command) error {
 	settings, resolved, err := config.Load(s.flags.path)
 	if err != nil {
-		return &commandError{messages.CliCommandConfigFailed(s.say(), messages.CliCommandConfigFailedParams{Detail: err.Error()}), err}
+		return messages.WrapFault(err, messages.KeyCliCommandConfigFailed, map[string]any{"Detail": err})
 	}
 	s.settings, s.path = settings, resolved
 
@@ -152,7 +157,7 @@ func (s *server) load(cmd *cobra.Command) error {
 	s.words = messages.Localizer(s.settings.Application.Language)
 
 	if err := logger.Configure(s.settings.Logging, s.settings.Application.Language); err != nil {
-		return &commandError{messages.CliCommandLoggingFailed(s.say(), messages.CliCommandLoggingFailedParams{Detail: err.Error()}), err}
+		return messages.WrapFault(err, messages.KeyCliCommandLoggingFailed, map[string]any{"Detail": err})
 	}
 	s.logging = true
 	logger.Log.Debug(s99logger.NewEvent(logger.EventConfigLoaded, s99logger.String("path", resolved)))
@@ -181,19 +186,13 @@ func (s *server) print() *ui.UI {
 // exits 2 like a wrong flag does.
 func (s *server) noArgs(cmd *cobra.Command, args []string) error {
 	if err := cobra.NoArgs(cmd, args); err != nil {
-		return usageError(messages.CliCommandNoArgs(s.say(), messages.CliCommandNoArgsParams{Command: cmd.CommandPath()}))
+		return usageError(messages.KeyCliCommandNoArgs, map[string]any{"Command": cmd.CommandPath()})
 	}
 	return nil
 }
 
-func usageError(message string) error {
-	return &commandError{message: message, cause: errUsage}
+// usageError is a misuse of the command line, answered with exit 2 so a script
+// can tell it from a failure of the work itself.
+func usageError(key string, data map[string]any) error {
+	return messages.WrapFault(errUsage, key, data)
 }
-
-type commandError struct {
-	message string
-	cause   error
-}
-
-func (e *commandError) Error() string { return e.message }
-func (e *commandError) Unwrap() error { return e.cause }
