@@ -5,6 +5,7 @@ package solveclient_test
 import (
 	"context"
 	"errors"
+	nodecapacity "github.com/smegg99/arrango/backend/capacity"
 	"testing"
 	"time"
 
@@ -66,9 +67,10 @@ func TestProbeReadsTheNodeNow(t *testing.T) {
 	}
 }
 
-// A node whose operator revoked the caller refuses its certificate at the
-// handshake. That is not a node that is down, and it needs a new pairing.
-func TestProbeOfANodeThatForgotTheCallerSaysSo(t *testing.T) {
+// TLS rejects a revoked certificate before gRPC can return an authentication
+// status. Report an unavailable link without guessing from transport prose.
+
+func TestProbeOfARevokedTLSConnectionIsUnreachable(t *testing.T) {
 	node := startLiveNode(t)
 	dialer, self, paired := pairedWith(t, node, config.DefaultPolicy())
 	if err := node.peers.Revoke(self.Fingerprint()); err != nil {
@@ -76,11 +78,11 @@ func TestProbeOfANodeThatForgotTheCallerSaysSo(t *testing.T) {
 	}
 
 	_, err := probe(t, dialer, "szkolny", paired.Address, paired.Fingerprint.String())
-	if !errors.Is(err, solveclient.ErrNotPaired) {
-		t.Fatalf("err = %v, want ErrNotPaired", err)
+	if !errors.Is(err, solveclient.ErrUnreachable) {
+		t.Fatalf("err = %v, want ErrUnreachable", err)
 	}
-	if errors.Is(err, solveclient.ErrUnreachable) {
-		t.Error("a node that answered with a refusal is reported unreachable")
+	if errors.Is(err, solveclient.ErrNotPaired) {
+		t.Error("transport failure guessed an authentication status")
 	}
 }
 
@@ -180,9 +182,9 @@ func TestCapacityOfCarriesTheNodesAnswer(t *testing.T) {
 	if capacity.FreeBytes != 16*gb {
 		t.Errorf("FreeBytes = %d, want 16 GB", capacity.FreeBytes)
 	}
-	// 16 GB free, 1 GB base, 900 MB each: 17 by memory, bounded by 24 cores.
-	if capacity.AffordableWorkers != 17 {
-		t.Errorf("AffordableWorkers = %d, want 17", capacity.AffordableWorkers)
+	// 16 GB free, 2 GB base, 900 MB each: 15 workers.
+	if capacity.AffordableWorkers != 15 {
+		t.Errorf("AffordableWorkers = %d, want 15", capacity.AffordableWorkers)
 	}
 	if capacity.RunningSolves != 2 || capacity.Cores != 24 {
 		t.Errorf("capacity = %+v", capacity)
@@ -215,16 +217,16 @@ func TestAffordableWorkersMirrorsTheNode(t *testing.T) {
 		cores uint32
 		want  uint32
 	}{
-		// Below the 1 GB base cost, nothing fits at all.
+		// Below the 2 GB base cost, nothing fits at all.
 		{"nothing free", 0, 24, 0},
 		{"under the base cost", gb, 24, 0},
 		// 900 MB per worker on top of the base.
-		{"one worker", gb + 900<<20, 24, 1},
-		{"eight workers", gb + 8*(900<<20), 24, 8},
+		{"one worker", 2*gb + 900<<20, 24, 1},
+		{"eight workers", 2*gb + 8*(900<<20), 24, 8},
 		// Cores bound it even when memory would allow more.
 		{"cores are the bound", 64 * gb, 4, 4},
 		// A node reporting no cores must not turn into an unbounded answer.
-		{"no cores reported", 64 * gb, 0, 71},
+		{"no cores reported", 64 * gb, 0, 0},
 	} {
 		t.Run(one.name, func(t *testing.T) {
 			if got := solveclient.AffordableWorkers(one.free, one.cores); got != one.want {
@@ -232,5 +234,13 @@ func TestAffordableWorkersMirrorsTheNode(t *testing.T) {
 					one.free, one.cores, got, one.want)
 			}
 		})
+	}
+}
+
+func TestCapacityMustMatchNodeArithmetic(t *testing.T) {
+	free := uint64(2)<<30 + uint64(100)<<20
+	host := nodecapacity.Host{Cores: 8, AvailableBytes: free}
+	if got, want := int(solveclient.AffordableWorkers(free, 8)), host.AffordableWorkers(); got != want {
+		t.Fatalf("client admits %d workers, actual node admits %d at %d free bytes", got, want, free)
 	}
 }

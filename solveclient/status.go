@@ -12,14 +12,10 @@ import (
 // CapabilityPeerPolicy is the node's name for reporting the caller's own policy in GetNodeStatus.
 const CapabilityPeerPolicy = "peer_policy"
 
-// PerWorkerBytes and BaseBytes are the node's memory cost of one worker and of
-// a solve's base: its own arithmetic, mirrored rather than imported, because
-// importing its capacity package would pull the whole node service into a
-// client. Mega peaked at 15.9 GB on 16 workers and was OOM-killed at 20 on a
-// 23 GB box, which is where these two numbers come from.
+// PerWorkerBytes and BaseBytes mirror node admission costs, checked against its capacity package.
 const (
 	PerWorkerBytes uint64 = 900 << 20
-	BaseBytes      uint64 = 1 << 30
+	BaseBytes      uint64 = 2 << 30
 )
 
 // Ceilings is the node's own policy for the caller, set by its operator at pairing.
@@ -73,11 +69,11 @@ type Capacity struct {
 // solve was queued or refused after a 1272 lesson model was sent" into an
 // answer the caller gets before anything is sent.
 func AffordableWorkers(free uint64, cores uint32) uint32 {
-	if free <= BaseBytes {
+	if cores == 0 || free <= BaseBytes {
 		return 0
 	}
 	workers := (free - BaseBytes) / PerWorkerBytes
-	if cores > 0 && workers > uint64(cores) {
+	if workers > uint64(cores) {
 		workers = uint64(cores)
 	}
 	return uint32(workers)

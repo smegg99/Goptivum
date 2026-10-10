@@ -124,9 +124,9 @@ func TestPairingSaysWhyItFailed(t *testing.T) {
 			return pairing.URI{Address: node.server.Address(), Fingerprint: other.Fingerprint, Token: "ABCD-EFGH-IJKL-MNOP"}.String()
 		}, solveclient.ErrPinMismatch},
 		// No token is pending, so the node closes its handshake to strangers.
-		{"a token the node never issued", func(*testing.T) string { return node.unminted() }, solveclient.ErrLinkSpent},
+		{"a token the node never issued", func(*testing.T) string { return node.unminted() }, solveclient.ErrUnreachable},
 		// Only an expired token is pending, and the node drops it on sight.
-		{"an expired link", func(t *testing.T) string { return node.link(t, config.DefaultPolicy(), -time.Second) }, solveclient.ErrLinkSpent},
+		{"an expired link", func(t *testing.T) string { return node.link(t, config.DefaultPolicy(), -time.Second) }, solveclient.ErrUnreachable},
 	} {
 		t.Run(one.name, func(t *testing.T) {
 			dialer, _ := newDialerAs(t, "0.1.0")
@@ -138,8 +138,8 @@ func TestPairingSaysWhyItFailed(t *testing.T) {
 	}
 }
 
-// A link another caller already used is spent, whether or not another token
-// holds the node's pairing window open.
+// An explicit token refusal is spent. A closed TLS pairing window is
+// unavailable because no application-level refusal reaches the caller.
 func TestAUsedLinkIsSpent(t *testing.T) {
 	node := startLiveNode(t)
 	uri := node.link(t, config.DefaultPolicy(), time.Minute)
@@ -150,8 +150,8 @@ func TestAUsedLinkIsSpent(t *testing.T) {
 	}
 
 	second, _ := newDialerAs(t, "0.1.0")
-	if _, err := pairWithin(t, second, uri); !errors.Is(err, solveclient.ErrLinkSpent) {
-		t.Errorf("the window closed: err = %v, want ErrLinkSpent", err)
+	if _, err := pairWithin(t, second, uri); !errors.Is(err, solveclient.ErrUnreachable) {
+		t.Errorf("the window closed: err = %v, want ErrUnreachable", err)
 	}
 
 	// With another link pending the handshake goes through and the token

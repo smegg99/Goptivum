@@ -5,7 +5,6 @@ package solveclient
 import (
 	"errors"
 	"fmt"
-	"strings"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -135,13 +134,7 @@ func refusal(node, call string, err error) error {
 		return fmt.Errorf("%w: %s %s: %w", ErrNotPaired, node, call, err)
 	case codes.FailedPrecondition:
 		return fmt.Errorf("%w: %s %s: %w", ErrClientTooOld, node, call, err)
-	case codes.Unavailable:
-		// The certificate was fetched a moment ago, so a TLS alert from the
-		// other side is the node refusing the caller's certificate at the
-		// handshake: not on its list, and no pairing window open.
-		if strings.Contains(answer.Message(), "remote error: tls:") {
-			return fmt.Errorf("%w: %s %s: %w", ErrNotPaired, node, call, err)
-		}
+
 	}
 	return fmt.Errorf("%w: %s %s: %w", ErrUnreachable, node, call, err)
 }
