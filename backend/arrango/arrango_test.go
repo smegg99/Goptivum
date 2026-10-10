@@ -7,7 +7,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	arrangoid "github.com/smegg99/arrango/backend/identity"
 	"github.com/smegg99/s99ab/data/db"
@@ -135,8 +134,7 @@ func TestPairingTheSameNodeAgainReplacesTheRow(t *testing.T) {
 
 func newPlan(t *testing.T, repository *plans.Repository, store *documents.Store) plans.Plan {
 	t.Helper()
-	// With a stored version: a solved schedule is written as the next version
-	// of the document it was solved from, so there has to be one.
+	// A solve reads a stored version and keeps its schedule as a result.
 	encoded, err := document.Encode(document.New(lessons(2, 2)))
 	if err != nil {
 		t.Fatalf("encode: %v", err)
@@ -464,7 +462,7 @@ func TestCancellingASolveKeepsWhatItFound(t *testing.T) {
 		row, err := jobs.Get(ctx, job.ID)
 		return err == nil && row.Status == arrango.StatusRunning
 	})
-	time.Sleep(200 * time.Millisecond)
+	waitFor(t, "received schedules", func() bool { preview, ok := runner.Preview(job.ID); return ok && preview.Received > 0 })
 
 	if !runner.Cancel(job.ID) {
 		t.Fatal("Cancel reported nothing was running")
@@ -517,13 +515,13 @@ func TestCapacityIsReadFromANodeThatAnswers(t *testing.T) {
 	if !admission.Capacity.Known {
 		t.Fatal("the node answered and the capacity was not recorded")
 	}
-	if admission.Capacity.AffordableWorkers != 4 {
-		t.Errorf("AffordableWorkers = %d, want 4 from 5 GB free",
+	if admission.Capacity.AffordableWorkers != 3 {
+		t.Errorf("AffordableWorkers = %d, want 3 from 5 GB free",
 			admission.Capacity.AffordableWorkers)
 	}
-	// 24 were asked for and the node affords 4.
-	if admission.Workers != 4 {
-		t.Errorf("Workers = %d, want 4: the node's answer beats the request",
+	// 24 were asked for and the node affords 3.
+	if admission.Workers != 3 {
+		t.Errorf("Workers = %d, want 3: the node's answer beats the request",
 			admission.Workers)
 	}
 	if admission.Capacity.RunningSolves != 1 || admission.Capacity.Cores != 24 {
@@ -662,10 +660,10 @@ func TestABaselineThatDoesNotHoldIsRefusedBeforeItIsDispatched(t *testing.T) {
 		validation: &arrangov1.ValidationReport{
 			Valid: false,
 			Conflicts: []*arrangov1.Conflict{
-				{Kind: arrangov1.Conflict_KIND_TEACHER_OVERLOADED, EntityId: 7},
-				{Kind: arrangov1.Conflict_KIND_LOCKED_COLLISION, LessonIds: []uint32{3, 4}},
+				{Kind: arrangov1.Conflict_KIND_TEACHER_OVERLOADED, Entities: []*arrangov1.EntityRef{{Kind: arrangov1.EntityKind_ENTITY_KIND_TEACHER, Id: 7}}},
+				{Kind: arrangov1.Conflict_KIND_LOCKED_COLLISION, Lessons: []*arrangov1.LessonRef{{LessonId: 3}, {LessonId: 4}}},
 				// Twice, to prove the kinds are reported once each.
-				{Kind: arrangov1.Conflict_KIND_TEACHER_OVERLOADED, EntityId: 9},
+				{Kind: arrangov1.Conflict_KIND_TEACHER_OVERLOADED, Entities: []*arrangov1.EntityRef{{Kind: arrangov1.EntityKind_ENTITY_KIND_TEACHER, Id: 9}}},
 			},
 		},
 		// Frames it would have sent, so a dispatch that wrongly proceeds is
@@ -729,9 +727,9 @@ func TestAFromScratchSolveIsNotCheckedAgainstAnEmptyTimetable(t *testing.T) {
 		validation: &arrangov1.ValidationReport{
 			Valid: false,
 			Conflicts: []*arrangov1.Conflict{
-				{Kind: arrangov1.Conflict_KIND_MISSING_LESSON, LessonIds: []uint32{1}},
-				{Kind: arrangov1.Conflict_KIND_MISSING_LESSON, LessonIds: []uint32{2}},
-				{Kind: arrangov1.Conflict_KIND_DAILY_LOAD_VIOLATION, EntityId: 1},
+				{Kind: arrangov1.Conflict_KIND_MISSING_LESSON, Lessons: []*arrangov1.LessonRef{{LessonId: 1}}},
+				{Kind: arrangov1.Conflict_KIND_MISSING_LESSON, Lessons: []*arrangov1.LessonRef{{LessonId: 2}}},
+				{Kind: arrangov1.Conflict_KIND_DAILY_LOAD_VIOLATION, Entities: []*arrangov1.EntityRef{{Kind: arrangov1.EntityKind_ENTITY_KIND_DIVISION, Id: 1}}},
 			},
 		},
 	})
@@ -789,5 +787,30 @@ func TestAModelCheckThatCannotRunDoesNotBlockTheSolve(t *testing.T) {
 	}
 	if calls := node.validateCalls(); len(calls) != 1 {
 		t.Errorf("Validate calls = %d, want the one that failed", len(calls))
+	}
+}
+
+func TestTerminalJobMustKeepSavedResult(t *testing.T) {
+	registry, jobs, repository, store := newRegistry(t)
+	node, err := registry.Record(t.Context(), "synthetic", paired(t, "127.0.0.1:1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := newPlan(t, repository, store)
+	job, err := jobs.Create(t.Context(), arrango.NewJob{PlanID: plan.ID, Version: 1, NodeID: node.ID, Workers: 1, StartedBy: owner})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := int64(4242)
+	if err := jobs.Finish(t.Context(), job.ID, arrango.Outcome{Status: arrango.StatusDone, ResultID: &id}); err != nil {
+		t.Fatal(err)
+	}
+	repeatErr := jobs.Finish(t.Context(), job.ID, arrango.Outcome{Status: arrango.StatusFailed, Detail: "readback failure"})
+	after, err := jobs.Get(t.Context(), job.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.ResultID == nil || *after.ResultID != id || after.Status != arrango.StatusDone {
+		t.Errorf("terminal job overwritten: status=%s result=%v second_finish=%v", after.Status, after.ResultID, repeatErr)
 	}
 }

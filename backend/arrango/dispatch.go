@@ -18,8 +18,8 @@ import (
 	"github.com/smegg99/goptivum/backend/common/messages"
 )
 
-// finishTimeout bounds the write that closes a job. It runs on a context the
-// caller's cancellation cannot reach, so it needs a bound of its own.
+// finishTimeout bounds each storage/finalization phase independently. These
+// phases outlive caller cancellation, but neither may consume the other's bound.
 const finishTimeout = 10 * time.Second
 
 // Persist keeps a solve's timetable (result.Snapshot, never nil) as a result of the job's plan and reports its id.
@@ -154,58 +154,51 @@ func (d *Dispatcher) Begin(ctx context.Context, order Order) (Admission, Job, er
 func (d *Dispatcher) Finish(ctx context.Context, admission Admission, job Job,
 	request *arrangorpcv1.SolveRequest, observe solveclient.Observer) (Result, error) {
 
-	result, err := d.run(ctx, admission, job, request, observe)
-	if err == nil {
-		return result, nil
-	}
-
-	status := StatusFailed
-	if solveclient.Cancelled(err) {
+	result, runErr := d.run(ctx, admission, job, request, observe)
+	result.Job = job
+	status, reason, detail := StatusDone, "", result.Message
+	switch {
+	case runErr != nil:
+		status, detail = StatusFailed, runErr.Error()
+		if solveclient.Cancelled(runErr) {
+			status = StatusCancelled
+		} else {
+			reason = messages.KeySolveNodeError
+		}
+	case result.Status == arrangorpcv1.SolveStatus_SOLVE_STATUS_CANCELLED:
 		status = StatusCancelled
-	}
-	// Recorded even though the solve failed, and on a context that the caller's
-	// cancellation cannot take away: a job with no terminal row counts against
-	// the node's concurrency for ever.
-	finishCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
-	defer cancel()
-
-	// A solve that already found a schedule keeps the best one received,
-	// whether it was stopped or its node broke the stream, restarted or ran past
-	// the deadline.
-	//
-	// "Stop, this one is good enough" is what a planner does with a solver, and
-	// it has to be an action that saves the work rather than the one that loses
-	// it. A failure keeps it too: every schedule on the stream passed the node's
-	// validation before it was sent, so a stream that broke later does not make
-	// it untrustworthy, and minutes of search are not thrown away. A failed job
-	// stays failed and carries the result beside its reason.
-	var stored *int64
-	detail, reason := err.Error(), ""
-	if status == StatusFailed {
-		reason = messages.KeySolveNodeError
-	}
-	if result.HasSchedule && d.persist != nil {
-		id, persistErr := d.persist(finishCtx, job, result)
-		switch {
-		case persistErr == nil:
-			stored = &id
-			result.ResultID = id
-		default:
-			// Said, not swallowed. The status stays what happened, and the reason
-			// explains why there is nothing to open.
-			reason = messages.KeySolveResultNotStored
-			detail = fmt.Sprintf("%s; the schedule it had could not be stored: %v",
-				detail, persistErr)
+	case !result.HasSchedule:
+		status, reason = StatusFailed, failureReason(result.Status)
+		if result.Status == arrangorpcv1.SolveStatus_SOLVE_STATUS_ERROR && result.PreflightRefused {
+			reason = messages.KeySolvePreflightFailed
 		}
 	}
-
-	if finishErr := d.jobs.Finish(finishCtx, job.ID, outcomeOf(result, status, reason, detail, stored)); finishErr != nil {
-		return result, errors.Join(err, finishErr)
+	// One owner persists the best schedule and closes the row, even on cancellation.
+	var stored *int64
+	if result.HasSchedule && d.persist != nil {
+		storeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
+		id, persistErr := d.persist(storeCtx, job, result)
+		cancel()
+		if persistErr == nil {
+			stored, result.ResultID = &id, id
+		} else {
+			if status == StatusDone {
+				status = StatusFailed
+			}
+			reason = messages.KeySolveResultNotStored
+			detail = fmt.Sprintf("%s; the schedule could not be stored: %v", detail, persistErr)
+		}
 	}
-	if closed, readErr := d.jobs.Get(finishCtx, job.ID); readErr == nil {
+	finishCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
+	defer cancel()
+	if finishErr := d.jobs.Finish(finishCtx, job.ID, outcomeOf(result, status, reason, detail, stored)); finishErr != nil {
+		return result, errors.Join(runErr, finishErr)
+	}
+	closed, readErr := d.jobs.Get(finishCtx, job.ID)
+	if readErr == nil {
 		result.Job = closed
 	}
-	return result, err
+	return result, errors.Join(runErr, readErr)
 }
 
 // outcomeOf is what the job row records about a finished solve.
@@ -297,66 +290,5 @@ func (d *Dispatcher) run(ctx context.Context, admission Admission, job Job,
 			observe(update)
 		}
 	})
-	err = errors.Join(err, grantErr)
-	result := Result{Result: found, Job: job}
-	if err != nil {
-		// The partial result, not an empty one: Finish keeps the best
-		// schedule the stream carried before it broke.
-		return result, err
-	}
-
-	// A clean close is not success. Solve returns OK unconditionally, even for
-	// a rejected request and even for a proven-infeasible model: the outcome
-	// lives only in the terminal update, in band.
-	status := StatusDone
-	if !result.HasSchedule {
-		status = StatusFailed
-	}
-	if result.Status == arrangorpcv1.SolveStatus_SOLVE_STATUS_CANCELLED {
-		status = StatusCancelled
-	}
-
-	// Stored before the row is closed. A schedule the user cannot open is not
-	// a solved job, however well the search went.
-	// On a context the caller's cancellation cannot reach, the same as the
-	// failure path below. The stream has closed, so the schedule exists: losing
-	// it because a shutdown started a moment later would be throwing away ten
-	// minutes of work for nothing. Close still waits, so shutdown stays bounded
-	// by finishTimeout.
-	closeCtx, closeCancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
-	defer closeCancel()
-
-	var stored *int64
-	detail, reason := result.Message, ""
-	if status == StatusFailed {
-		reason = failureReason(result.Status)
-		if result.Status == arrangorpcv1.SolveStatus_SOLVE_STATUS_ERROR && result.PreflightRefused {
-			reason = messages.KeySolvePreflightFailed
-		}
-	}
-	// A solve the node reports cancelled keeps what it had, as a stopped one does.
-	if (status == StatusDone || (status == StatusCancelled && result.HasSchedule)) && d.persist != nil {
-		id, persistErr := d.persist(closeCtx, job, result)
-		if persistErr != nil {
-			// The search worked and the answer is gone. HasSchedule still says
-			// a snapshot arrived, because it did; a finished job is a failure
-			// because there is nothing a user can open.
-			if status == StatusDone {
-				status = StatusFailed
-			}
-			reason, detail = messages.KeySolveResultNotStored, persistErr.Error()
-		} else {
-			stored = &id
-			result.ResultID = id
-		}
-	}
-
-	if err := d.jobs.Finish(closeCtx, job.ID, outcomeOf(result, status, reason, detail, stored)); err != nil {
-		return Result{}, err
-	}
-	result.Job, err = d.jobs.Get(closeCtx, job.ID)
-	if err != nil {
-		return Result{}, err
-	}
-	return result, nil
+	return Result{Result: found, Job: job}, errors.Join(err, grantErr)
 }

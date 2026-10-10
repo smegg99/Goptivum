@@ -20,7 +20,7 @@ func limitedNode(t *testing.T, registry *arrango.Registry, fake *fakeNode, limit
 	if err != nil {
 		t.Fatalf("record: %v", err)
 	}
-	node, err := registry.Update(t.Context(), recorded.ID, arrango.NodeChange{Limits: &limits})
+	node, err := registry.Update(t.Context(), recorded.ID, arrango.NodeChange{Solves: &limits.Solves, Workers: &limits.Workers})
 	if err != nil {
 		t.Fatalf("set limits: %v", err)
 	}
