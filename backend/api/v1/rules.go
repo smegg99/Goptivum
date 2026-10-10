@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/smegg99/s99logger"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	arrangorpcv1 "github.com/smegg99/arrango/backend/gen/arrangorpcv1"
 	arrangov1 "github.com/smegg99/arrango/backend/gen/arrangov1"
@@ -57,7 +59,7 @@ func (r *Rules) GetRuleCatalogue(ctx context.Context, _ gen.GetRuleCatalogueRequ
 			return nil, err
 		}
 		return gen.GetRuleCatalogue200JSONResponse(body), nil
-	case errors.Is(context.Cause(askCtx), errRulesWaiting):
+	case errors.Is(context.Cause(askCtx), errRulesWaiting), errors.Is(err, context.DeadlineExceeded), status.Code(err) == codes.DeadlineExceeded:
 		logRuleCatalogueFailed(err)
 		return gen.GetRuleCatalogue504JSONResponse(gen.Error{Code: "timeout", Message: messages.KeyRulesWaitingForSolver}), nil
 	case errors.Is(err, arrango.ErrNoNode), errors.Is(err, solveclient.ErrUnreachable), errors.Is(err, solveclient.ErrRefused):

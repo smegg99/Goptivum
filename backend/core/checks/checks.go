@@ -124,12 +124,23 @@ func (s *Service) Check(ctx context.Context, subject Subject, load Load) (Report
 
 // join returns the flight this request waits on, or ErrSuperseded when a newer version's check runs.
 func (s *Service) join(ctx context.Context, key string, subject Subject, load Load) (*flight, error) {
-	s.mu.Lock()
+	for {
+		s.mu.Lock()
+		running := s.flights[subject.scope()]
+		if running == nil || subject.ResultID == 0 || running.key == key {
+			break
+		}
+		s.mu.Unlock()
+		select {
+		case <-running.done:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
 	defer s.mu.Unlock()
 	if running := s.flights[subject.scope()]; running != nil {
 		switch {
-		// A result's document and rules never change, so its one flight is always the same check.
-		case running.key == key || subject.ResultID != 0:
+		case running.key == key:
 			return running, nil
 		case running.version > subject.Version:
 			return nil, ErrSuperseded

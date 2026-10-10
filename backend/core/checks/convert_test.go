@@ -3,8 +3,11 @@
 package checks
 
 import (
+	"context"
+	"errors"
 	"reflect"
 	"testing"
+	"time"
 
 	arrangorpcv1 "github.com/smegg99/arrango/backend/gen/arrangorpcv1"
 	arrangov1 "github.com/smegg99/arrango/backend/gen/arrangov1"
@@ -45,7 +48,6 @@ func TestAnOverloadedTeacherIsOneErrorWithItsNumbers(t *testing.T) {
 	report := Convert(&arrangorpcv1.CheckReport{Hard: []*arrangov1.Conflict{{
 		Kind:     arrangov1.Conflict_KIND_TEACHER_OVERLOADED,
 		Message:  "teacher Kowalska needs 31 periods but 30 are available",
-		EntityId: 12,
 		Entities: []*arrangov1.EntityRef{ref(arrangov1.EntityKind_ENTITY_KIND_TEACHER, 12)},
 		Needed:   31, Available: 30,
 	}}}, nil)
@@ -66,10 +68,9 @@ func TestAnOverloadedTeacherIsOneErrorWithItsNumbers(t *testing.T) {
 // Zero periods free is a finding's real number, not an absent one.
 func TestARoomPoolWithNoRoomCarriesZeroAvailable(t *testing.T) {
 	report := Convert(&arrangorpcv1.CheckReport{Hard: []*arrangov1.Conflict{{
-		Kind:      arrangov1.Conflict_KIND_ROOM_POOL_OVERLOADED,
-		LessonIds: []uint32{7, 8},
-		Lessons:   []*arrangov1.LessonRef{{LessonId: 7, Duration: 1}, {LessonId: 8, Duration: 2}},
-		Needed:    3,
+		Kind:    arrangov1.Conflict_KIND_ROOM_POOL_OVERLOADED,
+		Lessons: []*arrangov1.LessonRef{{LessonId: 7, Duration: 1}, {LessonId: 8, Duration: 2}},
+		Needed:  3,
 	}}}, nil)
 	finding := report.Findings[0]
 	if finding.Available == nil || *finding.Available != 0 || finding.Needed == nil || *finding.Needed != 3 {
@@ -93,11 +94,10 @@ func TestAnInvalidModelIsOneUnlocatedError(t *testing.T) {
 }
 
 // Lessons named only by id are listed too, unplaced; placed ones keep where they sit.
-func TestLessonsAreTheUnionOfIdsAndRefs(t *testing.T) {
+func TestPlacedAndUnplacedLessonReferencesAreKept(t *testing.T) {
 	report := Convert(&arrangorpcv1.CheckReport{Hard: []*arrangov1.Conflict{{
-		Kind:      arrangov1.Conflict_KIND_LOCKED_COLLISION,
-		LessonIds: []uint32{4, 5},
-		Lessons:   []*arrangov1.LessonRef{{LessonId: 5, DayId: 2, StartPeriod: 0, Duration: 1, RoomId: 9}},
+		Kind:    arrangov1.Conflict_KIND_LOCKED_COLLISION,
+		Lessons: []*arrangov1.LessonRef{{LessonId: 5, DayId: 2, StartPeriod: 0, Duration: 1, RoomId: 9}, {LessonId: 4}},
 	}}}, nil)
 	want := []Lesson{{ID: 5, Placed: true, DayID: 2, StartPeriod: 0, Duration: 1, RoomID: 9}, {ID: 4}}
 	if got := report.Findings[0].Lessons; !reflect.DeepEqual(got, want) {
@@ -146,7 +146,7 @@ func TestATimetableIsSortedTheWayTheNodesVerdictIs(t *testing.T) {
 	division := []*arrangov1.EntityRef{ref(arrangov1.EntityKind_ENTITY_KIND_DIVISION, 3)}
 	answer := &arrangorpcv1.CheckReport{
 		Validation: &arrangov1.ValidationReport{Conflicts: []*arrangov1.Conflict{{
-			Kind: arrangov1.Conflict_KIND_TEACHER_CONFLICT, LessonIds: []uint32{1, 2},
+			Kind: arrangov1.Conflict_KIND_TEACHER_CONFLICT, Lessons: []*arrangov1.LessonRef{{LessonId: 1}, {LessonId: 2}},
 		}}},
 		Score: &arrangov1.ScoreReport{
 			SoftIssues: []*arrangov1.SoftIssue{
@@ -285,4 +285,52 @@ func TestConvertMatchesIgnoredTimesWithoutHidingOtherDays(t *testing.T) {
 	if report.Warnings != 1 || report.Ignored != 1 || !report.Findings[0].Ignored || report.Findings[1].Ignored {
 		t.Fatalf("report: %+v", report)
 	}
+}
+
+func TestDifferentResultRulesWaitForTheirOwnFlight(t *testing.T) {
+	entered, release := make(chan struct{}), make(chan struct{})
+	service := New(func(ctx context.Context, request *arrangorpcv1.CheckRequest) (*arrangorpcv1.CheckReport, error) {
+		if request.GetRuleConfig().GetProfile() == "first" {
+			close(entered)
+			select {
+			case <-release:
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+		return &arrangorpcv1.CheckReport{}, nil
+	}, time.Second)
+	load := func(context.Context) (*goptivumv1.Document, error) {
+		return document.New(&arrangov1.SchoolModel{}), nil
+	}
+	subject := Subject{PlanID: 1, ResultID: 9, Version: 1, ObjectKey: "synthetic", Rules: &arrangov1.RuleConfig{Profile: "first"}}
+	key, err := subject.key()
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := service.join(t.Context(), key, subject, load)
+	if err != nil {
+		t.Fatal(err)
+	}
+	<-entered
+	subject.Rules = &arrangov1.RuleConfig{Profile: "second"}
+	key, err = subject.key()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cancelled, cancel := context.WithCancel(t.Context())
+	cancel()
+	if joined, err := service.join(cancelled, key, subject, load); !errors.Is(err, context.Canceled) || joined != nil {
+		t.Errorf("different-rules waiter joined flight: %v, %v", joined, err)
+	}
+	close(release)
+	<-first.done
+	second, err := service.join(t.Context(), key, subject, load)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second == first || second.key != key {
+		t.Errorf("wrong rules flight: %v", second)
+	}
+	<-second.done
 }

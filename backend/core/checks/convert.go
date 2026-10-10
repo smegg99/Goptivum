@@ -237,7 +237,7 @@ func conflictFinding(conflict *arrangov1.Conflict, severity Severity, part Part)
 		Kind:     kindName(strings.TrimPrefix(kind.String(), "KIND_")),
 		Severity: severity,
 		Entities: entitiesOf(conflict.GetEntities(), unspecifiedAs(kind)),
-		Lessons:  lessonsOf(conflict.GetLessons(), conflict.GetLessonIds()),
+		Lessons:  lessonsOf(conflict.GetLessons()),
 		Spans:    spansOf(conflict.GetSpans()),
 	}
 	if kind == arrangov1.Conflict_KIND_TEACHER_OVERLOADED || kind == arrangov1.Conflict_KIND_ROOM_POOL_OVERLOADED {
@@ -254,7 +254,7 @@ func issueFinding(issue *arrangov1.SoftIssue, severity Severity, part Part) Find
 		Kind:     kindName(issue.GetCategory()),
 		Severity: severity,
 		Entities: entitiesOf(issue.GetEntities(), ""),
-		Lessons:  lessonsOf(issue.GetLessons(), nil),
+		Lessons:  lessonsOf(issue.GetLessons()),
 		Spans:    spansOf(issue.GetSpans()),
 		Count:    &count,
 	}
@@ -306,23 +306,20 @@ func entitiesOf(refs []*arrangov1.EntityRef, unspecified string) []Entity {
 	return out
 }
 
-// lessonsOf is every lesson the finding names: the located refs, then the ids that have no ref, unplaced.
-func lessonsOf(refs []*arrangov1.LessonRef, ids []uint32) []Lesson {
+// lessonsOf keeps each structured lesson reference once.
+func lessonsOf(refs []*arrangov1.LessonRef) []Lesson {
 	var out []Lesson
 	seen := map[uint32]bool{}
 	for _, ref := range refs {
+		if seen[ref.GetLessonId()] {
+			continue
+		}
 		seen[ref.GetLessonId()] = true
 		out = append(out, Lesson{
 			ID: ref.GetLessonId(), Placed: ref.GetDayId() != 0,
 			DayID: ref.GetDayId(), StartPeriod: ref.GetStartPeriod(),
 			Duration: ref.GetDuration(), RoomID: ref.GetRoomId(),
 		})
-	}
-	for _, id := range ids {
-		if !seen[id] {
-			seen[id] = true
-			out = append(out, Lesson{ID: id})
-		}
 	}
 	return out
 }

@@ -8,6 +8,7 @@ import (
 
 func capRatings(score *Score, findings []Finding, model *arrangov1.SchoolModel, errors int) {
 	classes, teachers := map[uint32]int{}, map[uint32]int{}
+	index := solveclient.NewFindingIndex(model)
 	for _, finding := range findings {
 		if finding.Ignored || finding.Severity != SeverityError {
 			continue
@@ -21,7 +22,7 @@ func capRatings(score *Score, findings []Finding, model *arrangov1.SchoolModel, 
 		for _, lesson := range finding.Lessons {
 			lessons = append(lessons, lesson.ID)
 		}
-		a, b := solveclient.FindingEntities(model, refs, lessons)
+		a, b := index.Entities(refs, lessons)
 		for id := range a {
 			classes[id]++
 		}

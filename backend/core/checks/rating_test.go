@@ -17,7 +17,7 @@ func TestRatingAttributesErrorsOncePerEntityAndLiftsOnlyIgnoredCaps(t *testing.T
 		Hard: []*arrangov1.Conflict{{Kind: arrangov1.Conflict_KIND_TEACHER_OVERLOADED,
 			Entities: []*arrangov1.EntityRef{ref(arrangov1.EntityKind_ENTITY_KIND_TEACHER, 10)}}},
 		Validation: &arrangov1.ValidationReport{Conflicts: []*arrangov1.Conflict{
-			{Kind: arrangov1.Conflict_KIND_LOCKED_COLLISION, LessonIds: []uint32{1, 1},
+			{Kind: arrangov1.Conflict_KIND_LOCKED_COLLISION, Lessons: []*arrangov1.LessonRef{{LessonId: 1}, {LessonId: 1}},
 				Entities: []*arrangov1.EntityRef{ref(arrangov1.EntityKind_ENTITY_KIND_DIVISION, 2)}},
 		}},
 		Score: &arrangov1.ScoreReport{
