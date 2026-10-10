@@ -471,3 +471,38 @@ func TestRefusalKeysListsEveryRefusal(t *testing.T) {
 		t.Errorf("RefusalKeys() = %v, want %v", got, want)
 	}
 }
+
+func TestDeletedAndReaddedHeaderMustRoundTrip(t *testing.T) {
+	head := header(t)
+	head.Set(gpf.FieldSchool, "first").Set(gpf.FieldSchool, "").Set(gpf.FieldSchool, "second")
+	encoded, err := gpf.Encode(solvedDocument(), gpf.WriteOptions{Header: head})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := gpf.Decode(encoded, gpf.ReadOptions{}); err != nil {
+		t.Errorf("writer emitted unreadable header after delete/re-add: %v", err)
+	}
+}
+
+func TestInvalidHeaderNameMustNotProduceUnreadableFile(t *testing.T) {
+	head := header(t).Set(string([]byte{255}), "synthetic")
+	data, err := gpf.Encode(solvedDocument(), gpf.WriteOptions{Header: head})
+	if err != nil {
+		return
+	}
+	if _, err := gpf.Decode(data, gpf.ReadOptions{}); err != nil {
+		t.Fatalf("writer accepted invalid header name, reader rejected: %v", err)
+	}
+}
+
+func TestUndefinedVersionZeroMustBeRejected(t *testing.T) {
+	data, err := gpf.Encode(solvedDocument(), gpf.WriteOptions{Header: header(t)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	data[8] = 0
+	data[9] = 0
+	if _, err := gpf.Decode(data, gpf.ReadOptions{}); err == nil {
+		t.Fatal("v1 decoder silently accepted version zero")
+	}
+}

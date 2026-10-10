@@ -68,10 +68,8 @@ func Encode(doc *goptivumv1.Document, options WriteOptions) ([]byte, error) {
 		return nil, err
 	}
 
-	header := options.Header
-	if header == nil {
-		header = NewHeader()
-	}
+	header := options.Header.clone()
+	header.Set(FieldKeys, "")
 	// Written from what happened, not from what the caller said: these three
 	// are the ones a reader could be misled by.
 	header.Set(FieldFormat, fmt.Sprintf("%d", Version))
@@ -147,16 +145,11 @@ func Decode(data []byte, options ReadOptions) (*File, error) {
 		return nil, err
 	}
 
-	chunks, err := readChunks(region)
+	payload, err := readPayload(region)
 	if err != nil {
 		return nil, err
 	}
-	if len(chunks) != 1 {
-		return nil, fmt.Errorf("%w: %d payload chunks, want exactly one",
-			ErrMalformed, len(chunks))
-	}
-
-	plain, err := unwrap(chunks[0].Body, head.Flags, options)
+	plain, err := unwrap(payload, head.Flags, options)
 	if err != nil {
 		return nil, err
 	}

@@ -4,6 +4,8 @@ package gpf
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -68,12 +70,21 @@ func NewHeader() *Header {
 	return &Header{fields: map[string]string{}}
 }
 
+// clone gives encoding its own fields and order.
+func (h *Header) clone() *Header {
+	if h == nil {
+		return NewHeader()
+	}
+	return &Header{fields: maps.Clone(h.fields), order: slices.Clone(h.order)}
+}
+
 // Set adds or replaces a field. An empty value is dropped rather than written
 // as a blank line, so a reader never has to tell "absent" from "empty".
 func (h *Header) Set(name, value string) *Header {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		delete(h.fields, name)
+		h.order = slices.DeleteFunc(h.order, func(field string) bool { return field == name })
 		return h
 	}
 	if _, had := h.fields[name]; !had {
@@ -125,7 +136,7 @@ func (h *Header) Encode() ([]byte, error) {
 
 // checkField refuses anything that would not survive a round trip.
 func checkField(name, value string) error {
-	if name == "" || strings.ContainsAny(name, ":\r\n \t") {
+	if name == "" || !utf8.ValidString(name) || strings.ContainsAny(name, ":\r\n \t\x00") {
 		return fmt.Errorf("%w: %q is not a field name", ErrMalformed, name)
 	}
 	if len(value) > maxFieldValue {

@@ -4,6 +4,7 @@ package gpf
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 )
@@ -53,9 +54,17 @@ func WriteFile(path string, data []byte) (err error) {
 
 // ReadFile reads a .gpf from disk.
 func ReadFile(path string, options ReadOptions) (*File, error) {
-	data, err := os.ReadFile(path)
+	file, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("gpf: read %s: %w", path, err)
+	}
+	defer file.Close()
+	data, err := io.ReadAll(io.LimitReader(file, MaxFile+1))
+	if err != nil {
+		return nil, fmt.Errorf("gpf: read %s: %w", path, err)
+	}
+	if len(data) > MaxFile {
+		return nil, fmt.Errorf("%w: file exceeds %d bytes", ErrMalformed, MaxFile)
 	}
 	return Decode(data, options)
 }

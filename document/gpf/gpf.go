@@ -125,7 +125,7 @@ var ErrNotGPF Refusal = &refusal{key: KeyNotAFile}
 // file, a missing locator, a chunk that claims more than is there.
 var ErrMalformed Refusal = &refusal{key: KeyMalformed}
 
-// UnsupportedVersionError is a file written by a newer reader.
+// UnsupportedVersionError carries a file version other than the supported one.
 type UnsupportedVersionError struct {
 	Found uint16
 	Known uint16
@@ -187,7 +187,7 @@ func readPreheader(data []byte) (preheader, error) {
 		Flags:     binary.LittleEndian.Uint16(data[10:12]),
 		HeaderLen: binary.LittleEndian.Uint32(data[12:16]),
 	}
-	if head.Version > Version {
+	if head.Version != Version {
 		return preheader{}, &UnsupportedVersionError{Found: head.Version, Known: Version}
 	}
 	// Critical bits first, before the header is read: fixed binary fields are
@@ -220,18 +220,14 @@ func writePreheader(head preheader) []byte {
 }
 
 // chunk is one framed section: a type byte and a length-prefixed body.
-type chunk struct {
-	Type byte
-	Body []byte
-}
-
-// readChunks walks the framed region between the header and the footer.
+// readPayload walks the framed region between the header and the footer.
 //
 // An unknown type with the critical bit set refuses the whole file. With it
 // clear the chunk is skipped using its own length, which is what lets a later
 // version add a section this reader has never heard of.
-func readChunks(region []byte) ([]chunk, error) {
-	var chunks []chunk
+func readPayload(region []byte) ([]byte, error) {
+	var payload []byte
+	count := 0
 	for offset := 0; offset < len(region); {
 		if len(region)-offset < 1+4 {
 			return nil, fmt.Errorf("%w: %d bytes left is too few for a chunk frame",
@@ -259,9 +255,16 @@ func readChunks(region []byte) ([]chunk, error) {
 			}
 			continue
 		}
-		chunks = append(chunks, chunk{Type: kind, Body: body})
+		count++
+		if count > 1 {
+			return nil, fmt.Errorf("%w: more than one payload", ErrMalformed)
+		}
+		payload = body
 	}
-	return chunks, nil
+	if count == 0 {
+		return nil, fmt.Errorf("%w: no payload", ErrMalformed)
+	}
+	return payload, nil
 }
 
 // writeChunk frames one section.

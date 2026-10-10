@@ -218,3 +218,40 @@ func headerOf(t *testing.T, file []byte) *gpf.Header {
 	}
 	return read.Header
 }
+
+func TestEncodingDoesNotReuseOwnedHeaderFields(t *testing.T) {
+	key, err := age.GenerateX25519Identity()
+	if err != nil {
+		t.Fatal(err)
+	}
+	original := gpf.NewHeader().Set(gpf.FieldPlan, "Synthetic").Set(gpf.FieldKeys, "stale")
+	before, err := original.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, options := range []gpf.WriteOptions{
+		{Header: original, Recipients: []age.Recipient{key.Recipient()}},
+		{Header: original, Passphrase: "synthetic", WorkFactor: 10},
+		{Header: original},
+	} {
+		data, err := gpf.Encode(solvedDocument(), options)
+		if err != nil {
+			t.Fatal(err)
+		}
+		file, err := gpf.Decode(data, gpf.ReadOptions{Passphrase: "synthetic", Identities: []age.Identity{key}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		expected := ""
+		if len(options.Recipients) != 0 {
+			expected = "1 recipients"
+		}
+		if file.Header.Get(gpf.FieldKeys) != expected {
+			t.Fatal("header retained keys from another mode")
+		}
+		after, err := original.Encode()
+		if err != nil || !bytes.Equal(before, after) {
+			t.Fatal("encoding changed the caller's header")
+		}
+	}
+}
