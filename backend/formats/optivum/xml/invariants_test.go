@@ -14,9 +14,7 @@ import (
 // division may produce before a model is refused.
 const maxStreams = 64
 
-// checkModel asserts everything the solver's own model gate asserts, so an
-// import that passes here cannot be refused as malformed. It never prints
-// the school: only ids, counts and field names.
+// checkModel checks importer invariants; the node owns complete model validation.
 func checkModel(t *testing.T, result *formats.Result) {
 	t.Helper()
 
@@ -70,6 +68,8 @@ func checkModel(t *testing.T, result *formats.Result) {
 	unique("splits", collect(len(model.GetSplits()), func(i int) uint32 { return model.GetSplits()[i].GetId() }))
 	unique("teachers", collect(len(model.GetTeachers()), func(i int) uint32 { return model.GetTeachers()[i].GetId() }))
 	unique("subjects", collect(len(model.GetSubjects()), func(i int) uint32 { return model.GetSubjects()[i].GetId() }))
+	unique("buildings", collect(len(model.GetBuildings()), func(i int) uint32 { return model.GetBuildings()[i].GetId() }))
+	unique("lesson links", collect(len(model.GetLessonLinks()), func(i int) uint32 { return model.GetLessonLinks()[i].GetId() }))
 	unique("rooms", collect(len(model.GetRooms()), func(i int) uint32 { return model.GetRooms()[i].GetId() }))
 	unique("buildings", collect(len(model.GetBuildings()), func(i int) uint32 { return model.GetBuildings()[i].GetId() }))
 	unique("lessons", collect(len(model.GetLessons()), func(i int) uint32 { return model.GetLessons()[i].GetId() }))
@@ -245,7 +245,7 @@ func checkModel(t *testing.T, result *formats.Result) {
 			t.Errorf("external block %d: day %d does not resolve", block.GetId(), block.GetDayId())
 			continue
 		}
-		if block.GetStartPeriod()+block.GetDuration() > limit {
+		if block.GetStartPeriod() >= limit || block.GetDuration() > limit-block.GetStartPeriod() {
 			t.Errorf("external block %d: periods %d..%d do not fit a day of %d",
 				block.GetId(), block.GetStartPeriod(),
 				block.GetStartPeriod()+block.GetDuration()-1, limit)
@@ -278,6 +278,13 @@ func checkModel(t *testing.T, result *formats.Result) {
 	}
 
 	for _, link := range model.GetLessonLinks() {
+		members := map[uint32]bool{}
+		for _, id := range link.GetLessonIds() {
+			if lessons[id] == nil || members[id] {
+				t.Errorf("lesson link %d: unknown or repeated lesson %d", link.GetId(), id)
+			}
+			members[id] = true
+		}
 		if link.GetKind() == arrangov1.LessonLinkKind_LESSON_LINK_UNSPECIFIED {
 			t.Errorf("lesson link %d: unspecified kind is rejected by the solver", link.GetId())
 		}
@@ -324,7 +331,7 @@ func checkPlacement(t *testing.T, lesson *arrangov1.LessonInstance,
 			lesson.GetId(), placement.GetDayId())
 		return
 	}
-	if placement.GetStartPeriod()+lesson.GetDuration() > limit {
+	if placement.GetStartPeriod() >= limit || lesson.GetDuration() > limit-placement.GetStartPeriod() {
 		t.Errorf("lesson %d: placed at periods %d..%d of a day holding %d",
 			lesson.GetId(), placement.GetStartPeriod(),
 			placement.GetStartPeriod()+lesson.GetDuration()-1, limit)

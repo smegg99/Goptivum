@@ -693,3 +693,10 @@ func lessonOf(t *testing.T, model *arrangov1.SchoolModel, subject, division stri
 	t.Fatalf("no lesson of %q in %q", subject, division)
 	return nil
 }
+
+func TestDuplicateGroupCodeMustNotEnterModelTwice(t *testing.T) {
+	result := importDocument(t, `<plan><placowka nazwa="Synthetic"/><oddzialy><oddzial kod="1A" poziom="1"><grupy><podzial kod="Podzial na dwie grupy"><grupa kod="1/2" lu="10" nr="1"/><grupa kod="1/2" lu="11" nr="2"/></podzial></grupy></oddzial></oddzialy></plan>`)
+	if got := len(result.Model.GetGroups()); got != 1 {
+		t.Fatalf("duplicate source group entered model %d times; want first occurrence only", got)
+	}
+}

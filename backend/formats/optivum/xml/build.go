@@ -328,6 +328,13 @@ func (b *builder) addSplits(div *divisionRef, d division) {
 					formats.Ref(arrangov1.EntityKind_ENTITY_KIND_DIVISION, div.id))
 				continue
 			}
+			key := div.code + "|" + code
+			if existing, exists := b.groups[key]; exists {
+				b.note(formats.KindUnknownReference, formats.Warning,
+					"group code "+code+" appears twice in division "+div.code+", the first wins",
+					formats.Ref(arrangov1.EntityKind_ENTITY_KIND_GROUP, existing.id))
+				continue
+			}
 			students, source := count(g.Students)
 			groupID := b.id()
 			b.model.Groups = append(b.model.Groups, &arrangov1.Group{
@@ -339,13 +346,6 @@ func (b *builder) addSplits(div *divisionRef, d division) {
 				SourceRef:    sourceRef("grupa", div.code+"/"+name+"/"+code),
 				SplitId:      id,
 			})
-			key := div.code + "|" + code
-			if _, exists := b.groups[key]; exists {
-				b.note(formats.KindUnknownReference, formats.Warning,
-					"group code "+code+" appears twice in division "+div.code+", the first wins",
-					formats.Ref(arrangov1.EntityKind_ENTITY_KIND_GROUP, groupID))
-				continue
-			}
 			b.groups[key] = &groupRef{id: groupID, ordinal: strings.TrimSpace(g.Ordinal)}
 		}
 	}
