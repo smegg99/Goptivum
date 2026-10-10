@@ -6,6 +6,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"fmt"
+	"io"
 	"io/fs"
 	"path"
 	"regexp"
@@ -66,9 +67,36 @@ type pages struct {
 	indexDepth int
 }
 
+// Source limits bound all matching pages before HTML parsing allocates a tree.
+const (
+	MaxSourceBytes = 64 << 20
+	MaxSourceFiles = 10_000
+)
+
 // ParseFS parses an export laid out as files anywhere inside fsys.
 // Only returns an error when nothing usable was found.
 func ParseFS(fsys fs.FS) (*Result, error) {
+	remaining, files := MaxSourceBytes, 0
+	read := func(name string) ([]byte, error) {
+		files++
+		if files > MaxSourceFiles {
+			return nil, fmt.Errorf("html: source exceeds %d pages", MaxSourceFiles)
+		}
+		file, err := fsys.Open(name)
+		if err != nil {
+			return nil, err
+		}
+		defer file.Close()
+		data, err := io.ReadAll(io.LimitReader(file, int64(remaining)+1))
+		if err != nil {
+			return nil, err
+		}
+		if len(data) > remaining {
+			return nil, fmt.Errorf("html: source exceeds %d bytes", MaxSourceBytes)
+		}
+		remaining -= len(data)
+		return data, nil
+	}
 	p := pages{
 		divisions: map[string][]byte{},
 		teachers:  map[string][]byte{},
@@ -83,7 +111,7 @@ func ParseFS(fsys fs.FS) (*Result, error) {
 			if p.index != nil && depth >= p.indexDepth {
 				return nil
 			}
-			data, err := fs.ReadFile(fsys, fpath)
+			data, err := read(fpath)
 			if err != nil {
 				return err
 			}
@@ -94,7 +122,7 @@ func ParseFS(fsys fs.FS) (*Result, error) {
 		if m == nil {
 			return nil
 		}
-		data, err := fs.ReadFile(fsys, fpath)
+		data, err := read(fpath)
 		if err != nil {
 			return err
 		}

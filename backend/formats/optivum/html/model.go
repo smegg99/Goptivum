@@ -274,6 +274,9 @@ func build(p pages) (*Result, error) {
 		title := ""
 		if root, err := parseHTML(p.teachers[stem]); err == nil {
 			title = pageTitle(root)
+			if title == "" {
+				b.warnings = append(b.warnings, fmt.Sprintf("%s: no page title", stem))
+			}
 		} else {
 			b.warnings = append(b.warnings, fmt.Sprintf("%s: %v", stem, err))
 		}
@@ -283,6 +286,9 @@ func build(p pages) (*Result, error) {
 		title := ""
 		if root, err := parseHTML(p.rooms[stem]); err == nil {
 			title = pageTitle(root)
+			if title == "" {
+				b.warnings = append(b.warnings, fmt.Sprintf("%s: no page title", stem))
+			}
 		} else {
 			b.warnings = append(b.warnings, fmt.Sprintf("%s: %v", stem, err))
 		}
@@ -292,14 +298,18 @@ func build(p pages) (*Result, error) {
 	// Merge occurrences: same (division, group, subject, teacher, room) on
 	// one day in adjacent periods = one multi-period lesson instance.
 	type slot struct{ day, period int }
-	occsByKey := map[string][]slot{}
-	occMeta := map[string]occurrence{}
+	type lessonKey [5]string
+	type locatedLesson struct {
+		lesson lessonKey
+		slot   slot
+	}
+	occsByKey := map[lessonKey][]slot{}
+	occMeta := map[lessonKey]occurrence{}
 	for _, page := range parsed {
-		seen := map[string]bool{}
+		seen := map[locatedLesson]bool{}
 		for _, occ := range page.occurrences {
-			key := occ.division + "|" + occ.group + "|" + occ.subject + "|" +
-				occ.teacherFile + "|" + occ.roomFile
-			slotKey := fmt.Sprintf("%s|%d|%d", key, occ.day, occ.period)
+			key := lessonKey{occ.division, occ.group, occ.subject, occ.teacherFile, occ.roomFile}
+			slotKey := locatedLesson{key, slot{occ.day, occ.period}}
 			if seen[slotKey] {
 				b.warnings = append(b.warnings, fmt.Sprintf(
 					"%s: duplicate entry %s day %d period %d",
@@ -312,11 +322,18 @@ func build(p pages) (*Result, error) {
 		}
 	}
 
-	keys := make([]string, 0, len(occsByKey))
+	keys := make([]lessonKey, 0, len(occsByKey))
 	for key := range occsByKey {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	sort.Slice(keys, func(i, j int) bool {
+		for field := range keys[i] {
+			if keys[i][field] != keys[j][field] {
+				return keys[i][field] < keys[j][field]
+			}
+		}
+		return false
+	})
 
 	for _, key := range keys {
 		occ := occMeta[key]
@@ -351,6 +368,12 @@ func build(p pages) (*Result, error) {
 				i++
 			}
 			i++
+			if start.day < 0 || start.day >= len(b.model.Days) {
+				b.warnings = append(b.warnings, fmt.Sprintf(
+					"%s: %s day index %d out of range, lesson skipped",
+					occ.division, occ.subject, start.day))
+				continue
+			}
 			placement := &arrangov1.Placement{
 				DayId:       b.model.Days[start.day].Id,
 				StartPeriod: uint32(start.period),
@@ -371,12 +394,6 @@ func build(p pages) (*Result, error) {
 				RequiresRoom:      occ.roomFile != "",
 				HasPrevious:       true,
 				PreviousPlacement: placement,
-			}
-			if start.day >= len(b.model.Days) {
-				b.warnings = append(b.warnings, fmt.Sprintf(
-					"%s: %s day index %d out of range, lesson skipped",
-					occ.division, occ.subject, start.day))
-				continue
 			}
 			b.model.Lessons = append(b.model.Lessons, lesson)
 			b.snapshot.Lessons = append(b.snapshot.Lessons,

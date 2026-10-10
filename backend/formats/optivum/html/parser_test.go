@@ -5,8 +5,10 @@ package optivum
 import (
 	"archive/zip"
 	"bytes"
+	"fmt"
 	"os"
 	"regexp"
+	"strings"
 	"testing"
 	"testing/fstest"
 
@@ -14,7 +16,29 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const sampleDir = "../../data/whole optivum schedule"
+func TestSourceLimitsCoverTheWholeArchive(t *testing.T) {
+	t.Run("bytes", func(t *testing.T) {
+		data := make([]byte, MaxSourceBytes/2+1)
+		_, err := ParseFS(fstest.MapFS{
+			"o1.html": {Data: data},
+			"o2.html": {Data: data},
+		})
+		if err == nil || !strings.Contains(err.Error(), "source exceeds") {
+			t.Fatalf("aggregate size limit: %v", err)
+		}
+	})
+	t.Run("pages", func(t *testing.T) {
+		files := fstest.MapFS{}
+		for id := range MaxSourceFiles + 1 {
+			files[fmt.Sprintf("o%d.html", id)] = &fstest.MapFile{}
+		}
+		if _, err := ParseFS(files); err == nil || !strings.Contains(err.Error(), "pages") {
+			t.Fatalf("page limit: %v", err)
+		}
+	})
+}
+
+const sampleDir = "../../../../tests/data/whole optivum schedule"
 
 // firstParticipant returns the (divisionId, groupId) of a lesson's first
 // participant, or (0, 0) when it has none.
@@ -306,5 +330,36 @@ func TestBrokenPagesYieldWarningsNotErrors(t *testing.T) {
 func TestNoDivisionPagesIsFatal(t *testing.T) {
 	if _, err := ParseFS(fstest.MapFS{"readme.txt": &fstest.MapFile{Data: []byte("hi")}}); err == nil {
 		t.Fatal("expected error for archive without division pages")
+	}
+}
+
+func TestExtraDayCellMustNotPanic(t *testing.T) {
+	defer func() {
+		if caught := recover(); caught != nil {
+			t.Errorf("malformed HTML panicked before day bounds check: %v", caught)
+		}
+	}()
+	page := `<html><body><span class="tytulnapis">1A</span><table class="tabela"><tr><th>Nr</th><th>Godz</th><th>Mon</th></tr><tr><td class="nr">1</td><td class="g">8:00</td><td class="l"></td><td class="l"><span class="p">Math</span></td></tr></table></body></html>`
+	_, _ = ParseFS(fstest.MapFS{"o1.html": &fstest.MapFile{Data: []byte(page)}})
+}
+
+func TestDistinctLessonNamesMustNotCollide(t *testing.T) {
+	page := func(division, subject string) []byte {
+		return []byte(`<html><body><span class="tytulnapis">` + division + `</span><table class="tabela"><tr><th>Nr</th><th>Godz</th><th>Mon</th></tr><tr><td class="nr">1</td><td class="g">8:00</td><td class="l"><span class="p">` + subject + `</span></td></tr></table></body></html>`)
+	}
+	result, err := ParseFS(fstest.MapFS{"o1.html": &fstest.MapFile{Data: page("A|", "B")}, "o2.html": &fstest.MapFile{Data: page("A", "|B")}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	byName := map[string]uint32{}
+	for _, division := range result.Model.Divisions {
+		byName[division.Name] = division.Id
+	}
+	counts := map[uint32]int{}
+	for _, lesson := range result.Model.Lessons {
+		counts[lesson.Participants[0].DivisionId]++
+	}
+	if counts[byName["A|"]] != 1 || counts[byName["A"]] != 1 {
+		t.Errorf("distinct lessons reassigned: A|=%d A=%d; want one each", counts[byName["A|"]], counts[byName["A"]])
 	}
 }

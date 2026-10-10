@@ -117,7 +117,7 @@ func TestBrokenPageBecomesAFinding(t *testing.T) {
 		if err != nil {
 			t.Fatalf("read %s: %v", name, err)
 		}
-		if name == "n50.html" {
+		if name == "n1.html" {
 			content = []byte("<html><body></body></html>")
 		}
 		fsys[name] = &fstest.MapFile{Data: content}
@@ -130,10 +130,17 @@ func TestBrokenPageBecomesAFinding(t *testing.T) {
 	if got := len(result.Model.GetTeachers()); got == 0 {
 		t.Error("a teacher page that says nothing still registers its teacher")
 	}
+	warned := false
 	for _, finding := range result.Findings {
+		if finding.Kind == formats.KindSourceWarning && finding.Severity == formats.Warning {
+			warned = true
+		}
 		if finding.Severity == formats.Error {
 			t.Errorf("unexpected error finding: %s", finding.Kind)
 		}
+	}
+	if !warned {
+		t.Error("damaged page produced no source warning")
 	}
 }
 

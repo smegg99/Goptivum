@@ -68,6 +68,11 @@ type exportEntry struct {
 	roomID     uint32
 }
 
+type entityKey struct {
+	kind byte
+	id   uint32
+}
+
 type exporter struct {
 	model    *arrangov1.SchoolModel
 	snapshot *arrangov1.ScheduleSnapshot
@@ -79,10 +84,10 @@ type exporter struct {
 	roomByID     map[uint32]*arrangov1.Room
 	lessonByID   map[uint32]*arrangov1.LessonInstance
 	dayIndex     map[uint32]int
-	fileOf       map[string]string // "o:<id>" / "n:<id>" / "s:<id>" -> file
+	fileOf       map[entityKey]string // entity -> file
 
-	// cells[kind:<id>][day][period] -> entries
-	cells map[string][][][]exportEntry
+	// cells[entity][day][period] -> entries
+	cells map[entityKey][][][]exportEntry
 }
 
 func newExporter(model *arrangov1.SchoolModel,
@@ -97,8 +102,8 @@ func newExporter(model *arrangov1.SchoolModel,
 		roomByID:     map[uint32]*arrangov1.Room{},
 		lessonByID:   map[uint32]*arrangov1.LessonInstance{},
 		dayIndex:     map[uint32]int{},
-		fileOf:       map[string]string{},
-		cells:        map[string][][][]exportEntry{},
+		fileOf:       map[entityKey]string{},
+		cells:        map[entityKey][][][]exportEntry{},
 	}
 	for _, d := range model.Divisions {
 		e.divisionByID[d.Id] = d
@@ -122,19 +127,19 @@ func newExporter(model *arrangov1.SchoolModel,
 		e.dayIndex[d.Id] = i
 	}
 	for i, d := range model.Divisions {
-		e.fileOf["o:"+fmt.Sprint(d.Id)] = fmt.Sprintf("o%d.html", i+1)
+		e.fileOf[entityKey{'o', d.Id}] = fmt.Sprintf("o%d.html", i+1)
 	}
 	for i, t := range model.Teachers {
-		e.fileOf["n:"+fmt.Sprint(t.Id)] = fmt.Sprintf("n%d.html", i+1)
+		e.fileOf[entityKey{'n', t.Id}] = fmt.Sprintf("n%d.html", i+1)
 	}
 	for i, r := range model.Rooms {
-		e.fileOf["s:"+fmt.Sprint(r.Id)] = fmt.Sprintf("s%d.html", i+1)
+		e.fileOf[entityKey{'s', r.Id}] = fmt.Sprintf("s%d.html", i+1)
 	}
 	e.fillCells()
 	return e
 }
 
-func (e *exporter) grid(key string) [][][]exportEntry {
+func (e *exporter) grid(key entityKey) [][][]exportEntry {
 	if g, ok := e.cells[key]; ok {
 		return g
 	}
@@ -190,26 +195,26 @@ func (e *exporter) fillCells() {
 					teacherID:  teacherID,
 					roomID:     roomID,
 				}
-				e.grid("o:" + fmt.Sprint(part.GetDivisionId()))[day][q] =
-					append(e.grid("o:" + fmt.Sprint(part.GetDivisionId()))[day][q], entry)
+				e.grid(entityKey{'o', part.GetDivisionId()})[day][q] =
+					append(e.grid(entityKey{'o', part.GetDivisionId()})[day][q], entry)
 				if pi != 0 {
 					continue // teacher/room grids get the lesson only once
 				}
 				if teacherID != 0 {
-					e.grid("n:" + fmt.Sprint(teacherID))[day][q] =
-						append(e.grid("n:" + fmt.Sprint(teacherID))[day][q], entry)
+					e.grid(entityKey{'n', teacherID})[day][q] =
+						append(e.grid(entityKey{'n', teacherID})[day][q], entry)
 				}
 				// The support teacher is in the room for the whole lesson —
 				// the solver treats them as occupied — so their own page has
 				// to show the slot as busy, not free.
 				if support := lesson.GetSupportTeacherId(); support != 0 &&
 					support != teacherID {
-					e.grid("n:" + fmt.Sprint(support))[day][q] =
-						append(e.grid("n:" + fmt.Sprint(support))[day][q], entry)
+					e.grid(entityKey{'n', support})[day][q] =
+						append(e.grid(entityKey{'n', support})[day][q], entry)
 				}
 				if roomID != 0 {
-					e.grid("s:" + fmt.Sprint(roomID))[day][q] =
-						append(e.grid("s:" + fmt.Sprint(roomID))[day][q], entry)
+					e.grid(entityKey{'s', roomID})[day][q] =
+						append(e.grid(entityKey{'s', roomID})[day][q], entry)
 				}
 			}
 		}
@@ -236,7 +241,7 @@ func (e *exporter) linkDivision(id uint32) string {
 		return ""
 	}
 	return fmt.Sprintf(`<a href="%s" class="o">%s</a>`,
-		e.fileOf["o:"+fmt.Sprint(id)], html.EscapeString(d.Name))
+		e.fileOf[entityKey{'o', id}], html.EscapeString(d.Name))
 }
 
 func (e *exporter) linkTeacher(id uint32) string {
@@ -245,7 +250,7 @@ func (e *exporter) linkTeacher(id uint32) string {
 		return ""
 	}
 	return fmt.Sprintf(`<a href="%s" class="n">%s</a>`,
-		e.fileOf["n:"+fmt.Sprint(id)], html.EscapeString(t.Name))
+		e.fileOf[entityKey{'n', id}], html.EscapeString(t.Name))
 }
 
 func (e *exporter) linkRoom(id uint32) string {
@@ -254,7 +259,7 @@ func (e *exporter) linkRoom(id uint32) string {
 		return ""
 	}
 	return fmt.Sprintf(`<a href="%s" class="s">%s</a>`,
-		e.fileOf["s:"+fmt.Sprint(id)], html.EscapeString(r.Name))
+		e.fileOf[entityKey{'s', id}], html.EscapeString(r.Name))
 }
 
 // kind: which link belongs on the page ('o' pages link teacher+room, ...).
@@ -291,7 +296,7 @@ span.p { font-weight: bold; }
 a { color: #3f51b5; text-decoration: none; }
 </style>`
 
-func (e *exporter) page(title, key string, kind byte) string {
+func (e *exporter) page(title string, key entityKey, kind byte) string {
 	var b strings.Builder
 	b.WriteString("<html><head>\n")
 	b.WriteString(`<meta http-equiv="Content-Type" content="text/html; charset=utf-8">` + "\n")
@@ -332,15 +337,15 @@ func (e *exporter) page(title, key string, kind byte) string {
 }
 
 func (e *exporter) divisionPage(d *arrangov1.Division) string {
-	return e.page(d.Name, "o:"+fmt.Sprint(d.Id), 'o')
+	return e.page(d.Name, entityKey{'o', d.Id}, 'o')
 }
 
 func (e *exporter) teacherPage(t *arrangov1.Teacher) string {
-	return e.page(t.Name, "n:"+fmt.Sprint(t.Id), 'n')
+	return e.page(t.Name, entityKey{'n', t.Id}, 'n')
 }
 
 func (e *exporter) roomPage(r *arrangov1.Room) string {
-	return e.page(r.Name, "s:"+fmt.Sprint(r.Id), 's')
+	return e.page(r.Name, entityKey{'s', r.Id}, 's')
 }
 
 func (e *exporter) indexPage() string {
