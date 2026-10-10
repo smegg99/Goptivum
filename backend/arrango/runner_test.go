@@ -313,8 +313,7 @@ func TestCancelPlanStopsItsSolvesAndWaitsForTheRows(t *testing.T) {
 		return err1 == nil && err2 == nil &&
 			first.Status == arrango.StatusRunning && second.Status == arrango.StatusRunning
 	})
-	// Let the schedule frame arrive, so the cancel has something to keep.
-	time.Sleep(200 * time.Millisecond)
+	waitFor(t, "received schedule", func() bool { preview, ok := runner.Preview(stopped.ID); return ok && preview.Received > 0 })
 
 	if err := runner.CancelPlan(ctx, deleted.ID); err != nil {
 		t.Fatalf("cancel plan: %v", err)

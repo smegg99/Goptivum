@@ -4,6 +4,7 @@ package arrango
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"sync"
 
@@ -144,7 +145,7 @@ func (r *Runner) run(ctx context.Context, running *live,
 		close(running.done)
 	}()
 
-	_, err := r.dispatcher.Finish(ctx, admission, job, request, func(update *arrangorpcv1.SolveUpdate) {
+	result, err := r.dispatcher.Finish(ctx, admission, job, request, func(update *arrangorpcv1.SolveUpdate) {
 		out := toUpdate(job.ID, update)
 		out.Received = r.observe(running, update)
 		broker.Publish(sse.Event{Type: "update", Data: out})
@@ -155,13 +156,17 @@ func (r *Runner) run(ctx context.Context, running *live,
 	r.mu.Lock()
 	final := Update{JobID: idString(job.ID), Terminal: true, Received: running.preview.Received}
 	r.mu.Unlock()
-	stored, readErr := r.jobs.Get(context.WithoutCancel(ctx), job.ID)
+	readCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), finishTimeout)
+	defer cancel()
+	stored, readErr := r.jobs.Get(readCtx, job.ID)
 	if readErr == nil {
 		final.JobStatus = stored.Status
 		final.Message = stored.Detail
-	} else if err != nil {
-		final.JobStatus = StatusFailed
-		final.Message = err.Error()
+	} else if result.Job.Status == StatusDone || result.Job.Status == StatusFailed || result.Job.Status == StatusCancelled {
+		final.JobStatus = result.Job.Status
+		final.Message = result.Job.Detail
+	} else {
+		final.Message = errors.Join(err, readErr).Error()
 	}
 	broker.Publish(sse.Event{Type: "update", Data: final})
 }

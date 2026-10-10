@@ -220,7 +220,7 @@ func (j *Jobs) Finish(ctx context.Context, id int64, outcome Outcome) error {
 	query := j.rebind(`update solve_jobs
 		set status = ?, reason = ?, detail = ?, result_id = ?, quality = ?,
 		    verdict = ?, explanation = ?, num_workers = coalesce(?, num_workers), time_limit_seconds = coalesce(?, time_limit_seconds),
-		    peak_rss_bytes = ?, cpu_seconds = ?, finished_at = ? where id = ?`)
+		    peak_rss_bytes = ?, cpu_seconds = ?, finished_at = ? where id = ? and status in (?, ?)`)
 	var resultID, quality, workers, seconds, peak, cpu any
 	if outcome.ResultID != nil {
 		resultID = *outcome.ResultID
@@ -241,7 +241,7 @@ func (j *Jobs) Finish(ctx context.Context, id int64, outcome Outcome) error {
 		cpu = outcome.CPUSeconds
 	}
 	result, err := j.conn.ExecContext(ctx, query, outcome.Status, outcome.Reason, outcome.Detail,
-		resultID, quality, outcome.Verdict, outcome.Explanation, workers, seconds, peak, cpu, now(), id)
+		resultID, quality, outcome.Verdict, outcome.Explanation, workers, seconds, peak, cpu, now(), id, StatusPending, StatusRunning)
 	if err != nil {
 		return fmt.Errorf("arrango: finish job: %w", err)
 	}
@@ -252,7 +252,8 @@ func (j *Jobs) Finish(ctx context.Context, id int64, outcome Outcome) error {
 		return fmt.Errorf("arrango: finish job: %w", err)
 	}
 	if closed == 0 {
-		return fmt.Errorf("%w: %d", ErrNoJob, id)
+		_, err := j.Get(ctx, id)
+		return err
 	}
 	return nil
 }
@@ -418,7 +419,7 @@ func (j *Jobs) CloseOrphans(ctx context.Context) (int64, error) {
 	}
 	closed, err := result.RowsAffected()
 	if err != nil {
-		return 0, nil
+		return 0, fmt.Errorf("arrango: close orphaned jobs: %w", err)
 	}
 	return closed, nil
 }

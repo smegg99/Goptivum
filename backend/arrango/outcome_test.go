@@ -266,6 +266,29 @@ func TestATimetableThatCannotBeStoredFailsTheSolve(t *testing.T) {
 	}
 }
 
+func TestStorageDeadlineStillClosesTheJob(t *testing.T) {
+	node := startFakeNode(t, &fakeNode{frames: []*arrangorpcv1.SolveUpdate{
+		doneFrame(arrangorpcv1.SolveStatus_SOLVE_STATUS_FEASIBLE, placed(1, 1)),
+	}})
+	registry, jobs, repository, store := newRegistry(t)
+	dispatcher := newDispatcherWith(t, registry, jobs, func(ctx context.Context, _ arrango.Job, _ arrango.Result) (int64, error) {
+		<-ctx.Done()
+		return 0, ctx.Err()
+	})
+	recorded, err := registry.Record(t.Context(), "solving", node.paired())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := newPlan(t, repository, store)
+	result, err := dispatcher.Solve(t.Context(), order(plan.ID, recorded.ID, lessons(2, 2)), nil)
+	if err != nil {
+		t.Fatalf("finalization used the expired storage context: %v", err)
+	}
+	if result.Job.Status != arrango.StatusFailed || result.Job.Reason != messages.KeySolveResultNotStored || result.Job.FinishedAt == nil {
+		t.Fatalf("storage timeout left the job open: %+v", result.Job)
+	}
+}
+
 // The runner keeps the best timetable a running solve sent, counts the ones
 // it received, and drops both when the job ends.
 func TestTheRunnerKeepsTheBestTimetableForThePreview(t *testing.T) {

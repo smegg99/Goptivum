@@ -57,7 +57,10 @@ func (j *Jobs) ListJobs(ctx context.Context, request gen.ListJobsRequestObject) 
 	if j.jobs == nil {
 		return gen.ListJobs404JSONResponse{NotFoundJSONResponse: gen.NotFoundJSONResponse(notFound())}, nil
 	}
-	plan, ok := j.readablePlan(ctx, request.PlanId)
+	plan, ok, err := j.readablePlan(ctx, request.PlanId)
+	if err != nil {
+		return nil, err
+	}
 	if !ok {
 		return gen.ListJobs404JSONResponse{NotFoundJSONResponse: gen.NotFoundJSONResponse(notFound())}, nil
 	}
@@ -96,7 +99,7 @@ func (j *Jobs) ListAllJobs(ctx context.Context, request gen.ListAllJobsRequestOb
 		return gen.ListAllJobs200JSONResponse{Items: []gen.Job{}, Page: page, Limit: limit}, nil
 	}
 	rows, total, err := j.jobs.List(ctx, arrango.Filter{
-		Statuses: statuses, Offset: (page - 1) * limit, Limit: limit,
+		Statuses: statuses, Offset: pageOffset(page, limit), Limit: limit,
 	})
 	if err != nil {
 		return gen.ListAllJobs503JSONResponse{UnavailableJSONResponse: gen.UnavailableJSONResponse(unavailable())}, nil
@@ -117,7 +120,10 @@ func (j *Jobs) CreateJob(ctx context.Context, request gen.CreateJobRequestObject
 	if j.runner == nil {
 		return gen.CreateJob404JSONResponse{NotFoundJSONResponse: gen.NotFoundJSONResponse(notFound())}, nil
 	}
-	plan, ok := j.readablePlan(ctx, request.PlanId)
+	plan, ok, err := j.readablePlan(ctx, request.PlanId)
+	if err != nil {
+		return nil, err
+	}
 	if !ok {
 		return gen.CreateJob404JSONResponse{NotFoundJSONResponse: gen.NotFoundJSONResponse(notFound())}, nil
 	}
@@ -452,22 +458,25 @@ func terminal(status string) bool {
 }
 
 // readablePlan resolves a live plan for a signed-in caller, whoever owns it.
-func (j *Jobs) readablePlan(ctx context.Context, raw string) (plans.Plan, bool) {
+func (j *Jobs) readablePlan(ctx context.Context, raw string) (plans.Plan, bool, error) {
 	if j.plans == nil {
-		return plans.Plan{}, false
+		return plans.Plan{}, false, nil
 	}
 	if _, ok := callerID(ctx); !ok {
-		return plans.Plan{}, false
+		return plans.Plan{}, false, nil
 	}
 	id, err := strconv.ParseInt(raw, 10, 64)
 	if err != nil {
-		return plans.Plan{}, false
+		return plans.Plan{}, false, nil
 	}
 	plan, err := j.plans.Get(ctx, id)
-	if err != nil {
-		return plans.Plan{}, false
+	if errors.Is(err, plans.ErrNotFound) {
+		return plans.Plan{}, false, nil
 	}
-	return plan, true
+	if err != nil {
+		return plans.Plan{}, false, err
+	}
+	return plan, true, nil
 }
 
 // readableJob resolves a job of a live plan for a signed-in caller.
@@ -486,7 +495,10 @@ func (j *Jobs) readableJob(ctx context.Context, raw string) (arrango.Job, plans.
 	if err != nil {
 		return arrango.Job{}, plans.Plan{}, false, err
 	}
-	plan, ok := j.readablePlan(ctx, strconv.FormatInt(job.PlanID, 10))
+	plan, ok, err := j.readablePlan(ctx, strconv.FormatInt(job.PlanID, 10))
+	if err != nil {
+		return arrango.Job{}, plans.Plan{}, false, err
+	}
 	if !ok {
 		return arrango.Job{}, plans.Plan{}, false, nil
 	}
