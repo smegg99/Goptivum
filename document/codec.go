@@ -64,7 +64,13 @@ func Encode(doc *goptivumv1.Document) (Encoded, error) {
 	if doc.GetFormat() != Format {
 		return Encoded{}, fmt.Errorf("%w: format %d, build it with New", ErrNotADocument, doc.GetFormat())
 	}
+	if proto.Size(doc) > MaxDecoded {
+		return Encoded{}, fmt.Errorf("%w: over %d bytes", ErrTooLarge, MaxDecoded)
+	}
 	if err := CheckNotes(doc); err != nil {
+		return Encoded{}, err
+	}
+	if err := checkIDs(doc); err != nil {
 		return Encoded{}, err
 	}
 	raw, err := proto.MarshalOptions{Deterministic: true}.Marshal(doc)
@@ -104,15 +110,19 @@ func Decode(data []byte) (*goptivumv1.Document, error) {
 	if err := CheckNotes(&doc); err != nil {
 		return nil, err
 	}
+	if err := checkIDs(&doc); err != nil {
+		return nil, err
+	}
 	return &doc, nil
 }
 
 // FromBytes takes an already encoded document as it is, after checking that it decodes.
-func FromBytes(data []byte) (Encoded, error) {
-	if _, err := Decode(data); err != nil {
-		return Encoded{}, err
+func FromBytes(data []byte) (Encoded, *goptivumv1.Document, error) {
+	doc, err := Decode(data)
+	if err != nil {
+		return Encoded{}, nil, err
 	}
-	return encoded(data), nil
+	return encoded(data), doc, nil
 }
 
 func encoded(data []byte) Encoded {

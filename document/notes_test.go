@@ -107,7 +107,7 @@ func TestBrokenNotesAreRefused(t *testing.T) {
 			if _, err := document.Decode(compress(t, raw)); !errors.Is(err, document.ErrInvalidNotes) {
 				t.Errorf("Decode = %v, want ErrInvalidNotes", err)
 			}
-			if _, err := document.FromBytes(compress(t, raw)); !errors.Is(err, document.ErrInvalidNotes) {
+			if _, _, err := document.FromBytes(compress(t, raw)); !errors.Is(err, document.ErrInvalidNotes) {
 				t.Errorf("FromBytes = %v, want ErrInvalidNotes", err)
 			}
 		})

@@ -3,6 +3,9 @@
 package document_test
 
 import (
+	"errors"
+	"google.golang.org/protobuf/proto"
+	"math"
 	"testing"
 
 	arrangov1 "github.com/smegg99/arrango/backend/gen/arrangov1"
@@ -39,5 +42,26 @@ func TestTheIDCounterCountsParallelBlocks(t *testing.T) {
 func TestTheIDCounterOfAnEmptySchoolIsOne(t *testing.T) {
 	if got := document.NextArrangoID(&arrangov1.SchoolModel{}); got != 1 {
 		t.Errorf("NextArrangoID = %d, want 1", got)
+	}
+}
+
+func TestCounterCannotWrapOrTrailModelIDs(t *testing.T) {
+	for _, highest := range []uint32{40, math.MaxUint32} {
+		model := &arrangov1.SchoolModel{Days: []*arrangov1.Day{{Id: highest}}}
+		doc := document.New(model)
+		doc.NextArrangoId = 3
+		if _, err := document.Encode(doc); !errors.Is(err, document.ErrInvalidIDs) {
+			t.Fatalf("encode highest %d: %v", highest, err)
+		}
+		raw, err := proto.Marshal(doc)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := document.Decode(compress(t, raw)); !errors.Is(err, document.ErrInvalidIDs) {
+			t.Fatalf("decode highest %d: %v", highest, err)
+		}
+	}
+	if next := document.NextArrangoID(&arrangov1.SchoolModel{Days: []*arrangov1.Day{{Id: math.MaxUint32}}}); next != 0 {
+		t.Fatalf("exhausted counter wrapped to %d", next)
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/klauspost/compress/zstd"
@@ -149,7 +150,7 @@ func TestDecodeRefusesRubbish(t *testing.T) {
 			if _, err := document.Decode(test.data); err == nil {
 				t.Error("decode accepted it")
 			}
-			if _, err := document.FromBytes(test.data); err == nil {
+			if _, _, err := document.FromBytes(test.data); err == nil {
 				t.Error("FromBytes accepted it")
 			}
 		})
@@ -196,7 +197,7 @@ func TestEncodeRefusesWhatDecodeWouldRefuse(t *testing.T) {
 
 func TestFromBytesHashesWhatItWasGiven(t *testing.T) {
 	encoded := encode(t, document.New(school()))
-	again, err := document.FromBytes(encoded.Bytes)
+	again, _, err := document.FromBytes(encoded.Bytes)
 	if err != nil {
 		t.Fatalf("from bytes: %v", err)
 	}
@@ -248,5 +249,12 @@ func TestOneStreamBeatsCompressingSections(t *testing.T) {
 		len(raw), whole.Size, sectioned, section)
 	if int64(sectioned) <= whole.Size {
 		t.Errorf("sections compressed to %d and one stream to %d", sectioned, whole.Size)
+	}
+}
+
+func TestEncodeRejectsOversizedDocument(t *testing.T) {
+	doc := document.New(&arrangov1.SchoolModel{Name: strings.Repeat("x", document.MaxDecoded+1)})
+	if _, err := document.Encode(doc); !errors.Is(err, document.ErrTooLarge) {
+		t.Fatalf("oversized document: %v", err)
 	}
 }
