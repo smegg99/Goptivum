@@ -127,8 +127,9 @@ func (r *Registry) Record(ctx context.Context, label string, paired solveclient.
 
 // NodeChange is a rename, new limits, or both; a nil field is left as it is.
 type NodeChange struct {
-	Label  *string
-	Limits *Limits
+	Label   *string
+	Solves  *int
+	Workers *int
 }
 
 // Update renames a node or sets its limits in one statement. The caller has
@@ -139,9 +140,11 @@ func (r *Registry) Update(ctx context.Context, id int64, change NodeChange) (Nod
 	if change.Label != nil {
 		sets, args = append(sets, "label = ?"), append(args, *change.Label)
 	}
-	if change.Limits != nil {
-		sets = append(sets, "solves_at_once = ?", "workers_per_solve = ?")
-		args = append(args, change.Limits.Solves, change.Limits.Workers)
+	if change.Solves != nil {
+		sets, args = append(sets, "solves_at_once = ?"), append(args, *change.Solves)
+	}
+	if change.Workers != nil {
+		sets, args = append(sets, "workers_per_solve = ?"), append(args, *change.Workers)
 	}
 	if len(sets) > 0 {
 		query := r.rebind(`update arrango_nodes set ` + strings.Join(sets, ", ") + ` where id = ?`)
@@ -198,37 +201,20 @@ func (r *Registry) ByFingerprint(ctx context.Context, fingerprint string) (Node,
 
 // List is every node, revoked ones included, newest pairing first.
 func (r *Registry) List(ctx context.Context) ([]Node, error) {
-	query := r.rebind(`select ` + nodeColumns + ` from arrango_nodes order by paired_at desc, id`)
-	rows, err := r.conn.QueryContext(ctx, query)
-	if err != nil {
-		return nil, fmt.Errorf("arrango: list nodes: %w", err)
-	}
-	defer rows.Close()
-
-	nodes := []Node{}
-	for rows.Next() {
-		node, err := scanNode(rows)
-		if err != nil {
-			return nil, fmt.Errorf("arrango: scan node: %w", err)
-		}
-		nodes = append(nodes, node)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("arrango: list nodes: %w", err)
-	}
-	return nodes, nil
+	return r.list(ctx, `order by paired_at desc, id`)
 }
 
-// Active is every node that is not revoked, paired earliest first.
+// Active lists unrevoked nodes, earliest first.
 func (r *Registry) Active(ctx context.Context) ([]Node, error) {
-	query := r.rebind(`select ` + nodeColumns + ` from arrango_nodes
-		where revoked_at is null order by paired_at, id`)
-	rows, err := r.conn.QueryContext(ctx, query)
+	return r.list(ctx, `where revoked_at is null order by paired_at, id`)
+}
+
+func (r *Registry) list(ctx context.Context, clause string) ([]Node, error) {
+	rows, err := r.conn.QueryContext(ctx, `select `+nodeColumns+` from arrango_nodes `+clause)
 	if err != nil {
-		return nil, fmt.Errorf("arrango: active nodes: %w", err)
+		return nil, fmt.Errorf("arrango: list nodes: %w", err)
 	}
 	defer rows.Close()
-
 	nodes := []Node{}
 	for rows.Next() {
 		node, err := scanNode(rows)
@@ -237,10 +223,7 @@ func (r *Registry) Active(ctx context.Context) ([]Node, error) {
 		}
 		nodes = append(nodes, node)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("arrango: active nodes: %w", err)
-	}
-	return nodes, nil
+	return nodes, rows.Err()
 }
 
 // First is the node paired earliest that is not revoked. ErrNoNode means there

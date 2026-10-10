@@ -61,7 +61,7 @@ func TestRePairingARevokedNodeKeepsItsIDNameAndLimits(t *testing.T) {
 		t.Fatalf("record: %v", err)
 	}
 	name, limits := "Serwer szkolny", arrango.Limits{Solves: 3, Workers: 8}
-	if _, err := registry.Update(ctx, node.ID, arrango.NodeChange{Label: &name, Limits: &limits}); err != nil {
+	if _, err := registry.Update(ctx, node.ID, arrango.NodeChange{Label: &name, Solves: &limits.Solves, Workers: &limits.Workers}); err != nil {
 		t.Fatalf("update: %v", err)
 	}
 	if err := registry.Revoke(ctx, node.ID); err != nil {
@@ -105,7 +105,7 @@ func TestUpdateRenamesAndSetsLimits(t *testing.T) {
 	}
 
 	limits := arrango.Limits{Solves: 2, Workers: 6}
-	limited, err := registry.Update(ctx, node.ID, arrango.NodeChange{Limits: &limits})
+	limited, err := registry.Update(ctx, node.ID, arrango.NodeChange{Solves: &limits.Solves, Workers: &limits.Workers})
 	if err != nil {
 		t.Fatalf("set limits: %v", err)
 	}

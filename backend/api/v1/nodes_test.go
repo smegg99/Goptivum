@@ -450,3 +450,19 @@ func TestPairingAgainKeepsTheNodesNameAndLimits(t *testing.T) {
 		t.Errorf("paired again = %+v, want the same id, name and limits, trusted again", second.Node)
 	}
 }
+
+func TestPairingMustRejectOverlongLabel(t *testing.T) {
+	s := newSolvingServer(t)
+	paired := startNode(t, &solveNode{status: policed(2, 12)})
+	body, err := json.Marshal(map[string]string{
+		"uri":   fmt.Sprintf("arrango://%s#fp=%s&t=ABCD-EFGH-IJKL-MNOP", paired.Address, paired.Fingerprint),
+		"label": strings.Repeat("x", 65),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := call(t, s.server, http.MethodPost, "/api/v1/nodes", asAdmin, string(body))
+	if response.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("pairing accepted invalid 65-character label: status %d, want 422", response.Code)
+	}
+}

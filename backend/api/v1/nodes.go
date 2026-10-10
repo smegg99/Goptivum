@@ -61,6 +61,13 @@ func (a *Admin) PairNode(ctx context.Context, request gen.PairNodeRequestObject)
 	if body == nil || strings.TrimSpace(body.Uri) == "" {
 		return gen.PairNode422JSONResponse{ValidationJSONResponse: gen.ValidationJSONResponse(validation("uri", "required"))}, nil
 	}
+	label := ""
+	if body.Label != nil {
+		label = strings.TrimSpace(*body.Label)
+		if utf8.RuneCountInString(label) > maxNodeLabel {
+			return gen.PairNode422JSONResponse{ValidationJSONResponse: gen.ValidationJSONResponse(validation("label", "too_long"))}, nil
+		}
+	}
 
 	// The token travels only after the presented certificate matched the pin,
 	// so a bad URI and an impostor are both refused before anything is sent.
@@ -71,10 +78,6 @@ func (a *Admin) PairNode(ctx context.Context, request gen.PairNodeRequestObject)
 			gen.Error{Code: "validation", Message: pairingRefusal(err)})}, nil
 	}
 
-	label := ""
-	if body.Label != nil {
-		label = strings.TrimSpace(*body.Label)
-	}
 	if label == "" {
 		// A node paired again keeps its name; a new one is called "node".
 		_, err := a.nodes.Registry.ByFingerprint(ctx, paired.Fingerprint.String())
@@ -174,7 +177,7 @@ func (a *Admin) UpdateNode(ctx context.Context, request gen.UpdateNodeRequestObj
 		if refusal, ok := a.withinCeilings(ctx, node, limits); !ok {
 			return refusal, nil
 		}
-		change.Limits = &limits
+		change.Solves, change.Workers = body.SolvesAtOnce, body.WorkersPerSolve
 	}
 
 	updated, err := a.nodes.Registry.Update(ctx, node.ID, change)
@@ -183,7 +186,7 @@ func (a *Admin) UpdateNode(ctx context.Context, request gen.UpdateNodeRequestObj
 	}
 	changed := map[string]string{}
 	if updated.Label != node.Label {
-		changed["label"] = updated.Label
+		changed["from"], changed["to"] = node.Label, updated.Label
 	}
 	if updated.Limits.Solves != node.Limits.Solves {
 		changed["solves_at_once"] = strconv.Itoa(updated.Limits.Solves)
