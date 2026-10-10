@@ -50,14 +50,14 @@ func TestRegistryKeepsRegistrationOrder(t *testing.T) {
 
 // A duplicate id silently shadows a whole format, so it is a panic and not an
 // error return: nothing sensible can continue past it.
-func TestRegisterPanicsOnADuplicateID(t *testing.T) {
+func TestRegistryRejectsInvalidImporters(t *testing.T) {
 	cases := []struct {
-		name     string
-		register func(*formats.Registry)
+		name      string
+		importers []formats.Importer
 	}{
-		{"duplicate", func(r *formats.Registry) { r.Register(fake{id: "same"}); r.Register(fake{id: "same"}) }},
-		{"empty id", func(r *formats.Registry) { r.Register(fake{id: ""}) }},
-		{"nil importer", func(r *formats.Registry) { r.Register(nil) }},
+		{"duplicate", []formats.Importer{fake{id: "same"}, fake{id: "same"}}},
+		{"empty id", []formats.Importer{fake{}}},
+		{"nil importer", []formats.Importer{nil}},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
@@ -66,7 +66,7 @@ func TestRegisterPanicsOnADuplicateID(t *testing.T) {
 					t.Error("no panic")
 				}
 			}()
-			test.register(formats.NewRegistry())
+			formats.NewRegistry(test.importers...)
 		})
 	}
 }

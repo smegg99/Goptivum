@@ -8,9 +8,8 @@
 //     school plus typed Findings for what it dropped. A file that fails
 //     wholesale teaches a secretary nothing.
 //   - Detection is by content. A ".zip" could be anything.
-//   - Importers never assign arrango_id. They emit local ids plus source_ref
-//     and the server maps those to durable ids on insert, which is what makes
-//     a re-import an update instead of a duplicate.
+//   - Importers assign document-local ids and preserve source_ref for diagnostics.
+//     Every import creates a new plan.
 //   - Export is a separate optional interface. Not every format round-trips.
 package formats
 
@@ -23,7 +22,6 @@ import (
 	"io/fs"
 	"path"
 	"sort"
-	"sync"
 	"time"
 
 	arrangov1 "github.com/smegg99/arrango/backend/gen/arrangov1"
@@ -177,55 +175,39 @@ func Ref(kind arrangov1.EntityKind, id uint32) *arrangov1.EntityRef {
 
 // Registry maps importer ID to Importer.
 type Registry struct {
-	mu    sync.RWMutex
 	byID  map[string]Importer
 	order []string
 }
 
-// NewRegistry returns a registry holding the given importers.
+// NewRegistry holds importers in detection order. Invalid or duplicate IDs
+// are programming errors and panic during construction.
 func NewRegistry(importers ...Importer) *Registry {
-	r := &Registry{byID: map[string]Importer{}}
+	r := &Registry{byID: make(map[string]Importer, len(importers))}
 	for _, imp := range importers {
-		r.Register(imp)
+		if imp == nil {
+			panic("formats: nil importer")
+		}
+		id := imp.ID()
+		if id == "" {
+			panic("formats: importer with an empty ID")
+		}
+		if _, exists := r.byID[id]; exists {
+			panic("formats: duplicate importer ID " + id)
+		}
+		r.byID[id] = imp
+		r.order = append(r.order, id)
 	}
 	return r
 }
 
-// Register adds an importer. It panics on an empty or duplicate ID, because
-// both are programming mistakes that would silently shadow a format.
-func (r *Registry) Register(imp Importer) {
-	if imp == nil {
-		panic("formats: Register(nil)")
-	}
-	id := imp.ID()
-	if id == "" {
-		panic("formats: importer with an empty ID")
-	}
-
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if r.byID == nil {
-		r.byID = map[string]Importer{}
-	}
-	if _, exists := r.byID[id]; exists {
-		panic("formats: duplicate importer ID " + id)
-	}
-	r.byID[id] = imp
-	r.order = append(r.order, id)
-}
-
 // Importer returns the importer with this ID.
 func (r *Registry) Importer(id string) (Importer, bool) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
 	imp, ok := r.byID[id]
 	return imp, ok
 }
 
 // Importers returns every importer in registration order.
 func (r *Registry) Importers() []Importer {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
 	out := make([]Importer, 0, len(r.order))
 	for _, id := range r.order {
 		out = append(out, r.byID[id])
