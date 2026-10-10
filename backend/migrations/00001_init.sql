@@ -317,7 +317,7 @@ create unique index rule_profiles_name_idx on rule_profiles (name);
 create table school_key (
     id         integer   not null primary key check (id = 1),
     recipient  text      not null,
-    sealed     blob      not null,
+    sealed     bytea     not null,
     created_at timestamp not null
 );
 

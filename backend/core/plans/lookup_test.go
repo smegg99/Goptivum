@@ -3,6 +3,7 @@
 package plans_test
 
 import (
+	"github.com/smegg99/goptivum/backend/core/plans"
 	"testing"
 )
 
@@ -37,5 +38,13 @@ func TestLookupReadsEveryOwnersPlansTrashIncluded(t *testing.T) {
 
 	if empty, err := repo.Lookup(ctx, nil); err != nil || len(empty) != 0 {
 		t.Errorf("no ids = %v, %v, want an empty map", empty, err)
+	}
+}
+
+func TestSummaryMustRejectTrailingDelimiters(t *testing.T) {
+	for _, raw := range []string{`{"added":{"teacher":1}}]`, `{"added":{"teacher":1}}}`} {
+		if summary, err := plans.ParseSummary([]byte(raw)); err == nil {
+			t.Errorf("invalid JSON accepted: %s -> %#v", raw, summary)
+		}
 	}
 }

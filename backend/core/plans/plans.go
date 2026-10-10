@@ -154,10 +154,15 @@ func now() time.Time {
 // with an *Invalid. Lengths count letters, because a Polish name is not
 // measured in bytes.
 func Clean(name, schoolYear string) (string, string, error) {
+	rawName, rawYear := name, schoolYear
 	name, schoolYear = strings.TrimSpace(name), strings.TrimSpace(schoolYear)
 	switch {
 	case name == "":
 		return "", "", &Invalid{Field: "name", Code: "required"}
+	case strings.ContainsAny(rawName, "\r\n\x00"):
+		return "", "", &Invalid{Field: "name", Code: "invalid"}
+	case strings.ContainsAny(rawYear, "\r\n\x00"):
+		return "", "", &Invalid{Field: "school_year", Code: "invalid"}
 	case utf8.RuneCountInString(name) > MaxNameLength:
 		return "", "", &Invalid{Field: "name", Code: "too_long"}
 	case utf8.RuneCountInString(schoolYear) > MaxSchoolYearLength:
@@ -290,6 +295,56 @@ func (r *Repository) List(ctx context.Context) ([]Plan, error) {
 	return r.plans(ctx, query)
 }
 
+// ListPage selects a bounded page. Unicode search streams only names and IDs;
+// Go owns the same case folding on SQLite and PostgreSQL.
+func (r *Repository) ListPage(ctx context.Context, query string, offset, limit int) ([]Plan, int, error) {
+	query = strings.ToLower(strings.TrimSpace(query))
+	if query == "" {
+		var total int
+		if err := r.conn.QueryRowContext(ctx, `select count(*) from plans where deleted_at is null`).Scan(&total); err != nil {
+			return nil, 0, err
+		}
+		page, err := r.plans(ctx, `select `+planColumns+` from plans where deleted_at is null order by created_at desc, id desc limit ? offset ?`, limit, offset)
+		return page, total, err
+	}
+	rows, err := r.conn.QueryContext(ctx, `select id, name, school_year from plans where deleted_at is null order by created_at desc, id desc`)
+	if err != nil {
+		return nil, 0, err
+	}
+	ids, total := []int64{}, 0
+	for rows.Next() {
+		var id int64
+		var name, year string
+		if err := rows.Scan(&id, &name, &year); err != nil {
+			rows.Close()
+			return nil, 0, err
+		}
+		if !strings.Contains(strings.ToLower(name), query) && !strings.Contains(strings.ToLower(year), query) {
+			continue
+		}
+		if total >= offset && len(ids) < limit {
+			ids = append(ids, id)
+		}
+		total++
+	}
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return nil, 0, err
+	}
+	selected, err := r.Lookup(ctx, ids)
+	if err != nil {
+		return nil, 0, err
+	}
+	page := make([]Plan, 0, len(ids))
+	for _, id := range ids {
+		if plan, exists := selected[id]; exists && plan.DeletedAt.IsZero() {
+			page = append(page, plan)
+		}
+	}
+	return page, total, nil
+}
+
 // Lookup is each plan with one of these ids, whoever owns it and in Trash or
 // not; an id with no plan is left out.
 func (r *Repository) Lookup(ctx context.Context, ids []int64) (map[int64]Plan, error) {
@@ -366,17 +421,24 @@ func (r *Repository) Update(ctx context.Context, id int64, change Change) (Plan,
 		}
 		plan.ResultsKeep = *change.ResultsKeep
 	}
-	plan.UpdatedAt = now()
-
-	const update = `update plans set name = ?, school_year = ?, backups_keep = ?, results_keep = ?,
-		updated_at = ? where id = ? and deleted_at is null`
-	err = r.changePlan(ctx, id, update,
-		plan.Name, plan.SchoolYear, nullableKeep(plan.BackupsKeep), nullableKeep(plan.ResultsKeep),
-		plan.UpdatedAt, id)
-	if err != nil {
+	sets, args := []string{"updated_at = ?"}, []any{now()}
+	if change.Name != nil {
+		sets, args = append(sets, "name = ?"), append(args, plan.Name)
+	}
+	if change.SchoolYear != nil {
+		sets, args = append(sets, "school_year = ?"), append(args, plan.SchoolYear)
+	}
+	if change.BackupsKeep != nil {
+		sets, args = append(sets, "backups_keep = ?"), append(args, nullableKeep(plan.BackupsKeep))
+	}
+	if change.ResultsKeep != nil {
+		sets, args = append(sets, "results_keep = ?"), append(args, nullableKeep(plan.ResultsKeep))
+	}
+	query := `update plans set ` + strings.Join(sets, ", ") + ` where id = ? and deleted_at is null`
+	if err := r.changePlan(ctx, id, query, append(args, id)...); err != nil {
 		return Plan{}, err
 	}
-	return plan, nil
+	return r.Get(ctx, id)
 }
 
 // changePlan runs one update of one plan row and stamps its project part, in

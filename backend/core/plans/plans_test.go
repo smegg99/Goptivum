@@ -484,3 +484,22 @@ func TestUploadValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestListPageKeepsUnicodeSearchAndBoundedSelection(t *testing.T) {
+	repo := repository(t)
+	first := newPlan(t, repo, "synthetic", "ŻÓŁĆ")
+	newPlan(t, repo, "synthetic", "Other")
+	for _, query := range []string{"żółć", "2026/2027", ""} {
+		page, total, err := repo.ListPage(t.Context(), query, 0, 1)
+		if err != nil || len(page) != 1 {
+			t.Fatalf("page %q: %d, %v", query, len(page), err)
+		}
+		if query == "żółć" && (page[0].ID != first.ID || total != 1) {
+			t.Fatalf("Unicode search: %+v, total %d", page, total)
+		}
+		beyond, count, err := repo.ListPage(t.Context(), query, int(^uint(0)>>1), 1)
+		if err != nil || len(beyond) != 0 || count != total {
+			t.Fatalf("beyond page: %+v, %d, %v", beyond, count, err)
+		}
+	}
+}
