@@ -15,6 +15,7 @@ import (
 	"github.com/smegg99/goptivum/backend/api/v1/gen"
 	"github.com/smegg99/goptivum/backend/common/messages"
 	"github.com/smegg99/goptivum/backend/core/profiles"
+	"github.com/smegg99/goptivum/backend/identity"
 )
 
 // Profiles serves the school's own rule profiles: everybody's to read and use, their creator's and an administrator's to change.
@@ -154,11 +155,11 @@ func (p *Profiles) DeleteRuleProfile(ctx context.Context, request gen.DeleteRule
 
 // editorOf is the signed-in account as a profile's permissions see it; the role is read from metadata_public, never traits.
 func editorOf(ctx context.Context) (profiles.Editor, bool) {
-	identity, ok := kratosauth.FromContext(ctx)
-	if !ok || identity.ID == "" {
+	who, ok := kratosauth.FromContext(ctx)
+	if !ok || who.ID == "" {
 		return profiles.Editor{}, false
 	}
-	return profiles.Editor{ID: identity.ID, Admin: kratosauth.HasMeta(identity, "role", roleAdmin)}, true
+	return profiles.Editor{ID: who.ID, Admin: kratosauth.HasMeta(who, "role", identity.RoleAdmin)}, true
 }
 
 func notYours() gen.Error {
@@ -167,8 +168,7 @@ func notYours() gen.Error {
 
 // profileID reads a path id; one that cannot be an id is not found.
 func profileID(raw string) (int64, bool) {
-	id, err := strconv.ParseInt(raw, 10, 64)
-	return id, err == nil && id > 0
+	return planID(raw)
 }
 
 func profileBody(profile profiles.Profile, caller profiles.Editor) (gen.SchoolRuleProfile, error) {

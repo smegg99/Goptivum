@@ -15,9 +15,11 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/smegg99/s99ab/data/db"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"modernc.org/sqlite"
 
 	arrangov1 "github.com/smegg99/arrango/backend/gen/arrangov1"
 
@@ -169,7 +171,8 @@ func (r *Repository) Create(ctx context.Context, add NewProfile) (Profile, error
 	// The name check and the write are one statement; the unique index is what decides a race.
 	const insert = `insert into rule_profiles (` + columns + `)
 		select ?, ?, ?, ?, ?, ?, ?
-		where not exists (select 1 from rule_profiles where name = ?)`
+		where not exists (select 1 from rule_profiles where name = ?)
+ on conflict (name) do nothing`
 	written, err := r.conn.ExecContext(ctx, r.rebind(insert), profile.ID, profile.Name, rules,
 		profile.CreatedBy, profile.CreatedByName, profile.CreatedAt, profile.UpdatedAt, profile.Name)
 	if err != nil {
@@ -206,18 +209,34 @@ func (r *Repository) Update(ctx context.Context, id int64, editor Editor, change
 	if change.Name == nil && change.Overrides == nil {
 		return profile, nil
 	}
-	rules, err := encode(profile)
-	if err != nil {
-		return Profile{}, err
+	sets, args := []string{"updated_at = ?"}, []any{now()}
+	if change.Name != nil {
+		sets, args = append(sets, "name = ?"), append(args, profile.Name)
 	}
-	profile.UpdatedAt = now()
-	const update = `update rule_profiles set name = ?, rules = ?, updated_at = ?
-		where id = ? and not exists (select 1 from rule_profiles where name = ? and id <> ?)`
-	written, err := r.conn.ExecContext(ctx, r.rebind(update), profile.Name, rules, profile.UpdatedAt,
-		profile.ID, profile.Name, profile.ID)
+	if change.Overrides != nil {
+		rules, err := encode(profile)
+		if err != nil {
+			return Profile{}, err
+		}
+		sets, args = append(sets, "rules = ?"), append(args, rules)
+	}
+	query := `update rule_profiles set ` + strings.Join(sets, ", ") + ` where id = ?`
+	args = append(args, id)
+	if change.Name != nil {
+		query += ` and not exists (select 1 from rule_profiles where name = ? and id <> ?)`
+		args = append(args, profile.Name, id)
+	}
+	written, err := r.conn.ExecContext(ctx, r.rebind(query), args...)
 	if err != nil {
+		var conflict *pgconn.PgError
+		var local *sqlite.Error
+		if (errors.As(err, &conflict) && conflict.Code == "23505" && conflict.ConstraintName == "rule_profiles_name_idx") ||
+			(errors.As(err, &local) && local.Code() == 2067) {
+			return Profile{}, &Invalid{Field: "name", Code: "taken"}
+		}
 		return Profile{}, fmt.Errorf("profiles: update %d: %w", id, err)
 	}
+
 	if affected, err := written.RowsAffected(); err != nil {
 		return Profile{}, fmt.Errorf("profiles: update %d: %w", id, err)
 	} else if affected == 0 {
@@ -227,7 +246,7 @@ func (r *Repository) Update(ctx context.Context, id int64, editor Editor, change
 		}
 		return Profile{}, &Invalid{Field: "name", Code: "taken"}
 	}
-	return profile, nil
+	return r.Get(ctx, id)
 }
 
 // Delete removes a profile for good for its creator or an administrator; jobs and results keep what they were sent.
