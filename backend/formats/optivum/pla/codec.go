@@ -1,5 +1,3 @@
-//go:build !no_optivum
-
 // core/optivum/pla/codec.go
 
 package pla
@@ -12,9 +10,6 @@ import (
 	"io"
 	"strings"
 )
-
-// Available reports whether this build carries the Optivum codec.
-const Available = true
 
 // Decode unwraps a container into its plan XML.
 func Decode(data []byte) (File, error) {
@@ -30,11 +25,17 @@ func Decode(data []byte) (File, error) {
 		return File{}, fmt.Errorf("%w: magic %q", ErrUnknownFormat, file.Magic)
 	}
 
+	if len(data)-2-magicLen > MaxDecoded+(1<<20) {
+		return File{}, ErrTooLarge
+	}
 	payload := make([]byte, len(data)-2-magicLen)
 	copy(payload, data[2+magicLen:])
 	mask(payload)
 
 	if !looksZlib(payload) {
+		if len(payload) > MaxDecoded {
+			return File{}, ErrTooLarge
+		}
 		file.XML = payload
 		return file, nil
 	}
@@ -43,9 +44,12 @@ func Decode(data []byte) (File, error) {
 		return File{}, fmt.Errorf("pla: open zlib payload: %w", err)
 	}
 	defer reader.Close()
-	xml, err := io.ReadAll(reader)
+	xml, err := io.ReadAll(io.LimitReader(reader, MaxDecoded+1))
 	if err != nil {
 		return File{}, fmt.Errorf("pla: inflate payload: %w", err)
+	}
+	if len(xml) > MaxDecoded {
+		return File{}, ErrTooLarge
 	}
 	file.XML = xml
 	file.Compressed = true
@@ -59,6 +63,9 @@ func Decode(data []byte) (File, error) {
 // output differs between implementations. The result is a valid container
 // carrying identical XML, which is what readers of the format consume.
 func Encode(file File) ([]byte, error) {
+	if len(file.XML) > MaxDecoded {
+		return nil, ErrTooLarge
+	}
 	magic := file.Magic
 	if magic == "" {
 		magic = Magic

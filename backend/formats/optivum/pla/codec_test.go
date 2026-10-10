@@ -1,35 +1,56 @@
-//go:build !no_optivum
-
 // core/optivum/pla/codec_test.go
 
 package pla
 
 import (
 	"bytes"
+	"compress/zlib"
 	"encoding/binary"
 	"errors"
+	"github.com/smegg99/goptivum/backend/internal/testsupport"
+	"io"
 	"os"
-	"path/filepath"
 	"testing"
 )
 
-// sampleDir holds the real exports shipped with the solver; the tests that
-// need one skip when the directory is absent (fresh clone, sparse checkout).
-const sampleDir = "../../../services/solver/data/optivum files"
+type zeros struct{}
 
-func samplePath(t *testing.T) string {
-	t.Helper()
-	entries, err := os.ReadDir(sampleDir)
-	if err != nil {
-		t.Skipf("no sample directory: %v", err)
-	}
-	for _, entry := range entries {
-		if filepath.Ext(entry.Name()) == ".pla" {
-			return filepath.Join(sampleDir, entry.Name())
+func (zeros) Read(p []byte) (int, error) {
+	clear(p)
+	return len(p), nil
+}
+
+func TestPayloadLimitsApplyBeforeAndAfterInflation(t *testing.T) {
+	t.Run("compressed", func(t *testing.T) {
+		var compressed bytes.Buffer
+		writer := zlib.NewWriter(&compressed)
+		if _, err := io.CopyN(writer, zeros{}, MaxDecoded+1); err != nil {
+			t.Fatal(err)
 		}
-	}
-	t.Skip("no .pla sample present")
-	return ""
+		if err := writer.Close(); err != nil {
+			t.Fatal(err)
+		}
+		container := make([]byte, 2+len(Magic)+compressed.Len())
+		binary.LittleEndian.PutUint16(container, uint16(len(Magic)))
+		copy(container[2:], Magic)
+		copy(container[2+len(Magic):], compressed.Bytes())
+		mask(container[2+len(Magic):])
+		if _, err := Decode(container); !errors.Is(err, ErrTooLarge) {
+			t.Fatalf("compressed payload: %v", err)
+		}
+	})
+	t.Run("plain", func(t *testing.T) {
+		container := make([]byte, 2+len(Magic)+MaxDecoded+1)
+		binary.LittleEndian.PutUint16(container, uint16(len(Magic)))
+		copy(container[2:], Magic)
+		mask(container[2+len(Magic):])
+		if _, err := Decode(container); !errors.Is(err, ErrTooLarge) {
+			t.Fatalf("plain payload: %v", err)
+		}
+		if _, err := Encode(File{XML: container[2+len(Magic):]}); !errors.Is(err, ErrTooLarge) {
+			t.Fatalf("oversized encode: %v", err)
+		}
+	})
 }
 
 func TestRoundTripPreservesPayload(t *testing.T) {
@@ -133,8 +154,8 @@ func TestDecodeReportsBrokenPayload(t *testing.T) {
 // The real export decodes into the plan XML, and re-encoding it yields the
 // same XML back (byte-identical container output is not expected: deflate
 // implementations differ).
-func TestDecodesTheRealExport(t *testing.T) {
-	data, err := os.ReadFile(samplePath(t))
+func TestCorpusDecodesTheRealExport(t *testing.T) {
+	data, err := os.ReadFile(testsupport.Corpus(t, "*.pla")[0])
 	if err != nil {
 		t.Fatalf("read sample: %v", err)
 	}
@@ -174,11 +195,5 @@ func TestDecodesTheRealExport(t *testing.T) {
 	}
 	if got := binary.LittleEndian.Uint16(reencoded[:2]); int(got) != len(Magic) {
 		t.Errorf("magic length = %d, want %d", got, len(Magic))
-	}
-}
-
-func TestAvailableReportsTheBuild(t *testing.T) {
-	if !Available {
-		t.Fatal("Available = false in a build without the no_optivum tag")
 	}
 }

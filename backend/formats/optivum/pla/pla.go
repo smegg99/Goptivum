@@ -1,4 +1,4 @@
-// core/optivum/pla/pla.go
+// formats/optivum/pla/pla.go
 
 // Package pla reads and writes Optivum ".pla" timetable containers.
 //
@@ -9,10 +9,6 @@
 // where the payload is the XML compressed with zlib and then XOR-ed byte by
 // byte with a fixed 8-byte key. The XML itself is iso-8859-2 encoded; this
 // package hands it back verbatim and leaves transcoding to the caller.
-//
-// The codec compiles out under the "no_optivum" build tag: Available reports
-// false and every entry point returns ErrUnavailable, so dependent code keeps
-// building with the feature stripped from the binary.
 package pla
 
 import "errors"
@@ -20,6 +16,9 @@ import "errors"
 // Magic is the container generation this codec writes; Optivum 4.x files
 // carry it verbatim.
 const Magic = "PlanOptivum400"
+
+// MaxDecoded bounds the XML payload before an importer parses it.
+const MaxDecoded = 64 << 20
 
 // magicPrefix is shared by every generation seen so far and is what
 // distinguishes a plan container from an unrelated file.
@@ -30,9 +29,7 @@ const magicPrefix = "PlanOptivum"
 var key = [8]byte{0x1A, 0xFA, 0x3B, 0xF8, 0x76, 0x07, 0x15, 0xD5}
 
 var (
-	// ErrUnavailable is returned by every entry point in a build made with
-	// the "no_optivum" tag.
-	ErrUnavailable = errors.New("pla: built without Optivum support")
+	ErrTooLarge = errors.New("pla: payload exceeds the decoded size limit")
 	// ErrTruncated means the file ends inside its own header.
 	ErrTruncated = errors.New("pla: file is shorter than its header claims")
 	// ErrUnknownFormat means the magic is not an Optivum plan magic.

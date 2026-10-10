@@ -110,7 +110,7 @@ func TestXMLWritesTheDocumentAndNothingElse(t *testing.T) {
 		t.Fatalf("xml: %v", runErr)
 	}
 	if !strings.HasPrefix(document.String(), "<?xml") {
-		t.Errorf("the document does not start the file:\n%q", document.String()[:40])
+		t.Errorf("the document does not start the file:\n%q", document.String())
 	}
 	if !strings.Contains(document.String(), secret) {
 		t.Error("the decoded document lost its content")
