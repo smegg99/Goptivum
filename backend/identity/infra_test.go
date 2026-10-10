@@ -19,7 +19,7 @@ import (
 
 // realKratos is a running oryd/kratos. Nothing here can be proved against a
 // fake: the whole mechanism rests on what Kratos does to a credential's
-// timestamp when its own settings flow changes a password, and a fake would
+// hash when its own settings flow changes a password, and a fake would
 // only prove what this test already assumed.
 func realKratos(t *testing.T) (*identity.Admin, string) {
 	t.Helper()
@@ -92,7 +92,7 @@ func TestInfraFirstSignInFlagIsSatisfiedByARealPasswordChange(t *testing.T) {
 		t.Fatal("a real password change was not detected, so the account stays locked out")
 	}
 
-	if err := accounts.ClearMustChangePassword(ctx, created.ID); err != nil {
+	if cleared, err := accounts.ClearMustChangePassword(ctx, created.ID, after.PasswordMark); err != nil || !cleared {
 		t.Fatalf("clear: %v", err)
 	}
 	cleared, err := accounts.Get(ctx, created.ID)
@@ -222,12 +222,12 @@ func ptr[T any](value T) *T { return &value }
 // whoami is the status Kratos gives a session token.
 func whoami(t *testing.T, public, token string) int {
 	t.Helper()
-	request, err := http.NewRequest(http.MethodGet, public+"/sessions/whoami", nil)
+	request, err := http.NewRequestWithContext(t.Context(), http.MethodGet, public+"/sessions/whoami", nil)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
 	request.Header.Set("X-Session-Token", token)
-	response, err := http.DefaultClient.Do(request)
+	response, err := (&http.Client{Timeout: 10 * time.Second}).Do(request)
 	if err != nil {
 		t.Fatalf("whoami: %v", err)
 	}
@@ -278,7 +278,7 @@ func get(t *testing.T, url string, into any) { getWithToken(t, url, "", into) }
 
 func getWithToken(t *testing.T, url, token string, into any) {
 	t.Helper()
-	request, err := http.NewRequest(http.MethodGet, url, nil)
+	request, err := http.NewRequestWithContext(t.Context(), http.MethodGet, url, nil)
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -294,7 +294,7 @@ func post(t *testing.T, url, token string, body map[string]any, into any) {
 	if err != nil {
 		t.Fatalf("encode: %v", err)
 	}
-	request, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(encoded))
+	request, err := http.NewRequestWithContext(t.Context(), http.MethodPost, url, bytes.NewReader(encoded))
 	if err != nil {
 		t.Fatalf("request: %v", err)
 	}
@@ -307,7 +307,7 @@ func post(t *testing.T, url, token string, body map[string]any, into any) {
 
 func do(t *testing.T, request *http.Request, into any) {
 	t.Helper()
-	response, err := http.DefaultClient.Do(request)
+	response, err := (&http.Client{Timeout: 10 * time.Second}).Do(request)
 	if err != nil {
 		t.Fatalf("%s %s: %v", request.Method, request.URL.Path, err)
 	}

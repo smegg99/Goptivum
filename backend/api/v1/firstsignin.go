@@ -52,7 +52,7 @@ func requirePasswordChanged(accounts *identity.Admin) gin.HandlerFunc {
 // drops the flag when it has.
 //
 // Kratos owns the settings flow and never touches this server's metadata, so
-// the credential's own timestamp is the only evidence a change happened. An
+// the changed password hash is evidence of a change. An
 // unreachable admin API answers no: an account that is already refused stays
 // refused, rather than an outage becoming a way through.
 func satisfied(c *gin.Context, accounts *identity.Admin, id string) bool {
@@ -74,10 +74,6 @@ func satisfied(c *gin.Context, accounts *identity.Admin, id string) bool {
 	if err != nil || !changed {
 		return false
 	}
-	if err := accounts.ClearMustChangePassword(c.Request.Context(), id); err != nil {
-		// The password really did change, so the caller is let through and the
-		// next request tries the write again.
-		return true
-	}
-	return true
+	cleared, err := accounts.ClearMustChangePassword(c.Request.Context(), id, account.PasswordMark)
+	return err == nil && cleared
 }

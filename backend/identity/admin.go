@@ -18,7 +18,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -55,6 +54,12 @@ const (
 // ErrNotFound is a lookup that matched nothing.
 var ErrNotFound = errors.New("identity: no such account")
 
+// Invalid is an identity write Kratos rejected before storing it.
+// Its field remains body when Kratos does not provide a stable field path.
+type Invalid struct{ Detail string }
+
+func (e *Invalid) Error() string { return "identity: Kratos rejected identity fields: " + e.Detail }
+
 // maxPages bounds the listing so a paging bug cannot spin forever.
 const maxPages = 100
 
@@ -80,9 +85,6 @@ type Account struct {
 type Admin struct {
 	base   *url.URL
 	client *http.Client
-	// changes serialises Update, so two administrators demoting each other at
-	// once cannot both pass the last-admin check. It covers this process only.
-	changes sync.Mutex
 }
 
 // NewAdmin builds a client for the admin base URL, which must never be
@@ -159,15 +161,16 @@ type CreateParams struct {
 	Password           string
 	Role               string
 	MustChangePassword bool
-	// PasswordMark is the digest recorded when the flag was raised, and empty
-	// when it never was. It is admin-only metadata and never leaves this
-	// server.
-	PasswordMark string
 }
 
 // Create mints an account with a password already set. A username or email
 // another account already signs in with is ErrExists.
 func (a *Admin) Create(ctx context.Context, params CreateParams) (*Account, error) {
+	unlock, err := a.lockChanges(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
 	if err := a.refuseTaken(ctx, params.Username, params.Email); err != nil {
 		return nil, err
 	}
@@ -192,7 +195,7 @@ func (a *Admin) Create(ctx context.Context, params CreateParams) (*Account, erro
 		// The stamp can only be read once the credential exists, so the flag is
 		// raised again here to measure it. Without it the flag can never be
 		// satisfied and the account is locked out for good.
-		if err := a.SetMustChangePassword(ctx, account.ID, true); err != nil {
+		if err := a.setMustChangePassword(ctx, account.ID, true); err != nil {
 			return nil, err
 		}
 		account.MustChangePassword = true
@@ -273,34 +276,22 @@ type patchOp struct {
 	Value any    `json:"value,omitempty"`
 }
 
-// setRole rewrites only the role. A patch leaves traits untouched, which a
-// full replace would not. Update is the way in, because it guards the last
-// administrator.
-func (a *Admin) setRole(ctx context.Context, id, role string) error {
-	if role != RoleAdmin && role != RolePlanner {
-		return fmt.Errorf("identity: unknown role %q", role)
-	}
-	return a.patch(ctx, id, []patchOp{{Op: "add", Path: "/metadata_public/" + MetaRole, Value: role}})
-}
-
-// setActive enables or disables signing in. The credential is left in place,
-// so re-enabling needs no new password.
-func (a *Admin) setActive(ctx context.Context, id string, active bool) error {
-	state := StateInactive
-	if active {
-		state = StateActive
-	}
-	return a.patch(ctx, id, []patchOp{{Op: "replace", Path: "/state", Value: state}})
-}
-
 // SetMustChangePassword raises or clears the first-sign-in flag.
 //
 // Raising it also records what the password credential reads right now, which
 // is the only way the flag can ever be satisfied: Kratos owns the settings
-// flow, changes the credential there, and never touches this metadata. A later
-// credential timestamp is the evidence, and without a value to compare against
-// there is none.
+// flow, changes the credential there, and never touches this metadata. A
+// changed password hash is the evidence.
 func (a *Admin) SetMustChangePassword(ctx context.Context, id string, must bool) error {
+	unlock, err := a.lockChanges(ctx)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	return a.setMustChangePassword(ctx, id, must)
+}
+
+func (a *Admin) setMustChangePassword(ctx context.Context, id string, must bool) error {
 	ops := []patchOp{{Op: "add", Path: "/metadata_public/" + MetaMustChangePassword, Value: must}}
 	if must {
 		mark, err := a.passwordMark(ctx, id)
@@ -352,11 +343,27 @@ func (a *Admin) PasswordChanged(ctx context.Context, account *Account) (bool, er
 
 // ClearMustChangePassword drops the flag and the mark it was measured against,
 // so nothing stale is left for a future credential to be compared to.
-func (a *Admin) ClearMustChangePassword(ctx context.Context, id string) error {
-	return a.patch(ctx, id, []patchOp{
+func (a *Admin) ClearMustChangePassword(ctx context.Context, id, expectedMark string) (bool, error) {
+	unlock, err := a.lockChanges(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer unlock()
+	account, err := a.Get(ctx, id)
+	if err != nil {
+		return false, err
+	}
+	if !account.MustChangePassword {
+		return true, nil
+	}
+	if expectedMark == "" || account.PasswordMark != expectedMark {
+		return false, nil
+	}
+	err = a.patch(ctx, id, []patchOp{
 		{Op: "add", Path: "/metadata_public/" + MetaMustChangePassword, Value: false},
 		{Op: "remove", Path: "/metadata_admin/" + MetaPasswordMark},
 	})
+	return err == nil, err
 }
 
 // setPassword replaces the password. ResetPassword is the way in, because it
@@ -431,6 +438,12 @@ func (a *Admin) callWithHeader(ctx context.Context, method, path string, body, i
 		// Kratos answers 409 to an identity write whose username or email
 		// another identity already signs in with, and says no more.
 		return "", ErrExists
+	case response.StatusCode == http.StatusBadRequest:
+		detail, err := io.ReadAll(io.LimitReader(response.Body, 2048))
+		if err != nil {
+			return "", fmt.Errorf("identity: read validation refusal: %w", err)
+		}
+		return "", &Invalid{Detail: strings.TrimSpace(string(detail))}
 	case response.StatusCode >= 300:
 		// The body carries Kratos's reason; it holds no credential.
 		detail, _ := io.ReadAll(io.LimitReader(response.Body, 2048))

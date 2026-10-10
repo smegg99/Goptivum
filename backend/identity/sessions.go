@@ -58,6 +58,9 @@ func (a *Admin) Sessions(ctx context.Context, id string) ([]Session, error) {
 		}
 		var batch []wireSession
 		link, err := a.callWithHeader(ctx, http.MethodGet, next, nil, &batch)
+		if errors.Is(err, ErrNotFound) {
+			return sessions, nil
+		}
 		if err != nil {
 			return nil, err
 		}

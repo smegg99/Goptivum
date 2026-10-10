@@ -229,7 +229,12 @@ func TestAStaleSessionSnapshotDoesNotRefuseAnAccountThatAlreadyChanged(t *testin
 
 	// Kratos has already been cleared, exactly as a concurrent request would
 	// have left it, while this caller's session still carries the old flag.
-	if err := identityAdmin(t, fake).ClearMustChangePassword(t.Context(), id); err != nil {
+	accounts := identityAdmin(t, fake)
+	account, err := accounts.Get(t.Context(), id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cleared, err := accounts.ClearMustChangePassword(t.Context(), id, account.PasswordMark); err != nil || !cleared {
 		t.Fatalf("clear: %v", err)
 	}
 

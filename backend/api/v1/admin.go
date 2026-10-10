@@ -132,6 +132,10 @@ func (a *Admin) CreateUser(ctx context.Context, request gen.CreateUserRequestObj
 		Username: username, Email: email, Name: name,
 		Password: password, Role: role, MustChangePassword: true,
 	})
+	var refused *identity.Invalid
+	if errors.As(err, &refused) {
+		return gen.CreateUser422JSONResponse{ValidationJSONResponse: gen.ValidationJSONResponse(validation("body", "invalid"))}, nil
+	}
 	if errors.Is(err, identity.ErrExists) {
 		return gen.CreateUser409JSONResponse(taken(err)), nil
 	}
@@ -292,13 +296,10 @@ func toUser(account identity.Account) gen.User {
 
 // pageSlice takes one page out of a list already read whole.
 func pageSlice[T any](items []T, page, limit int) []T {
-	from := (page - 1) * limit
+	from := pageOffset(page, limit)
 	if from >= len(items) {
 		return nil
 	}
-	to := from + limit
-	if to > len(items) {
-		to = len(items)
-	}
+	to := from + min(limit, len(items)-from)
 	return items[from:to]
 }

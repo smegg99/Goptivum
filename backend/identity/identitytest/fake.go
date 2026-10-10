@@ -48,7 +48,8 @@ type Kratos struct {
 	// reader asks for include_credential=password the way the real one does.
 	// The first-sign-in mark is a digest of this, so a test changes a password
 	// by changing this value.
-	Hashes map[string]string
+	Hashes          map[string]string
+	passwordChanges uint64
 	// Sessions are every session, ended ones included until a delete of the
 	// identity's sessions removes them, the way the real one does.
 	Sessions []*Session
@@ -98,7 +99,9 @@ func (f *Kratos) BaseURL() string { return f.base }
 // randomly, so a real change always produces a different value even for the
 // same password.
 func (f *Kratos) ChangePassword(id string) {
-	f.Hashes[id] = fmt.Sprintf("$2a$12$changed%d", len(f.Hashes[id]))
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.changePasswordLocked(id)
 }
 
 func New(t *testing.T) (*Kratos, string) {
@@ -422,6 +425,11 @@ func (f *Kratos) patch(w http.ResponseWriter, r *http.Request, id string) {
 	_ = json.NewEncoder(w).Encode(found)
 }
 
+func (f *Kratos) changePasswordLocked(id string) {
+	f.passwordChanges++
+	f.Hashes[id] = fmt.Sprintf("$2a$12$changed%d", f.passwordChanges)
+}
+
 func (f *Kratos) put(w http.ResponseWriter, r *http.Request, id string) {
 	if _, ok := f.Identities[id]; !ok {
 		w.WriteHeader(http.StatusNotFound)
@@ -442,6 +450,7 @@ func (f *Kratos) put(w http.ResponseWriter, r *http.Request, id string) {
 	}
 	f.Puts++
 	body["id"] = id
+	f.changePasswordLocked(id)
 	delete(body, "credentials")
 	f.Identities[id] = body
 

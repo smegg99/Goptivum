@@ -432,3 +432,34 @@ func TestAccountAndNodeChangesAreAudited(t *testing.T) {
 		t.Errorf("user.created details = %v", details)
 	}
 }
+
+func TestLargePageMustNotPanic(t *testing.T) {
+	_, url := newKratosAdmin(t)
+	server, _ := adminServer(t, url)
+	page := int(^uint(0)>>1)/2 + 2
+	response := call(t, server, http.MethodGet, fmt.Sprintf("/api/v1/users?page=%d&limit=2", page), asAdmin, "")
+	if response.Code != http.StatusOK {
+		t.Fatalf("large positive page returned %d, want empty 200 page", response.Code)
+	}
+}
+
+func TestKratosFieldRefusalIsValidation(t *testing.T) {
+	kratos := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			_, _ = w.Write([]byte(`[]`))
+			return
+		}
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"error":{"code":400,"reason":"synthetic invalid traits"}}`))
+	}))
+	t.Cleanup(kratos.Close)
+	server, _ := adminServer(t, kratos.URL)
+	response := call(t, server, http.MethodPost, "/api/v1/users", asAdmin, `{"username":"synthetic","email":"synthetic@example.invalid","role":"planner"}`)
+	if response.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status %d: %s", response.Code, response.Body.String())
+	}
+	body := envelope(t, response)
+	if body.Code != "validation" || body.Details == nil || (*body.Details)["body"] != "invalid" {
+		t.Fatalf("refusal: %+v", body)
+	}
+}

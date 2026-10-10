@@ -12,17 +12,19 @@ safe to run and impossible to run from anywhere else.
 """
 
 import argparse
+from contextlib import contextmanager
+import fcntl
 import getpass
+import hashlib
 import json
+import os
 import sys
 import urllib.error
 import urllib.request
+import urllib.parse
 from pathlib import Path
 
 import yaml
-
-ROOT = Path(__file__).resolve().parents[1]
-
 
 def call(admin, method, path, body=None):
     data = json.dumps(body).encode() if body is not None else None
@@ -56,6 +58,20 @@ def find(admin, email):
     raise SystemExit(f"no account with the address {email}")
 
 
+@contextmanager
+def mutation_lock(admin):
+    # Same endpoint key and OS-account cache as identity.Admin.lockChanges.
+    cache = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
+    directory = cache / "goptivum/identity"
+    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+    endpoint = urllib.parse.urlsplit(admin).geturl()
+    name = hashlib.sha256(endpoint.encode()).hexdigest() + ".lock"
+    descriptor = os.open(directory / name, os.O_CREAT | os.O_RDWR, 0o600)
+    with os.fdopen(descriptor, "rb") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        yield
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("email", help="the account to change")
@@ -66,7 +82,6 @@ def main():
     arguments = parser.parse_args()
 
     admin = admin_url(arguments.config)
-    identity = find(admin, arguments.email)
 
     if arguments.stdin:
         password = sys.stdin.readline().rstrip("\n")
@@ -81,14 +96,16 @@ def main():
     # JSON patch of the password config answers 200 and destroys the
     # credential, after which neither password signs in. Everything read is
     # sent back, including metadata_admin, which holds the first-sign-in mark.
-    call(admin, "PUT", "/admin/identities/" + identity["id"], {
-        "schema_id": identity.get("schema_id", "default"),
-        "state": identity.get("state", "active"),
-        "traits": identity.get("traits", {}),
-        "metadata_public": identity.get("metadata_public", {}),
-        "metadata_admin": identity.get("metadata_admin", {}),
-        "credentials": {"password": {"config": {"password": password}}},
-    })
+    with mutation_lock(admin):
+        identity = find(admin, arguments.email)
+        call(admin, "PUT", "/admin/identities/" + identity["id"], {
+            "schema_id": identity.get("schema_id", "default"),
+            "state": identity.get("state", "active"),
+            "traits": identity.get("traits", {}),
+            "metadata_public": identity.get("metadata_public", {}),
+            "metadata_admin": identity.get("metadata_admin", {}),
+            "credentials": {"password": {"config": {"password": password}}},
+        })
     print(f"password set for {arguments.email}")
 
 

@@ -60,8 +60,11 @@ func (a *Admin) Update(ctx context.Context, id string, change Change) (*Account,
 		return nil, fmt.Errorf("identity: unknown role %q", *change.Role)
 	}
 
-	a.changes.Lock()
-	defer a.changes.Unlock()
+	unlock, err := a.lockChanges(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
 
 	accounts, err := a.List(ctx)
 	if err != nil {
@@ -74,19 +77,25 @@ func (a *Admin) Update(ctx context.Context, id string, change Change) (*Account,
 		return nil, ErrNotFound
 	}
 
+	var ops []patchOp
 	if change.Role != nil {
-		if err := a.setRole(ctx, id, *change.Role); err != nil {
+		ops = append(ops, patchOp{Op: "add", Path: "/metadata_public/" + MetaRole, Value: *change.Role})
+	}
+	if change.Active != nil {
+		state := StateInactive
+		if *change.Active {
+			state = StateActive
+		}
+		ops = append(ops, patchOp{Op: "replace", Path: "/state", Value: state})
+	}
+	if len(ops) > 0 {
+		if err := a.patch(ctx, id, ops); err != nil {
 			return nil, err
 		}
 	}
-	if change.Active != nil {
-		if err := a.setActive(ctx, id, *change.Active); err != nil {
+	if change.Active != nil && !*change.Active {
+		if err := a.EndSessions(ctx, id); err != nil {
 			return nil, err
-		}
-		if !*change.Active {
-			if err := a.EndSessions(ctx, id); err != nil {
-				return nil, err
-			}
 		}
 	}
 	return a.Get(ctx, id)
@@ -95,6 +104,11 @@ func (a *Admin) Update(ctx context.Context, id string, change Change) (*Account,
 // ResetPassword replaces the password with a generated one, makes the account
 // change it at its next sign-in, and ends the sessions the old one opened.
 func (a *Admin) ResetPassword(ctx context.Context, id string) (string, error) {
+	unlock, err := a.lockChanges(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer unlock()
 	password, err := GeneratePassword()
 	if err != nil {
 		return "", err
@@ -103,7 +117,7 @@ func (a *Admin) ResetPassword(ctx context.Context, id string) (string, error) {
 		return "", err
 	}
 	// Whoever reset it has seen it, so the account has to change it again.
-	if err := a.SetMustChangePassword(ctx, id, true); err != nil {
+	if err := a.setMustChangePassword(ctx, id, true); err != nil {
 		return "", err
 	}
 	if err := a.EndSessions(ctx, id); err != nil {
