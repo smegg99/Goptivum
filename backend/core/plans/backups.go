@@ -19,30 +19,16 @@ import (
 // lock.
 func (r *Repository) trim(ctx context.Context, tx *sql.Tx, planID, newest int64, keep int) (int64, error) {
 	const plain = `select version from plan_versions
-		where plan_id = ? and version < ? and checkpoint_name is null
-		order by version desc`
-	rows, err := tx.QueryContext(ctx, r.rebind(plain), planID, newest)
+  where plan_id = ? and version < ? and checkpoint_name is null
+  order by version desc limit 1 offset ?`
+	var cutoff int64
+	err := tx.QueryRowContext(ctx, r.rebind(plain), planID, newest, keep).Scan(&cutoff)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil
+	}
 	if err != nil {
 		return 0, fmt.Errorf("plans: backups of %d: %w", planID, err)
 	}
-	var backups []int64
-	for rows.Next() {
-		var version int64
-		if err := rows.Scan(&version); err != nil {
-			rows.Close()
-			return 0, fmt.Errorf("plans: backups of %d: %w", planID, err)
-		}
-		backups = append(backups, version)
-	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
-		return 0, fmt.Errorf("plans: backups of %d: %w", planID, err)
-	}
-	if len(backups) <= keep {
-		return 0, nil
-	}
-	// Every plain version at or below the newest one past the cap goes.
-	cutoff := backups[keep]
 
 	const record = `insert into object_garbage (object_key, since)
 		select object_key, ? from plan_versions

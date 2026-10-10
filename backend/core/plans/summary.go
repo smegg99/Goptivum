@@ -34,8 +34,7 @@ func ParseSummary(data []byte) (Summary, error) {
 		return nil, refused
 	}
 	var parsed Summary
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	if err := decoder.Decode(&parsed); err != nil || decoder.More() {
+	if err := json.Unmarshal(data, &parsed); err != nil {
 		return nil, refused
 	}
 	out := Summary{}

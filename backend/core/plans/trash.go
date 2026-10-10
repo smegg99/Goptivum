@@ -86,13 +86,22 @@ func (r *Repository) Purge(ctx context.Context, at time.Time, trashDays int) (in
 	if err != nil {
 		return 0, fmt.Errorf("plans: purge: %w", err)
 	}
+	var removed []int64
 	for _, id := range due {
-		if _, err := tx.ExecContext(ctx, r.rebind(`delete from plans where id = ?`), id); err != nil {
+		result, err := tx.ExecContext(ctx, r.rebind(`delete from plans where id = ? and deleted_at is not null and deleted_at <= ?`), id, cutoff)
+		if err != nil {
 			return 0, fmt.Errorf("plans: purge %d: %w", id, err)
 		}
+		count, err := result.RowsAffected()
+		if err != nil {
+			return 0, fmt.Errorf("plans: purge %d: %w", id, err)
+		}
+		if count > 0 {
+			removed = append(removed, id)
+		}
 	}
-	purged := int64(len(due))
-	if err := r.entomb(ctx, tx, due); err != nil {
+	purged := int64(len(removed))
+	if err := r.entomb(ctx, tx, removed); err != nil {
 		return 0, err
 	}
 	if err := tx.Commit(); err != nil {

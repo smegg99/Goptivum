@@ -122,7 +122,10 @@ func (r *Repository) AddResult(ctx context.Context, add NewResult) (Result, erro
 	if err != nil {
 		// The unique upload key refused a second send of one upload, a retry or
 		// a race: it is answered with the first.
-		if replayed, found, replayErr := r.replayResult(ctx, add); found {
+		if replayed, found, replayErr := r.replayResult(ctx, add); found || replayErr != nil {
+			if !found {
+				return Result{}, errors.Join(err, replayErr)
+			}
 			return replayed, replayErr
 		}
 		return Result{}, err
@@ -156,6 +159,13 @@ func (r *Repository) insertResult(ctx context.Context, result Result, uploadKey 
 		return Result{}, fmt.Errorf("plans: begin: %w", err)
 	}
 	defer tx.Rollback()
+	locked, err := tx.ExecContext(ctx, r.rebind(`update plans set id = id where id = ?`), result.PlanID)
+	if err != nil {
+		return Result{}, fmt.Errorf("plans: lock result owner: %w", err)
+	}
+	if err := changedOne(locked, result.PlanID); err != nil {
+		return Result{}, err
+	}
 
 	const insert = `insert into solve_results
 		(id, plan_id, job_id, device, upload_key, source_version, object_key, size_bytes, created_at,
@@ -189,6 +199,13 @@ func (r *Repository) insertResult(ctx context.Context, result Result, uploadKey 
 	}
 	if err := r.trimResults(ctx, tx, result.PlanID, keep); err != nil {
 		return Result{}, err
+	}
+	var retained int
+	if err := tx.QueryRowContext(ctx, r.rebind(`select count(*) from solve_results where id = ?`), result.ID).Scan(&retained); err != nil {
+		return Result{}, fmt.Errorf("plans: retained result: %w", err)
+	}
+	if retained == 0 {
+		return Result{}, &Invalid{Field: "solved_at", Code: "invalid"}
 	}
 	if err := r.stamp(ctx, tx, parts(result.PlanID, PartResults)); err != nil {
 		return Result{}, err
@@ -382,21 +399,22 @@ func (r *Repository) UpdateResult(ctx context.Context, planID, id int64, change 
 	if err != nil || (change.Name == nil && change.Pinned == nil) {
 		return result, err
 	}
+	sets, args := []string{}, []any{}
 	if change.Name != nil {
-		if result.Name, err = CleanResultName(*change.Name); err != nil {
+		name, err := CleanResultName(*change.Name)
+		if err != nil {
 			return Result{}, err
 		}
+		sets, args = append(sets, "name = ?"), append(args, nullableText(name))
 	}
 	if change.Pinned != nil {
-		result.Pinned = *change.Pinned
+		sets, args = append(sets, "pinned = ?"), append(args, *change.Pinned)
 	}
-	const update = `update solve_results set name = ?, pinned = ?
-		where id = ? and plan_id = ? and deleted_at is null`
-	if err := r.changeResult(ctx, planID, id, update,
-		nullableText(result.Name), result.Pinned, id, planID); err != nil {
+	update := `update solve_results set ` + strings.Join(sets, ", ") + ` where id = ? and plan_id = ? and deleted_at is null`
+	if err := r.changeResult(ctx, planID, id, update, append(args, id, planID)...); err != nil {
 		return Result{}, err
 	}
-	return result, nil
+	return r.Result(ctx, planID, id)
 }
 
 // TrashResult moves a result out of Trash into it. One already there is
@@ -503,35 +521,29 @@ func (r *Repository) PurgeResults(ctx context.Context, at time.Time, trashDays i
 	if err := r.recordExports(ctx, tx, `result_id in (select id from solve_results where `+due+`)`, cutoff); err != nil {
 		return 0, err
 	}
-	// Removed by id, so exactly the plans of the results read here are stamped.
-	rows, err := tx.QueryContext(ctx, r.rebind(`select id, plan_id from solve_results where `+due+` order by plan_id`), cutoff)
+	// DELETE rechecks eligibility after waiting on a concurrent restore. Only
+	// rows actually removed contribute to change stamps.
+	rows, err := tx.QueryContext(ctx, r.rebind(`delete from solve_results where `+due+` returning plan_id`), cutoff)
 	if err != nil {
 		return 0, fmt.Errorf("plans: purge results: %w", err)
 	}
-	var ids, touched []int64
+	var purged int64
+	touched := map[int64]bool{}
 	for rows.Next() {
-		var id, planID int64
-		if err := rows.Scan(&id, &planID); err != nil {
+		var planID int64
+		if err := rows.Scan(&planID); err != nil {
 			rows.Close()
 			return 0, fmt.Errorf("plans: purge results: %w", err)
 		}
-		ids = append(ids, id)
-		if len(touched) == 0 || touched[len(touched)-1] != planID {
-			touched = append(touched, planID)
-		}
+		purged++
+		touched[planID] = true
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
 		return 0, fmt.Errorf("plans: purge results: %w", err)
 	}
-	for _, id := range ids {
-		if _, err := tx.ExecContext(ctx, r.rebind(`delete from solve_results where id = ?`), id); err != nil {
-			return 0, fmt.Errorf("plans: purge result %d: %w", id, err)
-		}
-	}
-	purged := int64(len(ids))
 	var changed []stamped
-	for _, planID := range touched {
+	for planID := range touched {
 		changed = append(changed, parts(planID, PartResults)...)
 	}
 	if err := r.stamp(ctx, tx, changed); err != nil {

@@ -142,7 +142,9 @@ SolveResultUpload:
       description: >
         When the solve ended on the device; the result's `created_at`. Absent,
         or later than now on this server's clock, is now. A value that is not
-        a date and time is refused with `solved_at: invalid`.
+        a date and time is refused with `solved_at: invalid`. An upload older
+        than the plan's retained unpinned results is also refused with
+        `solved_at: invalid`; a successful response always names a kept result.
     quality:
       type: number
       format: double

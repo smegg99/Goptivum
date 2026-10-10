@@ -161,7 +161,10 @@ func (r *Repository) AddVersion(ctx context.Context, upload Upload) (Version, er
 		return version, nil
 	}
 	// Two sends of one upload racing: the loser answers with the winner.
-	if stored, found, replayErr := r.replay(ctx, upload); found {
+	if stored, found, replayErr := r.replay(ctx, upload); found || replayErr != nil {
+		if !found {
+			return Version{}, errors.Join(err, replayErr)
+		}
 		return stored, replayErr
 	}
 
