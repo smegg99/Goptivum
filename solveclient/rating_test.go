@@ -30,13 +30,13 @@ func TestFindingEntitiesIncludesParallelClassesAndSupportOnce(t *testing.T) {
 			{Id: 2, TeacherId: 12, Participants: []*arrangov1.Participant{{DivisionId: 6}}},
 		},
 	}
-	classes, teachers := FindingEntities(model, map[string][]uint32{
+	classes, teachers := NewFindingIndex(model).Entities(map[string][]uint32{
 		"division": {2}, "teacher": {10}, "split": {50},
 	}, []uint32{1, 1, 99})
 	if !reflect.DeepEqual(classes, map[uint32]bool{2: true, 3: true, 5: true}) || !reflect.DeepEqual(teachers, map[uint32]bool{10: true, 11: true}) {
 		t.Fatalf("classes %v, teachers %v", classes, teachers)
 	}
-	classes, teachers = FindingEntities(nil, nil, nil)
+	classes, teachers = NewFindingIndex(nil).Entities(nil, nil)
 	if len(classes)+len(teachers) != 0 {
 		t.Fatalf("empty model: %v %v", classes, teachers)
 	}

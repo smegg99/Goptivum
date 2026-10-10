@@ -11,16 +11,34 @@ func Rating(quality float64, errors int) float64 {
 	return min(quality, max(0, 50-5*float64(errors)))
 }
 
-// FindingEntities returns unique classes and teachers named directly or through lessons.
-func FindingEntities(model *arrangov1.SchoolModel, refs map[string][]uint32, lessonIDs []uint32) (classes, teachers map[uint32]bool) {
-	classes, teachers = map[uint32]bool{}, map[uint32]bool{}
-	groups, splits := map[uint32]uint32{}, map[uint32]uint32{}
+// FindingIndex owns one report's model lookups.
+type FindingIndex struct {
+	groups, splits map[uint32]uint32
+	years          map[uint32][]uint32
+	lessons        map[uint32]*arrangov1.LessonInstance
+}
+
+// NewFindingIndex scans the model once, then resolves each finding by ID.
+func NewFindingIndex(model *arrangov1.SchoolModel) *FindingIndex {
+	index := &FindingIndex{groups: map[uint32]uint32{}, splits: map[uint32]uint32{}, years: map[uint32][]uint32{}, lessons: map[uint32]*arrangov1.LessonInstance{}}
 	for _, group := range model.GetGroups() {
-		groups[group.GetId()] = group.GetDivisionId()
+		index.groups[group.GetId()] = group.GetDivisionId()
 	}
 	for _, split := range model.GetSplits() {
-		splits[split.GetId()] = split.GetDivisionId()
+		index.splits[split.GetId()] = split.GetDivisionId()
 	}
+	for _, division := range model.GetDivisions() {
+		index.years[division.GetYearId()] = append(index.years[division.GetYearId()], division.GetId())
+	}
+	for _, lesson := range model.GetLessons() {
+		index.lessons[lesson.GetId()] = lesson
+	}
+	return index
+}
+
+// Entities returns unique classes and teachers named directly or through lessons.
+func (i *FindingIndex) Entities(refs map[string][]uint32, lessonIDs []uint32) (classes, teachers map[uint32]bool) {
+	classes, teachers = map[uint32]bool{}, map[uint32]bool{}
 	for kind, ids := range refs {
 		for _, id := range ids {
 			switch kind {
@@ -29,32 +47,23 @@ func FindingEntities(model *arrangov1.SchoolModel, refs map[string][]uint32, les
 			case "teacher":
 				teachers[id] = true
 			case "group":
-				classes[groups[id]] = true
+				classes[i.groups[id]] = true
 			case "split":
-				classes[splits[id]] = true
+				classes[i.splits[id]] = true
 			case "year":
-				for _, division := range model.GetDivisions() {
-					if division.GetYearId() == id {
-						classes[division.GetId()] = true
-					}
+				for _, division := range i.years[id] {
+					classes[division] = true
 				}
 			}
 		}
 	}
-
-	lessons := map[uint32]bool{}
 	for _, id := range lessonIDs {
-		lessons[id] = true
-	}
-	for _, lesson := range model.GetLessons() {
-		if !lessons[lesson.GetId()] {
-			continue
-		}
+		lesson := i.lessons[id]
 		teachers[lesson.GetTeacherId()] = true
 		teachers[lesson.GetSupportTeacherId()] = true
 		for _, part := range lesson.GetParticipants() {
 			classes[part.GetDivisionId()] = true
-			classes[groups[part.GetGroupId()]] = true
+			classes[i.groups[part.GetGroupId()]] = true
 		}
 	}
 	delete(classes, 0)

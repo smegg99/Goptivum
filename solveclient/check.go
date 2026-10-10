@@ -18,13 +18,15 @@ const (
 
 // Capable confirms through GetNodeInfo that the node's build has a capability;
 // one that lacks it is an *ErrOutdated.
-func (c *Conn) Capable(ctx context.Context, capability string) error {
+func (c *Conn) Capable(ctx context.Context, capabilities ...string) error {
 	info, err := c.Node.GetNodeInfo(ctx, &arrangorpcv1.NodeInfoRequest{})
 	if err != nil {
 		return callError(c.label, "node info", err)
 	}
-	if !slices.Contains(info.GetCapabilities(), capability) {
-		return &ErrOutdated{Node: c.label, Capability: capability}
+	for _, capability := range capabilities {
+		if !slices.Contains(info.GetCapabilities(), capability) {
+			return &ErrOutdated{Node: c.label, Capability: capability}
+		}
 	}
 	return nil
 }
@@ -45,10 +47,7 @@ func (c *Conn) Check(ctx context.Context, request *arrangorpcv1.CheckRequest) (*
 // RuleCatalogue is the solver's rule table and built-in profiles. A node
 // without the capability is *ErrOutdated.
 func (c *Conn) RuleCatalogue(ctx context.Context) (*arrangorpcv1.RuleCatalogue, error) {
-	if err := c.Capable(ctx, CapabilityRuleCatalogue); err != nil {
-		return nil, err
-	}
-	if err := c.Capable(ctx, CapabilityRuleMetadata); err != nil {
+	if err := c.Capable(ctx, CapabilityRuleCatalogue, CapabilityRuleMetadata); err != nil {
 		return nil, err
 	}
 	catalogue, err := c.Solver.GetRuleCatalogue(ctx, &arrangorpcv1.RuleCatalogueRequest{})
