@@ -19,6 +19,11 @@ func TestLocaleBeforeCommandExecution(t *testing.T) {
 		args []string
 		want string
 	}{
+		{"arrango help", []string{"arrango", "--lang=pl", "--help"}, "Zarządzaj sparowanymi"},
+		{"pair help", []string{"arrango", "pair", "--lang=pl", "--help"}, "lokalna nazwa tego węzła"},
+		{"pair help english", []string{"arrango", "pair", "--lang=en", "--help"}, "Pair a solving node"},
+		{"nodes help", []string{"arrango", "nodes", "--lang=pl", "--help"}, "Wyświetl sparowane"},
+		{"revoke help", []string{"arrango", "revoke", "--lang=pl", "--help"}, "Odwołaj węzeł"},
 		{"root help", []string{"--lang", "pl", "--help"}, "Dostępne polecenia:"},
 		{"help before language", []string{"--help", "--lang=pl"}, "Dostępne polecenia:"},
 		{"command help", []string{"status", "--lang=pl", "--help"}, "Opcje globalne:"},

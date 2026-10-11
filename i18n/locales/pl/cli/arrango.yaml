@@ -37,3 +37,18 @@ revokedNode:
 needURI:
   description: Error when the pair command was given no pairing URI.
   value: polecenie pair potrzebuje URI arrango:// wypisanego przez węzeł
+short:
+  description: Arrango command help.
+  value: Zarządzaj sparowanymi węzłami obliczeniowymi
+pairShort:
+  description: Arrango command help.
+  value: Sparuj węzeł obliczeniowy
+nodesShort:
+  description: Arrango command help.
+  value: Wyświetl sparowane węzły obliczeniowe
+revokeShort:
+  description: Arrango command help.
+  value: Odwołaj węzeł obliczeniowy
+labelFlag:
+  description: Arrango command help.
+  value: lokalna nazwa tego węzła

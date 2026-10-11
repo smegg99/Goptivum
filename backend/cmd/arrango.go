@@ -44,7 +44,7 @@ func newArrangoPairCmd(s *server) *cobra.Command {
 			return s.arrangoPair(cmd.Context(), args[0], label)
 		},
 	}
-	pair.Flags().StringVar(&label, "label", "goptivum", "how this node is named locally")
+	pair.Flags().StringVar(&label, "label", "goptivum", messages.CliArrangoLabelFlag(s.say()))
 	return pair
 }
 

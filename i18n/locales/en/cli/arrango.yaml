@@ -37,3 +37,18 @@ revokedNode:
 needURI:
   description: Error when the pair command was given no pairing URI.
   value: pair needs the arrango:// URI the node printed
+short:
+  description: Arrango command help.
+  value: Manage paired solving nodes
+pairShort:
+  description: Arrango command help.
+  value: Pair a solving node
+nodesShort:
+  description: Arrango command help.
+  value: List paired solving nodes
+revokeShort:
+  description: Arrango command help.
+  value: Revoke a solving node
+labelFlag:
+  description: Arrango command help.
+  value: how this node is named locally

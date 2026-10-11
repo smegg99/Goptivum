@@ -66,6 +66,15 @@ func (s *server) localize(root *cobra.Command, language string) {
 		case "status":
 			cmd.Short = messages.CliCommandStatusShort(words)
 			cmd.Long = messages.CliCommandStatusLong(words)
+		case "arrango":
+			cmd.Short = messages.CliArrangoShort(words)
+		case "pair":
+			cmd.Short = messages.CliArrangoPairShort(words)
+			cmd.Flags().Lookup("label").Usage = messages.CliArrangoLabelFlag(words)
+		case "nodes":
+			cmd.Short = messages.CliArrangoNodesShort(words)
+		case "revoke":
+			cmd.Short = messages.CliArrangoRevokeShort(words)
 		case "users":
 			cmd.Short = messages.CliUsersShort(words)
 		case "set-role":
