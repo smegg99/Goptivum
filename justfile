@@ -77,12 +77,6 @@ shared-contracts:
 check-shared-contracts:
 	python3 scripts/shared-contracts.py --check
 
-# Drive the whole server end to end against a real Optivum file and a
-# disposable Kratos. Creates nothing outside a temp directory and one container
-# named goptivum-smoke-kratos, and removes both on the way out.
-smoke:
-	./scripts/smoke.sh
-
 # Lint the authored contract tree and bundle it for the generators.
 contracts: check-shared-contracts
 	./contracts/node_modules/.bin/redocly lint --config contracts/backend/redocly.yaml backend@v1
@@ -117,8 +111,8 @@ check-locales:
 generate: locales shared-contracts generate-config generate-backend proto-go
 
 # Fails when a generated file does not match the authored source it came from.
-check-generated: generate
-	git diff --exit-code -- contracts/backend/dist/openapi.yaml contracts/shared backend/api/v1/gen backend/common/config/cue_types_config_gen.go document/gen
+check-generated:
+	python3 scripts/check-generated.py
 
 fmt:
 	gofmt -s -w backend tools document solveclient

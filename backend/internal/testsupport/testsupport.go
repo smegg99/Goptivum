@@ -54,12 +54,6 @@ func WritableFixture(t *testing.T, name string) string {
 	return path
 }
 
-// Golden returns a path under tests/golden.
-func Golden(t *testing.T, name string) string {
-	t.Helper()
-	return filepath.Join(root(t), "tests", "golden", name)
-}
-
 // Corpus returns real test files matching pattern, skipping when none exist.
 // A clean checkout has none: tests/data is gitignored personal data.
 func Corpus(t *testing.T, pattern string) []string {

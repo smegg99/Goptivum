@@ -23,7 +23,7 @@ __pycache__/
 # The bundled contract is versioned for API consumers.
 !contracts/dist/
 
-# Real files: personal data, never committed. See tests/README.md
+# Real files: personal data, never committed.
 tests/data/
 
 # Stray build output

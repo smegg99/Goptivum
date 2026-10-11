@@ -12,7 +12,6 @@ copy verifiable instead of a promise in a comment.
 import argparse
 import difflib
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 

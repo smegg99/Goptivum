@@ -62,7 +62,8 @@ func fixtureSchool(t *testing.T) document.Encoded {
 	if err != nil {
 		t.Fatalf("import fixture: %v", err)
 	}
-	doc, err := document.Encode(document.New(result.Model))
+	original := document.New(result.Model)
+	doc, err := document.Encode(original)
 	if err != nil {
 		t.Fatalf("encode: %v", err)
 	}
@@ -129,7 +130,8 @@ func TestInfraRealSchoolRoundTripsThroughBothBackends(t *testing.T) {
 			if err != nil {
 				t.Fatalf("import: %v", err)
 			}
-			doc, err := document.Encode(document.New(result.Model))
+			original := document.New(result.Model)
+			doc, err := document.Encode(original)
 			if err != nil {
 				t.Fatalf("encode: %v", err)
 			}
@@ -158,7 +160,10 @@ func TestInfraRealSchoolRoundTripsThroughBothBackends(t *testing.T) {
 					if err != nil {
 						t.Fatalf("load: %v", err)
 					}
-					read, err := proto.MarshalOptions{Deterministic: true}.Marshal(model)
+					if !proto.Equal(original, model) {
+						t.Error("the document envelope changed through storage")
+					}
+					read, err := proto.MarshalOptions{Deterministic: true}.Marshal(model.GetModel())
 					if err != nil {
 						t.Fatalf("marshal read: %v", err)
 					}
