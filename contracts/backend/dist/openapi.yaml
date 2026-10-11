@@ -2439,11 +2439,13 @@ components:
           type: string
           minLength: 1
           maxLength: 200
+          pattern: ^[^\r\n\x00]*$
           examples:
             - Plan lekcji 2026/2027
         school_year:
           type: string
           maxLength: 32
+          pattern: ^[^\r\n\x00]*$
           examples:
             - 2026/2027
         created_at:
@@ -2496,13 +2498,15 @@ components:
           type: string
           minLength: 1
           maxLength: 200
+          pattern: ^[^\r\n\x00]*$
           description: |
-            Trimmed. Blank is refused with `name: required`, longer than 200 letters with `name: too_long`.
+            Trimmed. Blank is refused with `name: required`, longer than 200 letters with `name: too_long`. CR, LF and NUL are refused with `name: invalid`.
         school_year:
           type: string
           maxLength: 32
+          pattern: ^[^\r\n\x00]*$
           description: |
-            Trimmed. Longer than 32 letters is refused with `school_year: too_long`.
+            Trimmed. Longer than 32 letters is refused with `school_year: too_long`. CR, LF and NUL are refused with `school_year: invalid`.
     PlanUpdate:
       type: object
       additionalProperties: false
@@ -2512,15 +2516,17 @@ components:
           type: string
           minLength: 1
           maxLength: 200
+          pattern: ^[^\r\n\x00]*$
           description: |
-            Trimmed. Blank is refused with `name: required`, longer than 200 letters with `name: too_long`.
+            Trimmed. Blank is refused with `name: required`, longer than 200 letters with `name: too_long`. CR, LF and NUL are refused with `name: invalid`.
           examples:
             - Plan 2027
         school_year:
           type: string
           maxLength: 32
+          pattern: ^[^\r\n\x00]*$
           description: |
-            Trimmed. An empty string clears it. Longer than 32 letters is refused with `school_year: too_long`.
+            Trimmed. An empty string clears it. Longer than 32 letters is refused with `school_year: too_long`. CR, LF and NUL are refused with `school_year: invalid`.
           examples:
             - 2026/2027
         backups_keep:
@@ -2577,6 +2583,7 @@ components:
           type: string
           minLength: 1
           maxLength: 200
+          pattern: ^[^\r\n\x00]*$
           description: |
             The copy's name. Trimmed. Blank is refused with `name: required`, longer than 200 letters with `name: too_long`. Absent names it after the origin with the server's `plans.forkName` in the server's own language ("Plan 2027 (fork)"), the origin's name shortened to fit.
           examples:
@@ -5002,7 +5009,7 @@ components:
           type: string
           format: date-time
           description: |
-            When the solve ended on the device; the result's `created_at`. Absent, or later than now on this server's clock, is now. A value that is not a date and time is refused with `solved_at: invalid`.
+            When the solve ended on the device; the result's `created_at`. Absent, or later than now on this server's clock, is now. A value that is not a date and time is refused with `solved_at: invalid`. An upload older than the plan's retained unpinned results is also refused with `solved_at: invalid`; a successful response always names a kept result.
         quality:
           type: number
           format: double

@@ -1538,10 +1538,10 @@ type PlanChange struct {
 
 // PlanCreate defines model for PlanCreate.
 type PlanCreate struct {
-	// Name Trimmed. Blank is refused with `name: required`, longer than 200 letters with `name: too_long`.
+	// Name Trimmed. Blank is refused with `name: required`, longer than 200 letters with `name: too_long`. CR, LF and NUL are refused with `name: invalid`.
 	Name string `json:"name"`
 
-	// SchoolYear Trimmed. Longer than 32 letters is refused with `school_year: too_long`.
+	// SchoolYear Trimmed. Longer than 32 letters is refused with `school_year: too_long`. CR, LF and NUL are refused with `school_year: invalid`.
 	SchoolYear *string `json:"school_year,omitempty"`
 }
 
@@ -1603,7 +1603,7 @@ type PlanUpdate struct {
 	// Examples: 5
 	BackupsKeep *int `json:"backups_keep,omitempty"`
 
-	// Name Trimmed. Blank is refused with `name: required`, longer than 200 letters with `name: too_long`.
+	// Name Trimmed. Blank is refused with `name: required`, longer than 200 letters with `name: too_long`. CR, LF and NUL are refused with `name: invalid`.
 	//
 	//
 	// Examples: Plan 2027
@@ -1615,7 +1615,7 @@ type PlanUpdate struct {
 	// Examples: 2
 	ResultsKeep *int `json:"results_keep,omitempty"`
 
-	// SchoolYear Trimmed. An empty string clears it. Longer than 32 letters is refused with `school_year: too_long`.
+	// SchoolYear Trimmed. An empty string clears it. Longer than 32 letters is refused with `school_year: too_long`. CR, LF and NUL are refused with `school_year: invalid`.
 	//
 	//
 	// Examples: 2026/2027
@@ -1943,7 +1943,7 @@ type SolveResultUpload struct {
 	// RuleProfile The rule profile the solve used in place of the plan's own rules, as the device sent it to its node; absent when it used the plan's rules. A built-in is named alone. A school profile carries its id and the overrides the solve was sent, which checkResult sends again whatever the profile became since. Anything else, including JSON that does not read as this object, is refused with `rule_profile: invalid`.
 	RuleProfile *SolveResultUploadProfile `json:"rule_profile,omitempty"`
 
-	// SolvedAt When the solve ended on the device; the result's `created_at`. Absent, or later than now on this server's clock, is now. A value that is not a date and time is refused with `solved_at: invalid`.
+	// SolvedAt When the solve ended on the device; the result's `created_at`. Absent, or later than now on this server's clock, is now. A value that is not a date and time is refused with `solved_at: invalid`. An upload older than the plan's retained unpinned results is also refused with `solved_at: invalid`; a successful response always names a kept result.
 	SolvedAt *time.Time `json:"solved_at,omitempty"`
 
 	// SourceVersion The version of the main file whose school data the result carries. It may have been removed by the backups cap since. Absent is refused with `source_version: required`, a value below 1 or not a number with `source_version: invalid`, a version above the plan's newest with `source_version: unknown`.

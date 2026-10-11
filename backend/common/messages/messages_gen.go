@@ -88,6 +88,11 @@ func CliArrangoLabel(l *i18n.Localizer) string {
 	return plain(l, "cli.arrango.label")
 }
 
+// CliArrangoLabelFlag Arrango command help.
+func CliArrangoLabelFlag(l *i18n.Localizer) string {
+	return plain(l, "cli.arrango.labelFlag")
+}
+
 // CliArrangoNeedURI Error when the pair command was given no pairing URI.
 func CliArrangoNeedURI(l *i18n.Localizer) string {
 	return plain(l, "cli.arrango.needURI")
@@ -96,6 +101,11 @@ func CliArrangoNeedURI(l *i18n.Localizer) string {
 // CliArrangoNodes Heading over the list of paired nodes.
 func CliArrangoNodes(l *i18n.Localizer) string {
 	return plain(l, "cli.arrango.nodes")
+}
+
+// CliArrangoNodesShort Arrango command help.
+func CliArrangoNodesShort(l *i18n.Localizer) string {
+	return plain(l, "cli.arrango.nodesShort")
 }
 
 // CliArrangoNone Shown when no node has been paired yet.
@@ -108,9 +118,19 @@ func CliArrangoOurFingerprint(l *i18n.Localizer) string {
 	return plain(l, "cli.arrango.ourFingerprint")
 }
 
+// CliArrangoPairShort Arrango command help.
+func CliArrangoPairShort(l *i18n.Localizer) string {
+	return plain(l, "cli.arrango.pairShort")
+}
+
 // CliArrangoPaired Heading after a node has been paired.
 func CliArrangoPaired(l *i18n.Localizer) string {
 	return plain(l, "cli.arrango.paired")
+}
+
+// CliArrangoRevokeShort Arrango command help.
+func CliArrangoRevokeShort(l *i18n.Localizer) string {
+	return plain(l, "cli.arrango.revokeShort")
 }
 
 // CliArrangoRevoked A node this server no longer dispatches to.
@@ -121,6 +141,11 @@ func CliArrangoRevoked(l *i18n.Localizer) string {
 // CliArrangoRevokedNode Confirmation that a node was revoked.
 func CliArrangoRevokedNode(l *i18n.Localizer) string {
 	return plain(l, "cli.arrango.revokedNode")
+}
+
+// CliArrangoShort Arrango command help.
+func CliArrangoShort(l *i18n.Localizer) string {
+	return plain(l, "cli.arrango.short")
 }
 
 // CliArrangoState Column saying whether a node is still trusted.
