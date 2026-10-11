@@ -35,3 +35,8 @@ then prints the generated password once. Data defaults to `goptivum.db`
 (SQLite) and `documents/`.
 
 ## Development
+
+`just test` runs the Go tests. `just check` also checks formatting, vet,
+locales, and generated files. Generation checks need Python 3, pnpm,
+protoc 33.1 and protoc-gen-go v1.36.11. Install the contract tools with
+`pnpm --dir contracts install`.
