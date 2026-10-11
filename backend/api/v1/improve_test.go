@@ -177,9 +177,9 @@ func TestAnImproveOfATimetableTheNodeFindsInvalidIsRefusedWithItsCountAndKinds(t
 	s := newSolvingServer(t)
 	planID := s.planWith(t, lessonModel(2), fullTimetable(cell(1, 1, 0), cell(2, 3, 0)))
 	node := &solveNode{validation: &arrangov1.ValidationReport{Conflicts: []*arrangov1.Conflict{
-		{Kind: arrangov1.Conflict_KIND_EXTERNAL_BLOCK_OVERLAP, LessonIds: []uint32{1}},
-		{Kind: arrangov1.Conflict_KIND_TEACHER_OVERLOADED, EntityId: 7},
-		{Kind: arrangov1.Conflict_KIND_EXTERNAL_BLOCK_OVERLAP, LessonIds: []uint32{2}},
+		{Kind: arrangov1.Conflict_KIND_EXTERNAL_BLOCK_OVERLAP, Lessons: []*arrangov1.LessonRef{{LessonId: 1}}},
+		{Kind: arrangov1.Conflict_KIND_TEACHER_OVERLOADED, Entities: []*arrangov1.EntityRef{{Kind: arrangov1.EntityKind_ENTITY_KIND_TEACHER, Id: 7}}},
+		{Kind: arrangov1.Conflict_KIND_EXTERNAL_BLOCK_OVERLAP, Lessons: []*arrangov1.LessonRef{{LessonId: 2}}},
 	}}}
 	nodeID := s.pair(t, "solving", node)
 

@@ -387,6 +387,21 @@ func TestAnUploadedResultCountsInTheResultsCap(t *testing.T) {
 	if want := []string{kept[2], kept[1]}; !slices.Equal(listed, want) {
 		t.Errorf("listed %v, want the 2 newest %v", listed, want)
 	}
+	refused := uploadDeviceResult(t, office, plan.Id, asAnna, sent.
+		with("upload_key", "device-result-000004").
+		with("solved_at", "2026-08-01T08:00:00Z"))
+	var envelope gen.Error
+	if refused.Code != http.StatusUnprocessableEntity || json.Unmarshal(refused.Body.Bytes(), &envelope) != nil ||
+		envelope.Details == nil || (*envelope.Details)["solved_at"] != "invalid" {
+		t.Fatalf("older than retention = %d %s", refused.Code, refused.Body.String())
+	}
+	listed = nil
+	for _, result := range listedResults(t, office, plan.Id) {
+		listed = append(listed, result.Id)
+	}
+	if !slices.Equal(listed, []string{kept[2], kept[1]}) {
+		t.Fatalf("refused upload changed the retained results: %v", listed)
+	}
 }
 
 // The change listing names the plan's results, so another device reads them

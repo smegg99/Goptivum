@@ -99,7 +99,7 @@ func TestASolvedTimetableIsAResultOfItsPlan(t *testing.T) {
 	if downloaded.Code != http.StatusOK || downloaded.Header().Get("Content-Type") != "application/zstd" {
 		t.Fatalf("download = %d %q", downloaded.Code, downloaded.Header().Get("Content-Type"))
 	}
-	encoded, err := document.FromBytes(downloaded.Body.Bytes())
+	encoded, _, err := document.FromBytes(downloaded.Body.Bytes())
 	if err != nil {
 		t.Fatalf("the download is not a document: %v", err)
 	}

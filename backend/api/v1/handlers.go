@@ -3,6 +3,7 @@
 package v1
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -224,14 +225,15 @@ func (a *API) ListPlans(ctx context.Context, request gen.ListPlansRequestObject)
 		return gen.ListPlans401JSONResponse{UnauthorizedJSONResponse: gen.UnauthorizedJSONResponse(unauthorized())}, nil
 	}
 
-	all, err := a.plans.List(ctx)
+	page, limit := pageOf(request.Params.Page, request.Params.Limit)
+	query := ""
+	if request.Params.Q != nil {
+		query = *request.Params.Q
+	}
+	shown, total, err := a.plans.ListPage(ctx, query, pageOffset(page, limit), limit)
 	if err != nil {
 		return gen.ListPlans503JSONResponse{UnavailableJSONResponse: gen.UnavailableJSONResponse(unavailable())}, nil
 	}
-
-	matched := search(all, request.Params.Q)
-	page, limit := pageOf(request.Params.Page, request.Params.Limit)
-	shown := window(matched, page, limit)
 	view, err := a.viewOf(ctx, shown...)
 	if err != nil {
 		return gen.ListPlans503JSONResponse{UnavailableJSONResponse: gen.UnavailableJSONResponse(unavailable())}, nil
@@ -241,25 +243,8 @@ func (a *API) ListPlans(ctx context.Context, request gen.ListPlansRequestObject)
 		items = append(items, a.planBody(plan, view))
 	}
 	return gen.ListPlans200JSONResponse{
-		Items: items, Page: page, Limit: limit, Total: len(matched),
+		Items: items, Page: page, Limit: limit, Total: total,
 	}, nil
-}
-
-// search filters on the plan name and the school year, which is what the
-// contract says q covers.
-func search(all []plans.Plan, query *string) []plans.Plan {
-	if query == nil || strings.TrimSpace(*query) == "" {
-		return all
-	}
-	needle := strings.ToLower(strings.TrimSpace(*query))
-	var out []plans.Plan
-	for _, plan := range all {
-		if strings.Contains(strings.ToLower(plan.Name), needle) ||
-			strings.Contains(strings.ToLower(plan.SchoolYear), needle) {
-			out = append(out, plan)
-		}
-	}
-	return out
 }
 
 // pageOf clamps rather than rejects: a page of 0 or a limit of 10000 is
@@ -280,16 +265,12 @@ func pageOf(page, limit *int) (int, int) {
 	return resolvedPage, resolvedLimit
 }
 
-func window(all []plans.Plan, page, limit int) []plans.Plan {
-	start := (page - 1) * limit
-	if start < 0 || start >= len(all) {
-		return nil
+func pageOffset(page, limit int) int {
+	const maxInt = int(^uint(0) >> 1)
+	if page-1 > maxInt/limit {
+		return maxInt
 	}
-	end := start + limit
-	if end > len(all) {
-		end = len(all)
-	}
-	return all[start:end]
+	return (page - 1) * limit
 }
 
 // CreatePlan makes a plan together with its version 1: the document sent, or
@@ -314,7 +295,7 @@ func (a *API) CreatePlan(ctx context.Context, request gen.CreatePlanRequestObjec
 
 	var encoded document.Encoded
 	if form.hasFile {
-		encoded, err = document.FromBytes(form.file)
+		encoded, _, err = document.FromBytes(form.file)
 		if err != nil {
 			return gen.CreatePlan422JSONResponse{ValidationJSONResponse: gen.ValidationJSONResponse(validation("document", "unreadable"))}, nil
 		}
@@ -548,7 +529,7 @@ func (a *API) DownloadVersion(ctx context.Context, request gen.DownloadVersionRe
 		return gen.DownloadVersion503JSONResponse{UnavailableJSONResponse: gen.UnavailableJSONResponse(unavailable())}, nil
 	}
 	return gen.DownloadVersion200ApplicationzstdResponse{
-		Body: strings.NewReader(string(data)), ContentLength: int64(len(data)),
+		Body: bytes.NewReader(data), ContentLength: int64(len(data)),
 	}, nil
 }
 
@@ -590,7 +571,7 @@ func (a *API) UploadVersion(ctx context.Context, request gen.UploadVersionReques
 
 	// Everything the form carries is checked before anything is stored, so a
 	// refused upload leaves no object behind.
-	encoded, err := document.FromBytes(form.file)
+	encoded, _, err := document.FromBytes(form.file)
 	if err != nil {
 		return gen.UploadVersion422JSONResponse{ValidationJSONResponse: gen.ValidationJSONResponse(validation("document", "unreadable"))}, nil
 	}
@@ -705,15 +686,7 @@ func uploadOf(form uploadForm) (plans.Upload, error) {
 // refuses it. Every plan is created with version 1, so an upload always names
 // one.
 func parentOf(fields map[string]string) (int64, string) {
-	raw, ok := fields["parent"]
-	if !ok || strings.TrimSpace(raw) == "" {
-		return 0, "required"
-	}
-	parent, err := strconv.ParseInt(strings.TrimSpace(raw), 10, 64)
-	if err != nil || parent < 1 {
-		return 0, "invalid"
-	}
-	return parent, ""
+	return positiveOf(fields, "parent")
 }
 
 // dateOf reads a schedule validity date: absent is nil, which keeps the

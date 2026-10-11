@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"math"
 	"regexp"
 	"strconv"
@@ -69,11 +70,7 @@ func (a *API) UploadResult(ctx context.Context, request gen.UploadResultRequestO
 
 	// Everything the form carries is checked before anything is stored, so a
 	// refused upload leaves no object behind.
-	encoded, err := document.FromBytes(form.file)
-	if err != nil {
-		return uploadRefused(validation("document", "unreadable")), nil
-	}
-	doc, err := document.Decode(encoded.Bytes)
+	encoded, doc, err := document.FromBytes(form.file)
 	if err != nil {
 		return uploadRefused(validation("document", "unreadable")), nil
 	}
@@ -166,8 +163,8 @@ func positiveOf(fields map[string]string, field string) (int64, string) {
 	if !ok || strings.TrimSpace(raw) == "" {
 		return 0, "required"
 	}
-	value, err := strconv.ParseInt(strings.TrimSpace(raw), 10, 64)
-	if err != nil || value < 1 {
+	value, valid := planID(raw)
+	if !valid {
 		return 0, "invalid"
 	}
 	return value, ""
@@ -180,7 +177,10 @@ func ruleProfileOf(raw string) (*plans.RuleProfile, bool) {
 	decoder := json.NewDecoder(bytes.NewReader([]byte(raw)))
 	decoder.DisallowUnknownFields()
 	var body gen.SolveResultUploadProfile
-	if err := decoder.Decode(&body); err != nil || decoder.More() {
+	if err := decoder.Decode(&body); err != nil {
+		return nil, false
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
 		return nil, false
 	}
 	name := strings.TrimSpace(body.Name)
