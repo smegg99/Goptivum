@@ -93,8 +93,7 @@ package config
 	path: string | *"./goptivum.db" @go(Path)
 }
 
-// Documents live in a bucket by default and in a directory for a single-box or
-// air-gapped school. An empty endpoint selects the directory.
+// Documents default to a local directory. A configured endpoint uses a bucket.
 #Documents: {
 	endpoint:   string | *""                @go(Endpoint)
 	bucket:     string | *"goptivum-plans"  @go(Bucket)

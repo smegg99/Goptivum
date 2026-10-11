@@ -25,7 +25,7 @@ const keyringService = "Goptivum Server"
 // Load reads and validates the configuration, writing the defaults on first
 // run so a fresh install starts with a file it can edit rather than an error.
 func Load(path string) (Config, string, error) {
-	// A .env beside the binary is how a development machine supplies secrets.
+	// A .env in the working directory is how a development machine supplies secrets.
 	_ = godotenv.Load()
 
 	if path == "" {

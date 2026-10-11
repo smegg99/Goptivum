@@ -5,6 +5,7 @@ package v1
 import (
 	"context"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/smegg99/s99logger"
@@ -20,6 +21,7 @@ import (
 // Security serves how signing in is protected: the lockout the /kratos proxy
 // enforces and the password rules Kratos enforces. Every route is admin-only.
 type Security struct {
+	changes  sync.Mutex
 	settings *config.SettingsStore
 	guard    *lockout.Guard
 	// kratosConfig is Kratos's own configuration file; empty means the
@@ -70,6 +72,8 @@ func (s *Security) UpdateLockout(ctx context.Context, request gen.UpdateLockoutR
 	if body == nil || (body.AccountFailures == nil && body.AddressFailures == nil && body.BlockMinutes == nil) {
 		return gen.UpdateLockout422JSONResponse{ValidationJSONResponse: gen.ValidationJSONResponse(validation("body", "empty"))}, nil
 	}
+	s.changes.Lock()
+	defer s.changes.Unlock()
 	before := s.settings.Current().Lockout
 	merged := before
 	if body.AccountFailures != nil {

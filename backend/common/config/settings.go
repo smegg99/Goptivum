@@ -22,6 +22,7 @@ type SettingsStore struct {
 	loader *s99config.Loader
 	path   string
 
+	writes  sync.Mutex
 	mu      sync.RWMutex
 	current Settings
 }
@@ -62,6 +63,8 @@ func (s *SettingsStore) Current() Settings {
 // SetLockout replaces the lockout limits. The schema checks the whole file
 // before it is written, so a refused value leaves the file and Current alone.
 func (s *SettingsStore) SetLockout(lockout Lockout) (Settings, error) {
+	s.writes.Lock()
+	defer s.writes.Unlock()
 	if err := s.loader.Patch(map[string]any{"lockout": lockout}); err != nil {
 		return Settings{}, fmt.Errorf("change %s: %w", s.path, err)
 	}
@@ -75,6 +78,8 @@ func (s *SettingsStore) SetLockout(lockout Lockout) (Settings, error) {
 // written like SetLockout. No addresses is an empty list, which the schema
 // takes and a null is not.
 func (s *SettingsStore) SetServer(server ServerSettings, projects Projects) (Settings, error) {
+	s.writes.Lock()
+	defer s.writes.Unlock()
 	if server.PublicAddresses == nil {
 		server.PublicAddresses = []string{}
 	}

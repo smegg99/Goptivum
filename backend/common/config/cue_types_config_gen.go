@@ -89,8 +89,7 @@ type Database struct {
 	Path string `json:"path"`
 }
 
-// Documents live in a bucket by default and in a directory for a single-box or
-// air-gapped school. An empty endpoint selects the directory.
+// Documents default to a local directory. A configured endpoint uses a bucket.
 type Documents struct {
 	Endpoint string `json:"endpoint"`
 

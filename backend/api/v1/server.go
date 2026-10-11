@@ -35,12 +35,6 @@ import (
 // avoid.
 const MaxUploadSize = 16 << 20
 
-// roleAdmin is the metadata_public value that opens the administrative routes.
-// It is the identity package's own constant, repeated here rather than
-// imported, because the api package must not depend on the identity package to
-// know one string.
-const roleAdmin = "admin"
-
 // MaxRequestSize bounds a JSON request. The plan endpoints carry a name and a
 // school year, nothing more.
 const MaxRequestSize = 1 << 20
@@ -303,7 +297,7 @@ func (s *Server) register(handlers gen.StrictServerInterface, demo bool) {
 	// RequireMeta reads metadata_public and never traits, and answers 404 to a
 	// signed-in caller who fails it: a 403 would confirm the back office is
 	// real to a planner probing for it.
-	admin := s.groups.Guarded.Group("", kratosauth.RequireMeta("role", roleAdmin))
+	admin := s.groups.Guarded.Group("", kratosauth.RequireMeta("role", identity.RoleAdmin))
 	admin.GET("/users", wrapper.ListUsers)
 	admin.POST("/users", wrapper.CreateUser)
 	admin.GET("/users/:userId", wrapper.GetUser)
