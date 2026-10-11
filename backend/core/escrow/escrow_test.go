@@ -5,6 +5,7 @@ package escrow_test
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"sync"
 	"testing"
@@ -279,5 +280,29 @@ func TestWithoutEscrowFilesAreWrittenPlain(t *testing.T) {
 	}
 	if read.Mode != gpf.ModePlain {
 		t.Errorf("mode = %q, want plain with no escrow configured", read.Mode)
+	}
+}
+
+func TestFileKeyIsOwnedForTheStoreLifetime(t *testing.T) {
+	conn := db.TestDB(t, migrations.FS)
+	store := escrow.NewStore(conn, db.SQLite, passphrase).WithWorkFactor(10)
+	key, err := store.Ensure(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := conn.Exec(`update school_key set sealed = x'0000' where id = 1`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Get(t.Context()); err == nil {
+		t.Fatal("direct storage read ignored changed ciphertext")
+	}
+	keys := store.ForFiles()
+	identity, err := keys.Identity(t.Context())
+	if err != nil || identity != key.Identity {
+		t.Fatal("file codec lost its loaded key")
+	}
+	recipient, err := keys.Recipient(t.Context())
+	if err != nil || fmt.Sprint(recipient) != key.Recipient {
+		t.Fatal("file codec changed its variant")
 	}
 }

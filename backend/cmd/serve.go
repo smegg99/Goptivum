@@ -62,8 +62,8 @@ func (s *server) serve(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("open %s: %w", database.Driver, err)
 	}
+	defer conn.Close()
 	if err := db.Migrate(conn, migrations.FS, database.Driver); err != nil {
-		conn.Close()
 		return fmt.Errorf("migrate: %w", err)
 	}
 	logger.Log.Debug(s99logger.NewEvent(logger.EventMigrationsDone,
@@ -71,7 +71,6 @@ func (s *server) serve(ctx context.Context) error {
 
 	objects, err := s.objects(ctx)
 	if err != nil {
-		conn.Close()
 		return fmt.Errorf("open storage: %w", err)
 	}
 	logger.Log.Debug(s99logger.NewEvent(logger.EventStorageReady,
@@ -83,7 +82,6 @@ func (s *server) serve(ctx context.Context) error {
 	if keys.Enabled() {
 		key, err := keys.Ensure(ctx)
 		if err != nil {
-			conn.Close()
 			return err
 		}
 		logger.Log.Info(s99logger.NewEvent(logger.EventEscrowKeyReady,
@@ -94,7 +92,6 @@ func (s *server) serve(ctx context.Context) error {
 
 	sessions, admin, ready, err := s.kratos()
 	if err != nil {
-		conn.Close()
 		return err
 	}
 
@@ -103,7 +100,6 @@ func (s *server) serve(ctx context.Context) error {
 	// cap and the request limiter are built into the router once, below.
 	stored, err := config.OpenSettings(s.path)
 	if err != nil {
-		conn.Close()
 		return messages.WrapFault(err, messages.KeyCliCommandConfigFailed, map[string]any{"Detail": err})
 	}
 	guard := lockout.New(apiv1.LimitsOf(stored.Current().Lockout), time.Now)
@@ -120,7 +116,6 @@ func (s *server) serve(ctx context.Context) error {
 	nodes := arrango.NewRegistry(conn, database.Driver)
 	dialer, err := s.arrangoDialer()
 	if err != nil {
-		conn.Close()
 		return err
 	}
 	jobRows := arrango.NewJobs(conn, database.Driver)
@@ -143,6 +138,7 @@ func (s *server) serve(ctx context.Context) error {
 	if dispatcher, err := arrango.NewDispatcher(dialer, nodes, jobRows, results.Persist(index, store), index.Live); err == nil {
 		runner = arrango.NewRunner(dispatcher, jobRows)
 	}
+	defer closeRunner(runner)()
 	// After the runner: deleting a plan stops its solves first.
 	handlers, err := apiv1.NewAPI(index, store,
 		formats.NewRegistry(planxml.New(), optivumhtml.NewImporter(),
@@ -153,8 +149,6 @@ func (s *server) serve(ctx context.Context) error {
 			Language:      s.settings.Application.Language,
 		})
 	if err != nil {
-		closeRunner(runner)()
-		conn.Close()
 		return err
 	}
 	handlers.WithAudit(trail).WithAccounts(admin)
@@ -167,8 +161,6 @@ func (s *server) serve(ctx context.Context) error {
 		},
 		exports.Format{Exporter: optivumhtml.NewExporter(), ContentType: "application/zip"})
 	if err != nil {
-		closeRunner(runner)()
-		conn.Close()
 		return err
 	}
 	ruleProfiles := profiles.NewRepository(conn, database.Driver)
@@ -217,8 +209,6 @@ func (s *server) serve(ctx context.Context) error {
 		DemoSchool:               s.settings.Dev.DemoSchool,
 	})
 	if err != nil {
-		closeRunner(runner)()
-		conn.Close()
 		return err
 	}
 	if api.ServesDemo() {
@@ -227,8 +217,6 @@ func (s *server) serve(ctx context.Context) error {
 
 	purger, err := startUpkeep(ctx, index, store, trashDays)
 	if err != nil {
-		closeRunner(runner)()
-		conn.Close()
 		return err
 	}
 

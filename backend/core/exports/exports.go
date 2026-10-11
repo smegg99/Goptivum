@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/smegg99/s99ab/data/storage"
 	"golang.org/x/sync/singleflight"
@@ -111,8 +112,9 @@ func (s *Service) File(ctx context.Context, source Source, format string) (File,
 
 	// Detached, so one caller that leaves does not fail the build the others
 	// wait for.
-	build := context.WithoutCancel(ctx)
 	answer := s.flight.DoChan(key, func() (any, error) {
+		build, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+		defer cancel()
 		return s.build(build, source, key, format, chosen, variant)
 	})
 	select {

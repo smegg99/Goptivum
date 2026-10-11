@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 	"time"
 
 	"filippo.io/age"
@@ -52,6 +53,8 @@ var now = func() time.Time { return time.Now().UTC() }
 
 // Store is the school_key table.
 type Store struct {
+	fileMu     sync.Mutex
+	fileKey    *Key
 	conn       *sql.DB
 	driver     string
 	passphrase string
@@ -101,6 +104,7 @@ func (s *Store) Ensure(ctx context.Context) (*Key, error) {
 	}
 	key, err := s.Get(ctx)
 	if err == nil {
+		s.remember(key)
 		return key, nil
 	}
 	if !errors.Is(err, ErrNoKey) {
@@ -125,11 +129,14 @@ func (s *Store) Ensure(ctx context.Context) (*Key, error) {
 		// school's key, not this one: a second key would leave half the files
 		// unreadable.
 		if existing, readErr := s.Get(ctx); readErr == nil {
+			s.remember(existing)
 			return existing, nil
 		}
 		return nil, fmt.Errorf("escrow: store key: %w", err)
 	}
-	return &Key{Identity: identity, Recipient: identity.Recipient().String(), CreatedAt: created}, nil
+	key = &Key{Identity: identity, Recipient: identity.Recipient().String(), CreatedAt: created}
+	s.remember(key)
+	return key, nil
 }
 
 // Get reads the school's key, unsealing it.
@@ -236,6 +243,29 @@ func unseal(sealed []byte, passphrase string, workFactor int) (string, error) {
 	return string(opened), nil
 }
 
+// remember owns the file codec's key for this process lifetime. Rotation and
+// database replacement require a server restart; Get/Public still read storage.
+func (s *Store) remember(key *Key) {
+	s.fileMu.Lock()
+	defer s.fileMu.Unlock()
+	if s.fileKey == nil {
+		s.fileKey = key
+	}
+}
+
+func (s *Store) forFiles(ctx context.Context) (*Key, error) {
+	s.fileMu.Lock()
+	defer s.fileMu.Unlock()
+	if s.fileKey != nil {
+		return s.fileKey, nil
+	}
+	key, err := s.Get(ctx)
+	if err == nil {
+		s.fileKey = key
+	}
+	return key, err
+}
+
 // Keys adapts this store to what the .gpf codec asks for.
 //
 // A separate type so the codec depends on two small methods rather than on a
@@ -253,7 +283,7 @@ func (k *Keys) Identity(ctx context.Context) (age.Identity, error) {
 	if k == nil || !k.store.Enabled() {
 		return nil, nil
 	}
-	key, err := k.store.Get(ctx)
+	key, err := k.store.forFiles(ctx)
 	if errors.Is(err, ErrNoKey) {
 		return nil, nil
 	}
@@ -271,6 +301,12 @@ func (k *Keys) Identity(ctx context.Context) (age.Identity, error) {
 func (k *Keys) Recipient(ctx context.Context) (age.Recipient, error) {
 	if k == nil || !k.store.Enabled() {
 		return nil, nil
+	}
+	k.store.fileMu.Lock()
+	cached := k.store.fileKey
+	k.store.fileMu.Unlock()
+	if cached != nil {
+		return cached.Identity.Recipient(), nil
 	}
 	stored, err := k.store.Public(ctx)
 	if errors.Is(err, ErrNoKey) {
